@@ -1,0 +1,6 @@
+{
+  "name": "Creator Experiment Lab",
+  "description": "A comprehensive dashboard for content creators to plan content, run A/B tests, and track engagement.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
