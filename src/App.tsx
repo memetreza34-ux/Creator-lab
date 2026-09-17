@@ -3,38 +3,37 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './components/Dashboard';
-import { Planner } from './components/Planner';
-import { ExperimentLab } from './components/ExperimentLab';
-import type { Tab } from './types';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppLayout } from './components/layout/AppLayout';
+import { DashboardPage } from './pages/DashboardPage';
+import { CreatePostPage } from './pages/CreatePostPage';
+import { CalendarPage } from './pages/CalendarPage';
+import { PipelinePage } from './pages/PipelinePage';
+import { PostsPage } from './pages/PostsPage';
+import { MediaLibraryPage } from './pages/MediaLibraryPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { ExperimentLabPage } from './pages/ExperimentLabPage';
+import { SocialAccountsPage } from './pages/SocialAccountsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<Tab>('dashboard');
-
   return (
-    <div className="flex h-screen bg-zinc-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} />
-      
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-8">
-          {currentTab === 'dashboard' && <Dashboard />}
-          {currentTab === 'planner' && <Planner />}
-          {currentTab === 'experiments' && <ExperimentLab />}
-          {currentTab === 'analytics' && (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-              <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">📊</span>
-              </div>
-              <h2 className="text-xl font-bold text-zinc-900">Advanced Analytics</h2>
-              <p className="text-zinc-500 mt-2 max-w-sm">
-                Connect your YouTube and Instagram APIs to see deep dives into your content metrics here.
-              </p>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="create" element={<CreatePostPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="pipeline" element={<PipelinePage />} />
+          <Route path="posts" element={<PostsPage />} />
+          <Route path="media" element={<MediaLibraryPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="experiments" element={<ExperimentLabPage />} />
+          <Route path="accounts" element={<SocialAccountsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

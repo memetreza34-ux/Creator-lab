@@ -1,36 +1,17 @@
 import React from 'react';
 import { Beaker, TrendingUp, Users } from 'lucide-react';
-import type { Experiment } from '../types';
+import { mockExperiments } from '../data/mockData';
+import { Experiment } from '../types';
 
-const mockExperiments: Experiment[] = [
-  {
-    id: '1',
-    name: 'Thumbnail A/B: "I Tried" vs "I Failed"',
-    metricName: 'Click-Through Rate',
-    status: 'running',
-    variantA: { label: 'Thumbnail A (Blue)', metric: 5.2 },
-    variantB: { label: 'Thumbnail B (Red)', metric: 6.8 },
-  },
-  {
-    id: '2',
-    name: 'Title A/B: Hook format vs Story format',
-    metricName: 'Avg. View Duration (min)',
-    status: 'concluded',
-    winner: 'B',
-    variantA: { label: 'Hook-first title', metric: 4.1 },
-    variantB: { label: 'Story-focused title', metric: 5.6 },
-  },
-];
-
-export function ExperimentLab() {
+export function ExperimentLabPage() {
   return (
-    <div className="space-y-6">
+    <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">A/B Experiment Lab</h1>
-          <p className="text-zinc-500 mt-1">Test variants and track statistical significance.</p>
+          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">A/B Experiment Lab</h1>
+          <p className="text-sm text-zinc-500 mt-1">Test variants and track statistical significance.</p>
         </div>
-        <button className="flex items-center px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200">
+        <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
           <Beaker className="w-4 h-4 mr-2" />
           New Experiment
         </button>
@@ -98,7 +79,7 @@ const ExperimentCard: React.FC<{ experiment: Experiment }> = ({ experiment }) =>
           <span>Variant A ({aPercent.toFixed(1)}%)</span>
           <span>Variant B ({bPercent.toFixed(1)}%)</span>
         </div>
-        <div className="w-full h-2 rounded-full overflow-hidden flex">
+        <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden flex">
           <div className="bg-indigo-500 h-full" style={{ width: `${aPercent}%` }} />
           <div className="bg-emerald-500 h-full" style={{ width: `${bPercent}%` }} />
         </div>
