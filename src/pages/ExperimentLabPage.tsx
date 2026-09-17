@@ -1,9 +1,19 @@
 import React from 'react';
 import { Beaker, TrendingUp, Users } from 'lucide-react';
-import { mockExperiments } from '../data/mockData';
+import { useApp } from '../context/AppContext';
 import { Experiment } from '../types';
+import toast from 'react-hot-toast';
 
 export function ExperimentLabPage() {
+  const { state } = useApp();
+  
+  // We don't have workspace filtering for experiments in mock yet, but we'd normally filter here.
+  const experiments = state.experiments;
+
+  const handleNewExperiment = () => {
+    toast.error('New experiments are not available in the demo');
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
       <div className="flex items-center justify-between">
@@ -11,14 +21,17 @@ export function ExperimentLabPage() {
           <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">A/B Experiment Lab</h1>
           <p className="text-sm text-zinc-500 mt-1">Test variants and track statistical significance.</p>
         </div>
-        <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+        <button 
+          onClick={handleNewExperiment}
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+        >
           <Beaker className="w-4 h-4 mr-2" />
           New Experiment
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockExperiments.map((exp) => (
+        {experiments.map((exp) => (
           <ExperimentCard key={exp.id} experiment={exp} />
         ))}
       </div>

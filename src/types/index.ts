@@ -8,8 +8,10 @@ export interface Workspace {
 
 export interface SocialAccount {
   id: string;
+  workspaceId: string;
   platform: Platform;
   username: string;
+  displayName: string;
   avatarUrl?: string;
   status: 'connected' | 'disconnected' | 'error';
   lastSync: string;
@@ -19,7 +21,7 @@ export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'needs
 
 export interface PostContent {
   caption: string;
-  media: MediaAsset[];
+  mediaIds: string[];
 }
 
 export interface PlatformSpecificContent {
@@ -32,6 +34,7 @@ export interface Post {
   id: string;
   workspaceId: string;
   title: string;
+  destinationAccountIds: string[];
   originalContent: PostContent;
   platformContent: PlatformSpecificContent[];
   status: PostStatus;
@@ -42,6 +45,7 @@ export interface Post {
 
 export interface MediaAsset {
   id: string;
+  workspaceId: string;
   url: string;
   type: 'image' | 'video';
   thumbnailUrl?: string;
@@ -54,6 +58,7 @@ export type PipelineStage = 'ideas' | 'research' | 'script' | 'recording' | 'edi
 
 export interface ContentItem {
   id: string;
+  workspaceId: string;
   title: string;
   stage: PipelineStage;
   platforms: Platform[];
@@ -73,6 +78,7 @@ export interface AnalyticsMetric {
 
 export interface Experiment {
   id: string;
+  workspaceId: string;
   name: string;
   variantA: { label: string; metric: number; image?: string };
   variantB: { label: string; metric: number; image?: string };

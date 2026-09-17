@@ -1,7 +1,8 @@
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, Eye, MousePointerClick, TrendingUp, Users, Calendar, Sparkles } from 'lucide-react';
-import { mockAnalytics, mockPosts } from '../data/mockData';
+import { ArrowUpRight, ArrowDownRight, Eye, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 const data = [
   { name: 'Mon', reach: 14000, engagement: 240 },
@@ -14,13 +15,19 @@ const data = [
 ];
 
 export function DashboardPage() {
-  const scheduledPosts = mockPosts.filter(p => p.status === 'scheduled');
+  const { state } = useApp();
+  const navigate = useNavigate();
+  
+  const scheduledPosts = state.posts
+    .filter(p => p.status === 'scheduled')
+    .sort((a, b) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime())
+    .slice(0, 5); // take top 5 upcoming
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {mockAnalytics.map(metric => (
+        {state.analytics.map(metric => (
           <div key={metric.id} className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
             <h3 className="text-sm font-medium text-zinc-500 mb-4">{metric.label}</h3>
             <div className="flex items-baseline space-x-3">
@@ -65,7 +72,7 @@ export function DashboardPage() {
 
           {/* AI Insight */}
           <div className="bg-gradient-to-r from-indigo-50 to-violet-50 p-6 rounded-2xl border border-indigo-100 shadow-sm flex items-start space-x-4">
-            <div className="p-3 bg-white rounded-xl shadow-sm">
+            <div className="p-3 bg-white rounded-xl shadow-sm shrink-0">
               <Sparkles className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
@@ -82,14 +89,14 @@ export function DashboardPage() {
           <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-zinc-900">Upcoming Posts</h3>
-              <button className="text-sm text-indigo-600 font-medium hover:text-indigo-700">View Calendar</button>
+              <button onClick={() => navigate('/calendar')} className="text-sm text-indigo-600 font-medium hover:text-indigo-700">View Calendar</button>
             </div>
             <div className="space-y-4">
               {scheduledPosts.map(post => (
-                <div key={post.id} className="flex items-start space-x-4 p-3 hover:bg-zinc-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-zinc-100">
+                <div key={post.id} onClick={() => navigate(`/create?edit=${post.id}`)} className="flex items-start space-x-4 p-3 hover:bg-zinc-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-zinc-100">
                   <div className="w-12 h-12 rounded-lg bg-zinc-100 overflow-hidden shrink-0">
-                    {post.originalContent.media[0] && (
-                      <img src={post.originalContent.media[0].url} alt="" className="w-full h-full object-cover" />
+                    {post.originalContent.mediaIds[0] && (
+                      <img src={state.mediaAssets.find(m => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
                     )}
                   </div>
                   <div>
