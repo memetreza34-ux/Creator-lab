@@ -1,34 +1,82 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Platform, Post, PostContent, PlatformSpecificContent, MediaAsset } from '../types';
+import { 
+  Platform, Post, PostContent, PlatformSpecificContent, 
+  MediaAsset, Experiment 
+} from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
-import { ImageIcon, X, Send, Save, Clock, Sparkles, Smile, Hash, AlertCircle } from 'lucide-react';
+import { 
+  ImageIcon, X, Send, Save, Clock, Sparkles, Smile, 
+  Layers, CheckCircle2, ChevronDown, RotateCcw 
+} from 'lucide-react';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
+import { PLATFORM_CONFIGS } from '../config/platformConfig';
+import { AIResultPanel, AIHistoryItem } from '../components/composer/AIResultPanel';
+import { CreatorIntelligencePanel } from '../components/composer/CreatorIntelligencePanel';
+import { PlatformOptimizationModal } from '../components/composer/PlatformOptimizationModal';
+import { PlatformPreviewRenderer } from '../components/composer/previews/PlatformPreviews';
+import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
+import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
+
+const REWRITE_TONES = [
+  'Professional',
+  'Casual',
+  'Educational',
+  'Energetic',
+  'Concise',
+  'Storytelling'
+];
 
 export function CreatePostPage() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const editId = searchParams.get('edit');
   const dateParam = searchParams.get('date');
-  
+  const timeParam = searchParams.get('time');
+  const mediaIdParam = searchParams.get('mediaId');
+  const fromPipelineId = searchParams.get('fromPipeline');
+  const titleParam = searchParams.get('title');
+  const platformsParam = searchParams.get('platforms');
+
   const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId) || state.workspaces[0];
-  const availableAccounts = state.socialAccounts.filter(a => a.workspaceId === activeWorkspace?.id);
+  const availableAccounts = getWorkspaceAccounts(state);
+  const workspaceMedia = getWorkspaceMedia(state);
 
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<'original' | Platform>('original');
   const [isScheduling, setIsScheduling] = useState(!!dateParam);
   const [scheduleDate, setScheduleDate] = useState(dateParam || '');
-  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleTime, setScheduleTime] = useState(timeParam || '18:00');
   
-  const [originalContent, setOriginalContent] = useState<PostContent>({ caption: '', mediaIds: [] });
+  const [originalContent, setOriginalContent] = useState<PostContent>({ 
+    caption: titleParam ? `${titleParam}\n\n` : '', 
+    mediaIds: mediaIdParam ? [mediaIdParam] : [] 
+  });
   const [platformContents, setPlatformContents] = useState<Record<Platform, PlatformSpecificContent>>({} as any);
 
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
+  // AI Result & History State
+  const [activeAISuggestion, setActiveAISuggestion] = useState<{
+    tool: string;
+    originalText: string;
+    resultText: string;
+    hooks?: string[];
+    hashtags?: string[];
+  } | null>(null);
+  const [aiHistory, setAiHistory] = useState<AIHistoryItem[]>([]);
+  const [selectedRewriteTone, setSelectedRewriteTone] = useState<string>('Professional');
+  const [showToneDropdown, setShowToneDropdown] = useState(false);
+
+  // Multi-platform optimization modal state
+  const [showOptimizeModal, setShowOptimizeModal] = useState(false);
+
+  // Initialize from edit or params
   useEffect(() => {
     if (editId) {
       const existing = state.posts.find(p => p.id === editId);
@@ -38,7 +86,7 @@ export function CreatePostPage() {
         
         const pContents: any = {};
         existing.platformContent.forEach(pc => {
-          pContents[pc.platform] = pc;
+          pContents[pc.platform] = { ...pc, enabled: true };
         });
         setPlatformContents(pContents);
 
@@ -54,14 +102,27 @@ export function CreatePostPage() {
           setScheduleTime(`${hh}:${min}`);
         }
       }
+    } else if (platformsParam) {
+      // Prefill accounts matching platforms
+      const targetPlatforms = platformsParam.split(',');
+      const matchedAccountIds = availableAccounts
+        .filter(a => targetPlatforms.includes(a.platform))
+        .map(a => a.id);
+      if (matchedAccountIds.length > 0) {
+        setSelectedAccountIds(matchedAccountIds);
+      }
+    } else if (availableAccounts.length > 0 && selectedAccountIds.length === 0) {
+      // Default to first available account
+      setSelectedAccountIds([availableAccounts[0].id]);
     }
-  }, [editId, state.posts]);
+  }, [editId, state.posts, platformsParam]);
 
-  // Derived state
-  const selectedPlatforms = new Set<Platform>(
+  // Derived selected platforms
+  const selectedPlatforms = Array.from(new Set<Platform>(
     availableAccounts.filter(a => selectedAccountIds.includes(a.id)).map(a => a.platform)
-  );
+  ));
 
+  // Determine current active content
   const currentContentObj = activePreviewTab === 'original' 
     ? originalContent 
     : (platformContents[activePreviewTab]?.content || originalContent);
@@ -69,21 +130,25 @@ export function CreatePostPage() {
   const currentContentText = currentContentObj.caption;
   const currentMediaIds = currentContentObj.mediaIds;
 
+  // Best time recommendation based on active platform or general
+  const primaryPlatform = activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0];
+  const recommendedTime = getPrimaryRecommendedTime(primaryPlatform);
+  const bestTimes = getRecommendedPostingTimes(activeWorkspace?.id, primaryPlatform);
+
   const toggleAccount = (id: string) => {
     setSelectedAccountIds(prev => 
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
 
-  
-  const handleAITool = async (tool: string) => {
+  const handleAITool = async (tool: string, customTone?: string) => {
     if (!currentContentText.trim()) {
       toast.error('Please enter some content first');
       return;
     }
     
     setIsGeneratingAI(true);
-    const toastId = toast.loading(`Generating ${tool}...`);
+    const toastId = toast.loading(`Consulting AI Assistant for ${tool}...`);
     
     try {
       const response = await fetch('/api/ai/suggest', {
@@ -92,7 +157,8 @@ export function CreatePostPage() {
         body: JSON.stringify({
           tool,
           content: currentContentText,
-          platform: activePreviewTab !== 'original' ? activePreviewTab : undefined
+          platform: activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0],
+          tone: tool.toLowerCase() === 'rewrite' ? (customTone || selectedRewriteTone) : undefined
         })
       });
       
@@ -101,14 +167,61 @@ export function CreatePostPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate');
       }
+
+      toast.dismiss(toastId);
+
+      // Dedicated AI Result Panel display without overwriting
+      let resultText = data.result || '';
+      let hooks: string[] | undefined = undefined;
+      let hashtags: string[] | undefined = undefined;
+
+      if (data.data && Array.isArray(data.data.hooks)) {
+        hooks = data.data.hooks;
+        resultText = hooks.join('\n\n');
+      } else if (data.data && Array.isArray(data.data.hashtags)) {
+        hashtags = data.data.hashtags;
+        resultText = hashtags.join(' ');
+      }
+
+      const suggestionObj = {
+        tool: tool.toLowerCase() === 'rewrite' ? `Rewrite (${customTone || selectedRewriteTone})` : tool,
+        originalText: currentContentText,
+        resultText,
+        hooks,
+        hashtags
+      };
+
+      setActiveAISuggestion(suggestionObj);
+
+      // Push to session history
+      const historyItem: AIHistoryItem = {
+        id: uuidv4(),
+        tool: suggestionObj.tool,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        originalText: currentContentText,
+        resultText,
+        hooks,
+        hashtags
+      };
+      setAiHistory(prev => [historyItem, ...prev.slice(0, 19)]);
       
-      handleContentChange(data.result);
-      toast.success('Generated successfully', { id: toastId });
     } catch (err: any) {
-      toast.error(err.message, { id: toastId });
+      toast.error(err.message || 'AI Assistant unavailable', { id: toastId });
     } finally {
       setIsGeneratingAI(false);
     }
+  };
+
+  const handleApplyAISuggestion = (newText: string) => {
+    handleContentChange(newText);
+    setActiveAISuggestion(null);
+    toast.success('Applied to composer');
+  };
+
+  const handleInsertAtCursor = (textToInsert: string) => {
+    handleContentChange(currentContentText + textToInsert);
+    setActiveAISuggestion(null);
+    toast.success('Inserted into content');
   };
 
   const handleContentChange = (text: string) => {
@@ -119,10 +232,20 @@ export function CreatePostPage() {
         ...prev,
         [activePreviewTab]: {
           platform: activePreviewTab,
+          enabled: true, // Ensured always true
           content: { ...currentContentObj, caption: text }
         }
       }));
     }
+  };
+
+  const handleResetPlatformToBase = (platform: Platform) => {
+    setPlatformContents(prev => {
+      const copy = { ...prev };
+      delete copy[platform];
+      return copy;
+    });
+    toast.success(`Reset ${platform} content to base`);
   };
 
   const addMediaToCurrent = (assetId: string) => {
@@ -133,6 +256,7 @@ export function CreatePostPage() {
         ...prev,
         [activePreviewTab]: {
           platform: activePreviewTab,
+          enabled: true,
           content: { ...currentContentObj, mediaIds: [...currentContentObj.mediaIds, assetId] }
         }
       }));
@@ -148,6 +272,7 @@ export function CreatePostPage() {
         ...prev,
         [activePreviewTab]: {
           platform: activePreviewTab,
+          enabled: true,
           content: { ...currentContentObj, mediaIds: currentContentObj.mediaIds.filter(id => id !== assetId) }
         }
       }));
@@ -156,17 +281,25 @@ export function CreatePostPage() {
 
   const handleSaveDraft = () => {
     if (selectedAccountIds.length === 0) {
-      toast.error('Select at least one social account');
+      toast.error('Select at least one destination account');
       return;
     }
+    
+    // Ensure enabled is true on all platform contents
+    const cleanPlatformContent: PlatformSpecificContent[] = (Object.values(platformContents) as PlatformSpecificContent[]).map(pc => ({
+      ...pc,
+      enabled: true
+    }));
+
     const post: Post = {
       id: editId || uuidv4(),
-      workspaceId: activeWorkspace.id,
-      title: originalContent.caption.slice(0, 40) || 'Untitled Draft',
+      workspaceId: activeWorkspace?.id || 'ws-1',
+      title: originalContent.caption.slice(0, 40).trim() || 'Untitled Draft',
       status: 'draft',
       originalContent,
-      platformContent: Object.values(platformContents),
+      platformContent: cleanPlatformContent,
       destinationAccountIds: selectedAccountIds,
+      sourceContentItemId: fromPipelineId || undefined,
       createdAt: new Date().toISOString()
     };
     
@@ -182,10 +315,10 @@ export function CreatePostPage() {
 
   const handleScheduleOrPublish = (status: 'scheduled' | 'published') => {
     if (selectedAccountIds.length === 0) {
-      toast.error('Select at least one social account');
+      toast.error('Select at least one destination account');
       return;
     }
-    if (!originalContent.caption && originalContent.mediaIds.length === 0) {
+    if (!originalContent.caption.trim() && originalContent.mediaIds.length === 0) {
       toast.error('Post content cannot be empty');
       return;
     }
@@ -200,15 +333,22 @@ export function CreatePostPage() {
       scheduledAt = d.toISOString();
     }
 
+    const cleanPlatformContent: PlatformSpecificContent[] = (Object.values(platformContents) as PlatformSpecificContent[]).map(pc => ({
+      ...pc,
+      enabled: true
+    }));
+
     const post: Post = {
       id: editId || uuidv4(),
-      workspaceId: activeWorkspace.id,
-      title: originalContent.caption.slice(0, 40) || 'Untitled Post',
+      workspaceId: activeWorkspace?.id || 'ws-1',
+      title: originalContent.caption.slice(0, 40).trim() || 'Untitled Post',
       status,
       scheduledAt,
+      publishedAt: status === 'published' ? new Date().toISOString() : undefined,
       originalContent,
-      platformContent: Object.values(platformContents),
+      platformContent: cleanPlatformContent,
       destinationAccountIds: selectedAccountIds,
+      sourceContentItemId: fromPipelineId || undefined,
       createdAt: new Date().toISOString()
     };
     
@@ -218,23 +358,81 @@ export function CreatePostPage() {
       dispatch({ type: 'ADD_POST', payload: post });
     }
     
-    toast.success(status === 'scheduled' ? 'Post scheduled!' : 'Post published!');
+    toast.success(status === 'scheduled' ? 'Post scheduled successfully!' : 'Post published!');
     navigate('/calendar');
   };
 
+  const handleCreateExperimentFromVariation = (variantContent: string, strategyName: string) => {
+    const newExperiment: Experiment = {
+      id: uuidv4(),
+      workspaceId: activeWorkspace?.id || 'ws-1',
+      name: `Variation Test: ${strategyName} vs Original`,
+      type: 'caption',
+      hypothesis: `Testing ${strategyName} strategy against original baseline to lift audience engagement and retention.`,
+      primaryMetric: 'Engagement Rate',
+      status: 'draft',
+      variantA: {
+        label: 'Variant A (Current Base)',
+        metric: 0,
+        content: originalContent.caption
+      },
+      variantB: {
+        label: `Variant B (${strategyName})`,
+        metric: 0,
+        content: variantContent
+      },
+      createdAt: new Date().toISOString()
+    };
+
+    dispatch({ type: 'ADD_EXPERIMENT', payload: newExperiment });
+    toast.success(`Created Experiment "${newExperiment.name}"`);
+    navigate('/experiments');
+  };
+
+  // Resolve media asset objects for the active preview
+  const activeMediaAssets: MediaAsset[] = currentMediaIds
+    .map(id => workspaceMedia.find(m => m.id === id))
+    .filter((m): m is MediaAsset => !!m);
+
+  // Check character limits for active platform
+  const activeConfig = activePreviewTab !== 'original' ? PLATFORM_CONFIGS[activePreviewTab] : null;
+  const isOverLimit = activeConfig && currentContentText.length > activeConfig.prototypeCaptionLimit;
+
   return (
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-white">
-      {/* Composer Section (approx 60-65%) */}
-      <div className="flex-1 lg:max-w-[65%] flex flex-col h-full border-r border-zinc-200 overflow-y-auto">
-        <div className="p-6 md:p-8 max-w-3xl mx-auto w-full space-y-8 flex-1">
+      {/* Composer Section (approx 62%) */}
+      <div className="flex-1 lg:max-w-[62%] flex flex-col h-full border-r border-[#EBEBE9] overflow-y-auto">
+        <div className="p-6 md:p-8 max-w-3xl mx-auto w-full space-y-6 flex-1">
           
-          <div>
-            <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Create Post</h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Composer</h1>
+              <p className="text-[12px] text-zinc-500 mt-0.5">
+                Draft, optimize with Creator Intelligence, and schedule across all platforms
+              </p>
+            </div>
+
+            {fromPipelineId && (
+              <span className="text-[11px] font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-full flex items-center">
+                Linked to Pipeline Item
+              </span>
+            )}
           </div>
 
-          {/* Destinations */}
-          <div className="space-y-3">
-            <label className="text-[13px] font-semibold text-zinc-500 uppercase tracking-wider">Destinations</label>
+          {/* Destination Accounts */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                Destination Accounts ({selectedAccountIds.length})
+              </label>
+              <button 
+                onClick={() => setSelectedAccountIds(availableAccounts.map(a => a.id))}
+                className="text-[11px] text-brand-600 hover:underline font-medium"
+              >
+                Select All
+              </button>
+            </div>
+
             <div className="flex flex-wrap gap-2">
               {availableAccounts.map(account => {
                 const isSelected = selectedAccountIds.includes(account.id);
@@ -242,22 +440,21 @@ export function CreatePostPage() {
                   <button
                     key={account.id}
                     onClick={() => toggleAccount(account.id)}
-                    className={`flex items-center px-3 py-2 rounded-[8px] border text-sm font-medium transition-all ${
+                    className={`flex items-center px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all ${
                       isSelected 
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm ring-1 ring-brand-500/20' 
-                        : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                        ? 'border-brand-500 bg-brand-50/70 text-brand-800 shadow-xs ring-1 ring-brand-500/20' 
+                        : 'border-[#EBEBE9] bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
                     }`}
                   >
-                    <PlatformIcon platform={account.platform} className="w-4 h-4 mr-2" />
-                    <img src={account.avatarUrl} alt="" className="w-5 h-5 rounded-full mr-2 border border-zinc-200" />
-                    <span className="mr-1">{account.displayName}</span>
-                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-brand-500 ml-1.5" />}
+                    <PlatformIcon platform={account.platform} className="w-3.5 h-3.5 mr-2" />
+                    <span className="mr-1.5">{account.displayName}</span>
+                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-brand-600 ml-1" />}
                   </button>
                 );
               })}
               {availableAccounts.length === 0 && (
-                <div className="text-sm text-zinc-500 italic bg-zinc-50 p-3 rounded-lg border border-zinc-200 w-full">
-                  No accounts connected. Go to Workspace Settings to add accounts.
+                <div className="text-[12px] text-zinc-500 italic bg-[#FAFAF9] p-3 rounded-lg border border-[#EBEBE9] w-full">
+                  No social accounts connected in this workspace. Visit Settings to connect channels.
                 </div>
               )}
             </div>
@@ -265,61 +462,83 @@ export function CreatePostPage() {
 
           {/* Editor Area */}
           <div className="space-y-3">
-            <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide border-b border-zinc-200">
-              <button
-                onClick={() => setActivePreviewTab('original')}
-                className={`px-4 py-2 text-[14px] font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activePreviewTab === 'original' 
-                    ? 'border-brand-500 text-brand-700' 
-                    : 'border-transparent text-zinc-500 hover:text-zinc-700'
-                }`}
-              >
-                Original Base
-              </button>
-              {Array.from(selectedPlatforms).map(platform => {
-                const isCustomized = !!platformContents[platform];
-                return (
-                  <button
-                    key={platform}
-                    onClick={() => setActivePreviewTab(platform)}
-                    className={`px-4 py-2 text-[14px] font-medium border-b-2 transition-colors whitespace-nowrap flex items-center ${
-                      activePreviewTab === platform 
-                        ? 'border-brand-500 text-brand-700' 
-                        : 'border-transparent text-zinc-500 hover:text-zinc-700'
-                    }`}
-                  >
-                    <PlatformIcon platform={platform} className="w-3.5 h-3.5 mr-1.5" />
-                    <span className="capitalize">{platform}</span>
-                    {isCustomized && <div className="w-1.5 h-1.5 rounded-full bg-brand-500 ml-1.5" title="Customized content" />}
-                  </button>
-                );
-              })}
+            {/* Tabs for Original Base vs Customized Platforms */}
+            <div className="flex items-center justify-between border-b border-[#EBEBE9] pb-0.5">
+              <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
+                <button
+                  onClick={() => setActivePreviewTab('original')}
+                  className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    activePreviewTab === 'original' 
+                      ? 'border-brand-600 text-brand-700 font-semibold' 
+                      : 'border-transparent text-zinc-500 hover:text-zinc-800'
+                  }`}
+                >
+                  Original Base
+                </button>
+                {selectedPlatforms.map(platform => {
+                  const isCustomized = !!platformContents[platform];
+                  return (
+                    <button
+                      key={platform}
+                      onClick={() => setActivePreviewTab(platform)}
+                      className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex items-center ${
+                        activePreviewTab === platform 
+                          ? 'border-brand-600 text-brand-700 font-semibold' 
+                          : 'border-transparent text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      <PlatformIcon platform={platform} className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="capitalize">{PLATFORM_CONFIGS[platform]?.displayName || platform}</span>
+                      {isCustomized ? (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1.5" title="Customized for this platform" />
+                      ) : (
+                        <span className="text-[10px] text-zinc-400 ml-1 font-normal">(Base)</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedPlatforms.length > 1 && (
+                <button
+                  onClick={() => setShowOptimizeModal(true)}
+                  className="text-[11px] font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2.5 py-1 rounded-md flex items-center space-x-1 shrink-0 transition-colors"
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>Optimize All Destinations</span>
+                </button>
+              )}
             </div>
 
-            <div className="bg-white border border-zinc-200 rounded-[10px] shadow-sm overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
+            {/* Post Text Input */}
+            <div className="bg-white border border-[#EBEBE9] rounded-xl shadow-xs overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
               <textarea
                 value={currentContentText}
                 onChange={e => handleContentChange(e.target.value)}
-                placeholder="What do you want to share?"
-                className="w-full min-h-[160px] p-4 text-[14px] text-zinc-900 resize-y focus:outline-none placeholder-zinc-400"
+                placeholder={
+                  activeConfig 
+                    ? activeConfig.placeholderText 
+                    : "Write an engaging, high-signal post with hooks and clear takeaways..."
+                }
+                className="w-full min-h-[160px] p-4 text-[14px] text-zinc-900 resize-y focus:outline-none placeholder-zinc-400 font-sans leading-relaxed"
               />
               
               {/* Media Thumbnails */}
               {currentMediaIds.length > 0 && (
-                <div className="px-4 pb-4 flex gap-3 overflow-x-auto">
+                <div className="px-4 pb-3 flex gap-3 overflow-x-auto">
                   {currentMediaIds.map(mid => {
                     const asset = state.mediaAssets.find(a => a.id === mid);
                     if (!asset) return null;
                     return (
-                      <div key={mid} className="relative w-20 h-20 rounded-[8px] overflow-hidden border border-zinc-200 group shrink-0">
+                      <div key={mid} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9] group shrink-0 bg-zinc-100">
                         {asset.type === 'image' ? (
                           <img src={asset.url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
+                          <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                         )}
                         <button 
                           onClick={() => removeMediaFromCurrent(mid)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -329,87 +548,197 @@ export function CreatePostPage() {
                 </div>
               )}
 
-              {/* Toolbar */}
-              <div className="flex items-center justify-between px-3 py-2.5 bg-zinc-50 border-t border-zinc-100">
+              {/* Toolbar bar */}
+              <div className="flex items-center justify-between px-3 py-2 bg-[#FAFAF9] border-t border-[#F2F2F0]">
                 <div className="flex items-center space-x-1">
-                  <button onClick={() => setShowMediaModal(true)} className="flex items-center px-2 py-1 text-zinc-600 hover:bg-zinc-200 rounded text-[13px] font-medium transition-colors">
-                    <ImageIcon className="w-4 h-4 mr-1.5" />
-                    Media
-                  </button>
-                  <button className="flex items-center px-2 py-1 text-zinc-400 cursor-not-allowed rounded text-[13px] font-medium tooltip" title="Coming soon">
-                    <Smile className="w-4 h-4 mr-1.5" />
-                    Emoji
+                  <button 
+                    onClick={() => setShowMediaModal(true)} 
+                    className="flex items-center px-2.5 py-1 text-zinc-600 hover:bg-zinc-200/70 rounded-md text-[12px] font-medium transition-colors"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-zinc-500" />
+                    Attach Media ({currentMediaIds.length})
                   </button>
                 </div>
-                <span className="text-[12px] text-zinc-400 font-medium">{currentContentText.length} chars</span>
+
+                <div className="flex items-center space-x-2 text-[11px]">
+                  {activeConfig && (
+                    <span className={`font-medium ${isOverLimit ? 'text-rose-600 font-bold' : 'text-zinc-400'}`}>
+                      {currentContentText.length} / ~{activeConfig.prototypeCaptionLimit} chars
+                    </span>
+                  )}
+                  {!activeConfig && (
+                    <span className="text-zinc-400 font-medium">{currentContentText.length} chars</span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Creator AI Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 pt-2">
+            {/* AI Assistant Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-[12px] font-semibold text-brand-600 flex items-center mr-1">
                 <Sparkles className="w-3.5 h-3.5 mr-1" />
-                AI Assist
+                AI Assist:
               </span>
-              {['Improve', 'Hook', 'Rewrite', 'Shorten', 'Hashtags'].map(tool => (
+
+              {['Improve', 'Hook', 'Shorten', 'Hashtags'].map(tool => (
                 <button 
                   key={tool} 
                   onClick={() => handleAITool(tool)}
                   disabled={isGeneratingAI}
-                  className="px-2.5 py-1 text-[12px] font-medium text-zinc-600 bg-white border border-zinc-200 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 rounded-[6px] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="px-2.5 py-1 text-[11px] font-medium text-zinc-700 bg-white border border-[#DCDCD8] hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-800 rounded-md transition-all shadow-2xs disabled:opacity-50"
+                >
                   {tool}
                 </button>
               ))}
+
+              {/* Rewrite with tone selector */}
+              <div className="relative inline-block">
+                <div className="flex rounded-md shadow-2xs">
+                  <button
+                    onClick={() => handleAITool('Rewrite', selectedRewriteTone)}
+                    disabled={isGeneratingAI}
+                    className="px-2.5 py-1 text-[11px] font-medium text-zinc-700 bg-white border border-[#DCDCD8] hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-800 rounded-l-md transition-all disabled:opacity-50"
+                  >
+                    Rewrite ({selectedRewriteTone})
+                  </button>
+                  <button
+                    onClick={() => setShowToneDropdown(!showToneDropdown)}
+                    className="px-1.5 py-1 bg-[#FAFAF9] border-t border-r border-b border-[#DCDCD8] text-zinc-500 hover:text-zinc-800 rounded-r-md"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {showToneDropdown && (
+                  <div className="absolute left-0 mt-1 w-36 bg-white border border-[#EBEBE9] rounded-lg shadow-lg z-20 py-1 text-[12px]">
+                    <div className="px-2 py-1 text-[10px] font-bold uppercase text-zinc-400">Select Tone</div>
+                    {REWRITE_TONES.map(tone => (
+                      <button
+                        key={tone}
+                        onClick={() => {
+                          setSelectedRewriteTone(tone);
+                          setShowToneDropdown(false);
+                          handleAITool('Rewrite', tone);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 hover:bg-brand-50 ${
+                          selectedRewriteTone === tone ? 'font-semibold text-brand-700 bg-brand-50/40' : 'text-zinc-700'
+                        }`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* DEDICATED AI RESULT PANEL (Prevents overwriting, supports alternatives, history, hashtags chips) */}
+            {activeAISuggestion && (
+              <AIResultPanel
+                tool={activeAISuggestion.tool}
+                originalText={activeAISuggestion.originalText}
+                resultText={activeAISuggestion.resultText}
+                hooks={activeAISuggestion.hooks}
+                hashtags={activeAISuggestion.hashtags}
+                onApply={handleApplyAISuggestion}
+                onInsert={handleInsertAtCursor}
+                onRegenerate={() => handleAITool(activeAISuggestion.tool)}
+                onDiscard={() => setActiveAISuggestion(null)}
+                history={aiHistory}
+                onRestoreFromHistory={(item) => {
+                  setActiveAISuggestion({
+                    tool: item.tool,
+                    originalText: item.originalText,
+                    resultText: item.resultText,
+                    hooks: item.hooks,
+                    hashtags: item.hashtags
+                  });
+                }}
+              />
+            )}
+
+            {/* CREATOR INTELLIGENCE PANEL (Score, Strengths, Weaknesses, Variations, Experiments) */}
+            <CreatorIntelligencePanel
+              content={currentContentText}
+              platform={activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0]}
+              platforms={selectedPlatforms}
+              onApplyContent={handleContentChange}
+              onCreateExperiment={handleCreateExperimentFromVariation}
+            />
           </div>
 
         </div>
 
-        {/* Action Footer */}
-        <div className="p-6 border-t border-zinc-200 bg-zinc-50 shrink-0">
+        {/* Action Bottom Footer */}
+        <div className="p-5 border-t border-[#EBEBE9] bg-[#FAFAF9] shrink-0">
           <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             
             <div className="flex-1 max-w-sm">
               {isScheduling && (
-                <div className="p-3.5 bg-white border border-zinc-200 rounded-[10px] shadow-sm mb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[13px] font-semibold text-zinc-700 flex items-center">
-                      <Clock className="w-4 h-4 mr-1.5 text-zinc-400" />
-                      Schedule Time
+                <div className="p-3 bg-white border border-[#EBEBE9] rounded-xl shadow-xs mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-[12px] font-semibold text-zinc-700 flex items-center">
+                      <Clock className="w-3.5 h-3.5 mr-1.5 text-zinc-400" />
+                      Schedule Posting Time
                     </h4>
-                    <span className="text-[11px] font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded flex items-center">
-                      <Sparkles className="w-3 h-3 mr-1" /> Best time: 18:45
-                    </span>
+                    <button
+                      onClick={() => setScheduleTime(recommendedTime)}
+                      className="text-[11px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded flex items-center transition-colors"
+                      title={`Best time derived from historical performance: ${recommendedTime}`}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1" /> Best: {recommendedTime}
+                    </button>
                   </div>
-                  <div className="flex gap-3">
-                    <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="flex-1 min-w-0 border border-zinc-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" />
-                    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="w-28 border border-zinc-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" />
+                  <div className="flex gap-2">
+                    <input 
+                      type="date" 
+                      value={scheduleDate} 
+                      onChange={e => setScheduleDate(e.target.value)} 
+                      className="flex-1 min-w-0 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                    />
+                    <input 
+                      type="time" 
+                      value={scheduleTime} 
+                      onChange={e => setScheduleTime(e.target.value)} 
+                      className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                    />
                   </div>
+                  {bestTimes.length > 0 && (
+                    <div className="text-[10px] text-zinc-400 mt-1.5">
+                      Recommended: {bestTimes[0].dayName} at {bestTimes[0].time} ({bestTimes[0].reason})
+                    </div>
+                  )}
                 </div>
               )}
               
-              <button onClick={handleSaveDraft} className="flex items-center px-4 py-2 text-zinc-600 font-medium text-[13px] hover:bg-zinc-200 rounded-lg transition-colors">
-                <Save className="w-4 h-4 mr-1.5" />
-                Save Draft
+              <button 
+                onClick={handleSaveDraft} 
+                className="flex items-center px-3.5 py-2 text-zinc-600 font-medium text-[12px] hover:bg-zinc-200/60 rounded-lg transition-colors"
+              >
+                <Save className="w-3.5 h-3.5 mr-1.5" />
+                Save as Draft
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button 
                 onClick={() => setIsScheduling(!isScheduling)}
-                className={`flex items-center px-4 py-2 font-medium text-[13px] rounded-[8px] transition-colors ${
-                  isScheduling ? 'bg-brand-100 text-brand-700' : 'bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 shadow-sm'
+                className={`flex items-center px-3.5 py-2 font-medium text-[12px] rounded-lg transition-colors ${
+                  isScheduling 
+                    ? 'bg-brand-100 text-brand-700' 
+                    : 'bg-white border border-[#DCDCD8] text-zinc-700 hover:bg-zinc-50 shadow-2xs'
                 }`}
               >
-                <Clock className="w-4 h-4 mr-1.5" />
-                Schedule
+                <Clock className="w-3.5 h-3.5 mr-1.5" />
+                {isScheduling ? 'Scheduling' : 'Set Schedule'}
               </button>
+
               <button 
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
-                className="flex items-center px-5 py-2 bg-brand-500 text-white font-medium text-[13px] rounded-[8px] hover:bg-brand-600 transition-colors shadow-sm"
+                className="flex items-center px-4 py-2 bg-brand-600 text-white font-medium text-[12px] rounded-lg hover:bg-brand-700 transition-colors shadow-xs"
               >
-                <Send className="w-4 h-4 mr-1.5" />
-                {isScheduling ? 'Schedule Post' : 'Publish'}
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                {isScheduling ? 'Schedule Post' : 'Publish Now'}
               </button>
             </div>
 
@@ -417,88 +746,184 @@ export function CreatePostPage() {
         </div>
       </div>
 
-      {/* Preview Section (approx 35-40%) */}
-      <div className="hidden lg:flex lg:w-[35%] bg-surface-bg flex-col overflow-y-auto">
-        <div className="sticky top-0 p-4 border-b border-zinc-200/50 bg-surface-bg/80 backdrop-blur z-10">
-          <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider text-center">
-            {activePreviewTab === 'original' ? 'Base Preview' : `${activePreviewTab} Workspace Preview`}
-          </h3>
+      {/* Preview Section (approx 38%) */}
+      <div className="hidden lg:flex lg:w-[38%] bg-[#FAFAF9] flex-col overflow-y-auto border-l border-[#EBEBE9]">
+        <div className="sticky top-0 p-3.5 border-b border-[#EBEBE9] bg-white/90 backdrop-blur z-10 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+              {activePreviewTab === 'original' 
+                ? 'Base Content Preview' 
+                : `${PLATFORM_CONFIGS[activePreviewTab]?.displayName || activePreviewTab} Preview`}
+            </span>
+          </div>
+
+          {activePreviewTab !== 'original' && platformContents[activePreviewTab] && (
+            <button
+              onClick={() => handleResetPlatformToBase(activePreviewTab)}
+              className="text-[11px] text-zinc-500 hover:text-zinc-800 flex items-center space-x-1"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset to Base</span>
+            </button>
+          )}
         </div>
         
-        <div className="p-6 flex-1 flex flex-col items-center">
-          {/* Workspace Panel Preview (not phone frame) */}
-          <div className="w-full max-w-[340px] bg-white rounded-[12px] shadow-sm border border-zinc-200 overflow-hidden">
-            <div className="p-4 border-b border-zinc-100 flex items-center">
-              <div className="w-9 h-9 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 font-bold shrink-0">
-                CL
-              </div>
-              <div className="ml-3">
-                <p className="text-[14px] font-semibold text-zinc-900 leading-tight">Creator Lab</p>
-                <p className="text-[12px] text-zinc-500">Just now</p>
-              </div>
-              {activePreviewTab !== 'original' && (
-                <div className="ml-auto text-zinc-400">
-                  <PlatformIcon platform={activePreviewTab as Platform} className="w-5 h-5" />
+        <div className="p-6 flex-1 flex flex-col items-center justify-start">
+          {activePreviewTab === 'original' ? (
+            /* Base Cross-Platform Card Preview */
+            <div className="w-full max-w-sm bg-white rounded-xl shadow-xs border border-[#EBEBE9] overflow-hidden text-[13px]">
+              <div className="p-4 border-b border-[#F2F2F0] flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 font-bold text-[12px]">
+                    CL
+                  </div>
+                  <div>
+                    <div className="font-semibold text-zinc-900 leading-tight">{activeWorkspace?.name || 'Creator Lab'}</div>
+                    <div className="text-[11px] text-zinc-400">Multi-Channel Base Draft</div>
+                  </div>
                 </div>
-              )}
-            </div>
+                <div className="flex -space-x-1">
+                  {selectedPlatforms.map(p => (
+                    <div key={p} className="w-5 h-5 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center p-0.5">
+                      <PlatformIcon platform={p} className="w-3 h-3" />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            <div className="p-4">
-              <div className="text-[14px] text-zinc-800 whitespace-pre-wrap mb-4">
-                {currentContentText || <span className="text-zinc-400 italic">Your caption will appear here...</span>}
+              <div className="p-4">
+                <div className="text-[13px] text-zinc-800 whitespace-pre-wrap leading-relaxed mb-4">
+                  {currentContentText || <span className="text-zinc-400 italic">Enter caption text in composer to preview...</span>}
+                </div>
+
+                {activeMediaAssets.length > 0 ? (
+                  <div className="w-full rounded-lg overflow-hidden border border-[#F2F2F0] bg-zinc-100 max-h-60 flex items-center justify-center">
+                    <img src={activeMediaAssets[0].url} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full h-24 bg-[#FAFAF9] rounded-lg flex flex-col items-center justify-center text-zinc-400 border border-dashed border-[#EBEBE9]">
+                    <ImageIcon className="w-5 h-5 mb-1" />
+                    <span className="text-[11px]">No media attached</span>
+                  </div>
+                )}
               </div>
 
-              {currentMediaIds.length > 0 ? (
-                <div className="w-full rounded-[8px] overflow-hidden border border-zinc-100 bg-zinc-50">
-                   {(() => {
-                      const firstAsset = state.mediaAssets.find(a => a.id === currentMediaIds[0]);
-                      if (firstAsset?.type === 'image') {
-                        return <img src={firstAsset.url} className="w-full h-auto max-h-[300px] object-cover" />;
-                      }
-                      return <div className="w-full h-40 flex items-center justify-center text-sm font-medium text-zinc-400">Video Content</div>;
-                   })()}
-                </div>
-              ) : (
-                <div className="w-full h-24 bg-zinc-50 rounded-[8px] flex flex-col items-center justify-center text-zinc-400 border border-dashed border-zinc-200">
-                  <ImageIcon className="w-6 h-6 mb-1" />
-                  <span className="text-xs font-medium">No media attached</span>
-                </div>
-              )}
+              <div className="px-4 py-2 bg-[#FAFAF9] border-t border-[#EBEBE9] text-[11px] text-zinc-500 flex justify-between">
+                <span>Base Template</span>
+                <span>Applies to all uncustomized channels</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* PLATFORM-SPECIFIC PREVIEW COMPONENT */
+            <div className="w-full">
+              <PlatformPreviewRenderer
+                platform={activePreviewTab}
+                account={availableAccounts.find(a => a.platform === activePreviewTab && selectedAccountIds.includes(a.id))}
+                caption={currentContentText}
+                mediaAssets={activeMediaAssets}
+                isCustomized={!!platformContents[activePreviewTab]}
+                onResetToBase={() => handleResetPlatformToBase(activePreviewTab)}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Media Modal */}
+      {/* Multi-Platform Content Adaptation Modal */}
+      <PlatformOptimizationModal
+        baseContent={originalContent.caption}
+        selectedPlatforms={selectedPlatforms}
+        isOpen={showOptimizeModal}
+        onClose={() => setShowOptimizeModal(false)}
+        onApplyOptimization={(plat, adaptedText) => {
+          setPlatformContents(prev => ({
+            ...prev,
+            [plat]: {
+              platform: plat,
+              enabled: true,
+              content: {
+                caption: adaptedText,
+                mediaIds: prev[plat]?.content.mediaIds || originalContent.mediaIds
+              }
+            }
+          }));
+          toast.success(`Adapted for ${plat}`);
+        }}
+        onApplyAll={(optimizations) => {
+          const next = { ...platformContents };
+          Object.entries(optimizations).forEach(([plat, text]) => {
+            next[plat as Platform] = {
+              platform: plat as Platform,
+              enabled: true,
+              content: {
+                caption: text,
+                mediaIds: next[plat as Platform]?.content.mediaIds || originalContent.mediaIds
+              }
+            };
+          });
+          setPlatformContents(next);
+          toast.success(`Applied customizations for ${Object.keys(optimizations).length} platforms`);
+        }}
+      />
+
+      {/* Media Selection Modal */}
       {showMediaModal && (
-        <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
-              <h3 className="font-semibold text-zinc-900">Select Media</h3>
-              <button onClick={() => setShowMediaModal(false)} className="p-1.5 hover:bg-zinc-200 rounded-md text-zinc-500 transition-colors"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] border border-[#EBEBE9]">
+            <div className="p-4 border-b border-[#EBEBE9] flex justify-between items-center bg-[#FAFAF9]">
+              <div>
+                <h3 className="font-semibold text-zinc-900 text-[14px]">Select Media from Library</h3>
+                <p className="text-[11px] text-zinc-500">Pick images or videos from this workspace</p>
+              </div>
+              <button 
+                onClick={() => setShowMediaModal(false)} 
+                className="p-1 hover:bg-zinc-200/60 rounded-md text-zinc-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="p-5 overflow-y-auto flex-1 grid grid-cols-3 sm:grid-cols-4 gap-4 bg-white">
-              {state.mediaAssets.map(asset => (
-                <div 
-                  key={asset.id} 
-                  onClick={() => addMediaToCurrent(asset.id)}
-                  className="aspect-square bg-zinc-100 rounded-[10px] overflow-hidden border border-zinc-200 cursor-pointer hover:border-brand-500 hover:ring-2 hover:ring-brand-200 group relative transition-all"
-                >
-                  {asset.type === 'image' ? (
-                    <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs font-medium text-zinc-500">Video</div>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                </div>
-              ))}
-              {state.mediaAssets.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <ImageIcon className="w-6 h-6 text-zinc-400" />
+            
+            <div className="p-5 overflow-y-auto flex-1 grid grid-cols-3 sm:grid-cols-4 gap-3 bg-white">
+              {workspaceMedia.map(asset => {
+                const isAttached = currentMediaIds.includes(asset.id);
+                return (
+                  <div 
+                    key={asset.id} 
+                    onClick={() => {
+                      if (isAttached) {
+                        removeMediaFromCurrent(asset.id);
+                      } else {
+                        addMediaToCurrent(asset.id);
+                      }
+                    }}
+                    className={`aspect-square bg-zinc-100 rounded-xl overflow-hidden border cursor-pointer group relative transition-all ${
+                      isAttached 
+                        ? 'border-brand-500 ring-2 ring-brand-400' 
+                        : 'border-[#EBEBE9] hover:border-brand-400'
+                    }`}
+                  >
+                    {asset.type === 'image' ? (
+                      <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                    {isAttached && (
+                      <div className="absolute top-1.5 right-1.5 bg-brand-600 text-white rounded-full p-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[14px] font-medium text-zinc-600 mb-1">No media available</p>
-                  <p className="text-[13px] text-zinc-400">Upload assets in the Media Library first.</p>
+                );
+              })}
+
+              {workspaceMedia.length === 0 && (
+                <div className="col-span-full text-center py-10">
+                  <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <ImageIcon className="w-5 h-5 text-zinc-400" />
+                  </div>
+                  <p className="text-[13px] font-medium text-zinc-700">No media available</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Upload assets in the Media Library first.</p>
                 </div>
               )}
             </div>

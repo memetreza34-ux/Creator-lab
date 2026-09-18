@@ -4,6 +4,9 @@ export interface Workspace {
   id: string;
   name: string;
   plan: 'free' | 'pro' | 'enterprise';
+  timezone: string;
+  createdAt: string;
+  color?: string;
 }
 
 export interface SocialAccount {
@@ -41,6 +44,14 @@ export interface Post {
   scheduledAt?: string;
   createdAt: string;
   publishedAt?: string;
+  sourceContentItemId?: string;
+}
+
+export interface MediaFolder {
+  id: string;
+  workspaceId: string;
+  name: string;
+  createdAt: string;
 }
 
 export interface MediaAsset {
@@ -52,6 +63,7 @@ export interface MediaAsset {
   name: string;
   size: number; // bytes
   createdAt: string;
+  folderId?: string;
 }
 
 export type PipelineStage = 'ideas' | 'research' | 'script' | 'recording' | 'editing' | 'ready' | 'scheduled' | 'published';
@@ -66,23 +78,97 @@ export interface ContentItem {
   owner: string;
   targetDate?: string;
   tags: string[];
+  notes?: string;
+  order: number;
 }
 
 export interface AnalyticsMetric {
   id: string;
+  workspaceId?: string;
   label: string;
   value: number;
   change: number; // percentage
   trend: 'up' | 'down' | 'neutral';
 }
 
+export interface PostPerformance {
+  postId: string;
+  workspaceId: string;
+  platform: Platform;
+  views: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  ctr: number;
+  engagementRate: number;
+  followersGained: number;
+  watchTime?: number;
+  publishedAt: string;
+}
+
+export type ExperimentType = 'hook' | 'title' | 'caption' | 'thumbnail' | 'cta' | 'posting_time';
+export type ExperimentStatus = 'draft' | 'running' | 'concluded';
+
+export interface ExperimentVariant {
+  label: string;
+  metric: number;
+  image?: string;
+  content?: string;
+}
+
 export interface Experiment {
   id: string;
   workspaceId: string;
   name: string;
-  variantA: { label: string; metric: number; image?: string };
-  variantB: { label: string; metric: number; image?: string };
-  metricName: string;
-  status: 'running' | 'concluded';
+  type: ExperimentType;
+  sourcePostId?: string;
+  sourceContentItemId?: string;
+  hypothesis: string;
+  primaryMetric: string;
+  variantA: ExperimentVariant;
+  variantB: ExperimentVariant;
+  status: ExperimentStatus;
   winner?: 'A' | 'B';
+  aiInterpretation?: string;
+  createdAt?: string;
+}
+
+export interface ContentScoreBreakdown {
+  hookStrength: number;
+  clarity: number;
+  ctaStrength: number;
+  platformFit: number;
+  engagementPotential: number;
+}
+
+export interface ContentAnalysis {
+  overallScore: number;
+  scores: ContentScoreBreakdown;
+  strengths: string[];
+  weaknesses: string[];
+  recommendedChanges: string[];
+  assessedAt: string;
+}
+
+export interface ContentVariation {
+  strategy: string;
+  title: string;
+  content: string;
+  explanation: string;
+}
+
+export interface AppState {
+  workspaces: Workspace[];
+  activeWorkspaceId: string;
+  socialAccounts: SocialAccount[];
+  posts: Post[];
+  mediaAssets: MediaAsset[];
+  mediaFolders: MediaFolder[];
+  pipelineItems: ContentItem[];
+  experiments: Experiment[];
+  analytics: AnalyticsMetric[];
+  postPerformances?: PostPerformance[];
 }

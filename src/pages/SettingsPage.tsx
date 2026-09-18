@@ -2,70 +2,111 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Globe, AlertTriangle, X, Check, Building2, Clock } from 'lucide-react';
+import { Workspace } from '../types';
+
+const IANA_TIMEZONES = [
+  { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+  { value: 'America/New_York', label: 'America/New_York (Eastern Time - US & Canada)' },
+  { value: 'America/Chicago', label: 'America/Chicago (Central Time - US & Canada)' },
+  { value: 'America/Denver', label: 'America/Denver (Mountain Time - US & Canada)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (Pacific Time - US & Canada)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT / BST)' },
+  { value: 'Europe/Berlin', label: 'Europe/Berlin (CET / CEST)' },
+  { value: 'Europe/Paris', label: 'Europe/Paris (CET / CEST)' },
+  { value: 'Asia/Dubai', label: 'Asia/Dubai (GST)' },
+  { value: 'Asia/Singapore', label: 'Asia/Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST / AEDT)' }
+];
 
 export function SettingsPage() {
   const { state, dispatch } = useApp();
-  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
+  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId) || state.workspaces[0];
   
   const [workspaceName, setWorkspaceName] = useState(activeWorkspace?.name || '');
+  const [timezone, setTimezone] = useState(activeWorkspace?.timezone || 'UTC');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newWorkspaceTimezone, setNewWorkspaceTimezone] = useState('UTC');
+
+  // Deletion safety modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmNameInput, setConfirmNameInput] = useState('');
 
   useEffect(() => {
     if (activeWorkspace) {
       setWorkspaceName(activeWorkspace.name);
+      setTimezone(activeWorkspace.timezone || 'UTC');
     }
   }, [activeWorkspace]);
 
+  // Counts of items that would be deleted
+  const postCount = state.posts.filter(p => p.workspaceId === activeWorkspace?.id).length;
+  const pipelineCount = state.pipelineItems.filter(p => p.workspaceId === activeWorkspace?.id).length;
+  const mediaCount = state.mediaAssets.filter(m => m.workspaceId === activeWorkspace?.id).length;
+  const accountCount = state.socialAccounts.filter(a => a.workspaceId === activeWorkspace?.id).length;
+
   const handleSave = () => {
     if (activeWorkspace) {
+      const updated: Workspace = { 
+        ...activeWorkspace, 
+        name: workspaceName.trim() || activeWorkspace.name,
+        timezone 
+      };
       dispatch({ 
         type: 'UPDATE_WORKSPACE', 
-        payload: { ...activeWorkspace, name: workspaceName } 
+        payload: updated 
       });
-      toast.success('Workspace settings saved');
+      toast.success('Workspace settings updated successfully');
     }
   };
 
-  const handleDelete = () => {
-    if (state.workspaces.length <= 1) {
-      toast.error('Cannot delete the last workspace');
+  const handleConfirmDelete = () => {
+    if (!activeWorkspace) return;
+    if (confirmNameInput !== activeWorkspace.name) {
+      toast.error('Workspace name does not match');
       return;
     }
-    if (window.confirm(`Are you sure you want to delete workspace "${activeWorkspace?.name}"?`)) {
-      dispatch({ type: 'DELETE_WORKSPACE', payload: state.activeWorkspaceId });
-      toast.success('Workspace deleted');
-    }
+
+    dispatch({ type: 'DELETE_WORKSPACE', payload: activeWorkspace.id });
+    setShowDeleteModal(false);
+    setConfirmNameInput('');
+    toast.success(`Deleted workspace "${activeWorkspace.name}"`);
   };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkspaceName.trim()) return;
 
-    const newWorkspace = {
+    const newWorkspace: Workspace = {
       id: uuidv4(),
-      name: newWorkspaceName,
-      plan: 'free' as const
+      name: newWorkspaceName.trim(),
+      plan: 'free',
+      timezone: newWorkspaceTimezone,
+      createdAt: new Date().toISOString()
     };
 
     dispatch({ type: 'ADD_WORKSPACE', payload: newWorkspace });
     dispatch({ type: 'SET_ACTIVE_WORKSPACE', payload: newWorkspace.id });
     setNewWorkspaceName('');
     setShowCreateModal(false);
-    toast.success('Workspace created');
+    toast.success(`Workspace "${newWorkspace.name}" created`);
   };
 
   return (
     <div className="p-6 max-w-4xl mx-auto w-full h-full overflow-y-auto">
+      {/* Top Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Settings</h1>
-          <p className="text-[14px] text-zinc-500 mt-1">Manage your workspace preferences.</p>
+          <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Workspace Settings</h1>
+          <p className="text-[12px] text-zinc-500 mt-0.5">
+            Manage your brand profile, timezone, and multi-workspace organization
+          </p>
         </div>
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center px-4 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 transition-colors shadow-sm"
+          className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-lg text-[13px] font-semibold hover:bg-brand-700 transition-all shadow-xs"
         >
           <Plus className="w-4 h-4 mr-1.5" />
           New Workspace
@@ -73,84 +114,254 @@ export function SettingsPage() {
       </div>
       
       <div className="space-y-6">
-        <div className="bg-white p-6 rounded-[12px] border border-border-subtle shadow-sm">
-          <h3 className="text-[16px] font-semibold text-zinc-900 mb-4">Workspace General</h3>
+        {/* Workspace Preferences Card */}
+        <div className="bg-white p-6 rounded-2xl border border-[#EBEBE9] shadow-xs">
+          <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-[#F2F2F0]">
+            <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-700">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-zinc-900 leading-tight">
+                {activeWorkspace?.name}
+              </h3>
+              <p className="text-[12px] text-zinc-500">
+                Current Active Workspace ({activeWorkspace?.plan?.toUpperCase()} Plan)
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div>
-              <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Workspace Name</label>
+              <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">
+                Workspace Display Name
+              </label>
               <input 
                 type="text" 
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
-                className="w-full px-4 py-2 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                className="w-full px-3.5 py-2 border border-[#DCDCD8] rounded-lg text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
               />
             </div>
+
             <div>
-              <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Timezone</label>
-              <select className="w-full px-4 py-2 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white">
-                <option>UTC-8 (Pacific Time)</option>
-                <option>UTC-5 (Eastern Time)</option>
-                <option>UTC+0 (London)</option>
-                <option>UTC+1 (Central Europe)</option>
-              </select>
+              <label className="block text-[12px] font-medium text-zinc-700 mb-1.5 flex items-center justify-between">
+                <span>Scheduling Timezone (IANA)</span>
+                <span className="text-[11px] text-zinc-400 font-normal">Controls publish times and best-time engine</span>
+              </label>
+              <div className="relative">
+                <Globe className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <select 
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-[#DCDCD8] rounded-lg text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white"
+                >
+                  {IANA_TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-          <div className="mt-6 flex justify-between items-center">
+
+          <div className="mt-6 pt-4 border-t border-[#F2F2F0] flex justify-between items-center">
             <button 
               onClick={handleSave}
-              className="px-4 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 transition-colors shadow-sm"
+              className="px-4 py-2 bg-brand-600 text-white rounded-lg text-[13px] font-semibold hover:bg-brand-700 transition-colors shadow-xs"
             >
               Save Changes
             </button>
 
-            {state.workspaces.length > 1 && (
-              <button 
-                onClick={handleDelete}
-                className="flex items-center px-4 py-2 text-status-danger bg-status-danger/10 rounded-[8px] text-[13px] font-medium hover:bg-status-danger/20 transition-colors"
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                Delete Workspace
-              </button>
-            )}
+            <button 
+              onClick={() => {
+                setConfirmNameInput('');
+                setShowDeleteModal(true);
+              }}
+              className="flex items-center px-3.5 py-2 text-rose-600 hover:bg-rose-50 rounded-lg text-[12px] font-medium transition-colors"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete Workspace...
+            </button>
+          </div>
+        </div>
+
+        {/* All Workspaces List */}
+        <div className="bg-white p-6 rounded-2xl border border-[#EBEBE9] shadow-xs">
+          <h3 className="text-[14px] font-semibold text-zinc-900 mb-3">All Workspaces ({state.workspaces.length})</h3>
+          <div className="divide-y divide-[#F2F2F0]">
+            {state.workspaces.map(ws => {
+              const isActive = ws.id === state.activeWorkspaceId;
+              return (
+                <div key={ws.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[13px] font-semibold text-zinc-900">{ws.name}</span>
+                      {isActive && (
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-medium">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-zinc-400 mt-0.5">
+                      Timezone: {ws.timezone || 'UTC'}
+                    </div>
+                  </div>
+
+                  {!isActive && (
+                    <button
+                      onClick={() => {
+                        dispatch({ type: 'SET_ACTIVE_WORKSPACE', payload: ws.id });
+                        toast.success(`Switched to "${ws.name}"`);
+                      }}
+                      className="px-3 py-1 bg-[#FAFAF9] hover:bg-zinc-100 border border-[#DCDCD8] text-zinc-700 rounded-md text-[12px] font-medium transition-colors"
+                    >
+                      Switch To
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
+      {/* Create Workspace Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-5 border-b border-zinc-100">
-              <h3 className="text-[16px] font-semibold text-zinc-900">Create New Workspace</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-[#EBEBE9] animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-[#EBEBE9] flex justify-between items-center bg-[#FAFAF9]">
+              <h3 className="text-[15px] font-semibold text-zinc-900">Create New Workspace</h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-zinc-200/60 rounded-md text-zinc-400">
+                <X className="w-4 h-4" />
+              </button>
             </div>
+
             <form onSubmit={handleCreate} className="p-5 space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Workspace Name</label>
+                <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">Workspace Name</label>
                 <input 
                   autoFocus
                   required
                   type="text" 
                   value={newWorkspaceName}
                   onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  placeholder="e.g. My Brand"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                  placeholder="e.g. YouTube Studio, Client Brand"
+                  className="w-full px-3 py-2 border border-[#DCDCD8] rounded-lg text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
                 />
               </div>
-              <div className="pt-2 flex space-x-3 justify-end">
+
+              <div>
+                <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">Timezone</label>
+                <select 
+                  value={newWorkspaceTimezone}
+                  onChange={(e) => setNewWorkspaceTimezone(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#DCDCD8] rounded-lg text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white"
+                >
+                  {IANA_TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>{tz.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-3 border-t border-[#F2F2F0] flex space-x-2 justify-end">
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                  className="px-3.5 py-1.5 text-[12px] font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
-                  type="submit"
-                  className="px-4 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 transition-colors shadow-sm"
+                  type="submit" 
+                  className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-[12px] font-semibold hover:bg-brand-700 shadow-xs transition-colors"
                 >
-                  Create
+                  Create Workspace
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED WORKSPACE DELETION SAFETY CONFIRMATION DIALOG */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-[#EBEBE9] animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 border-b border-rose-100 bg-rose-50/50 flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-rose-700">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="text-[15px] font-semibold">Delete Workspace Safety Check</h3>
+              </div>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1 hover:bg-rose-100 rounded-md text-zinc-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-[13px] text-zinc-700 leading-relaxed">
+                This action is <strong className="text-rose-600 font-semibold">irreversible</strong>. 
+                Deleting <strong className="font-semibold text-zinc-900">"{activeWorkspace?.name}"</strong> will permanently delete all associated resources:
+              </p>
+
+              {/* Resource deletion counts breakdown */}
+              <div className="bg-[#FAFAF9] rounded-xl p-3.5 border border-[#EBEBE9] grid grid-cols-2 gap-2 text-[12px]">
+                <div className="p-2 bg-white rounded-lg border border-[#F2F2F0]">
+                  <span className="text-zinc-500 block">Posts:</span>
+                  <span className="font-bold text-zinc-900 text-[14px]">{postCount}</span>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-[#F2F2F0]">
+                  <span className="text-zinc-500 block">Pipeline Items:</span>
+                  <span className="font-bold text-zinc-900 text-[14px]">{pipelineCount}</span>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-[#F2F2F0]">
+                  <span className="text-zinc-500 block">Media Assets:</span>
+                  <span className="font-bold text-zinc-900 text-[14px]">{mediaCount}</span>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-[#F2F2F0]">
+                  <span className="text-zinc-500 block">Connected Accounts:</span>
+                  <span className="font-bold text-zinc-900 text-[14px]">{accountCount}</span>
+                </div>
+              </div>
+
+              {state.workspaces.length === 1 && (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800">
+                  Note: As this is your only workspace, deleting it will automatically reset your environment to a fresh default "Personal" workspace.
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[12px] font-medium text-zinc-700 mb-1.5">
+                  To confirm, type <span className="font-mono font-bold text-zinc-900">"{activeWorkspace?.name}"</span> below:
+                </label>
+                <input 
+                  type="text"
+                  value={confirmNameInput}
+                  onChange={(e) => setConfirmNameInput(e.target.value)}
+                  placeholder={activeWorkspace?.name}
+                  className="w-full px-3 py-2 border border-[#DCDCD8] rounded-lg text-[13px] focus:outline-none focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-[#FAFAF9] border-t border-[#EBEBE9] flex justify-end space-x-2">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="px-3.5 py-1.5 text-[12px] font-medium text-zinc-600 hover:text-zinc-900"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmDelete}
+                disabled={confirmNameInput !== activeWorkspace?.name}
+                className="px-4 py-1.5 bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[12px] font-semibold hover:bg-rose-700 shadow-xs transition-colors"
+              >
+                Permanently Delete Workspace
+              </button>
+            </div>
           </div>
         </div>
       )}
