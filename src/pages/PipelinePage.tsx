@@ -7,7 +7,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  useDroppable
 } from '@dnd-kit/core';
 import { 
   arrayMove,
@@ -27,22 +28,28 @@ import { PlatformIcon } from '../components/ui/PlatformIcon';
 
 const stages: { id: PipelineStage; label: string }[] = [
   { id: 'ideas', label: 'Ideas' },
-  { id: 'script', label: 'Scripting' },
+  { id: 'research', label: 'Research' },
+  { id: 'script', label: 'Script' },
   { id: 'recording', label: 'Production' },
   { id: 'editing', label: 'Editing' },
-  { id: 'research', label: 'Review' },
-  { id: 'ready', label: 'Ready' }
+  { id: 'ready', label: 'Ready' },
+  { id: 'scheduled', label: 'Scheduled' },
+  { id: 'published', label: 'Published' }
 ];
 
 const DroppableColumn: React.FC<{ id: string, label: string, children: React.ReactNode, count: number }> = ({ id, label, children, count }) => {
+  const { setNodeRef } = useDroppable({ id });
   return (
     <div className="w-[280px] shrink-0 flex flex-col h-full">
       <div className="flex items-center justify-between mb-3 px-1">
         <h3 className="text-[14px] font-semibold text-zinc-900">{label}</h3>
         <span className="bg-zinc-200 text-zinc-600 text-[11px] font-bold px-2 py-0.5 rounded-full">{count}</span>
       </div>
-      <div className="bg-white border border-border-subtle rounded-[12px] p-2 min-h-[500px] shadow-sm flex-1">
-        <div className="space-y-2">
+      <div 
+        ref={setNodeRef}
+        className="bg-white border border-border-subtle rounded-[12px] p-2 min-h-[500px] shadow-sm flex-1"
+      >
+        <div className="space-y-2 h-full min-h-[480px]">
           {children}
         </div>
       </div>
@@ -171,10 +178,24 @@ export function PipelinePage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const title = formData.get('title') as string;
+    const stage = (formData.get('stage') as PipelineStage) || 'ideas';
+    const format = (formData.get('format') as any) || 'short';
+    const targetDate = formData.get('targetDate') as string;
+    const owner = (formData.get('owner') as string) || 'Creator Lab';
+    const platformsRaw = formData.get('platforms') as string;
+    const notes = formData.get('notes') as string;
+    
+    const platforms = platformsRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) as any[];
     
     if (editingItem) {
-      dispatch({ type: 'UPDATE_PIPELINE_ITEM', payload: { ...editingItem, title } });
-      toast.success('Idea updated');
+      dispatch({ 
+        type: 'UPDATE_PIPELINE_ITEM', 
+        payload: { 
+          ...editingItem, 
+          title, stage, format, targetDate, owner, platforms, notes 
+        } 
+      });
+      toast.success('Content item updated');
     } else {
       dispatch({ 
         type: 'ADD_PIPELINE_ITEM', 
@@ -182,14 +203,16 @@ export function PipelinePage() {
           id: uuidv4(),
           workspaceId: state.activeWorkspaceId,
           title,
-          stage: 'ideas',
-          platforms: ['instagram'],
-          format: 'short',
-          owner: 'Creator Lab',
-          tags: []
+          stage,
+          platforms: platforms.length > 0 ? platforms : ['instagram'],
+          format,
+          owner,
+          targetDate: targetDate || undefined,
+          tags: [],
+          notes
         }
       });
-      toast.success('Idea created');
+      toast.success('Content item created');
     }
     setIsModalOpen(false);
   };
@@ -241,16 +264,16 @@ export function PipelinePage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-5 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
-              <h3 className="text-[16px] font-semibold text-zinc-900 leading-tight">{editingItem ? 'Edit Idea' : 'New Idea'}</h3>
+          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+              <h3 className="text-[16px] font-semibold text-zinc-900 leading-tight">{editingItem ? 'Edit Content Item' : 'New Content Item'}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-zinc-200/60 rounded-md text-zinc-400 hover:text-zinc-600 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             
-            <form onSubmit={handleSaveItem}>
-              <div className="p-5 space-y-4">
+            <form onSubmit={handleSaveItem} className="flex flex-col overflow-hidden min-h-0">
+              <div className="p-5 space-y-4 overflow-y-auto">
                 <div>
                   <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Title</label>
                   <input 
@@ -260,9 +283,67 @@ export function PipelinePage() {
                     className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px]" 
                   />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Stage</label>
+                    <select name="stage" defaultValue={editingItem?.stage || 'ideas'} className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px] bg-white">
+                      {stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Format</label>
+                    <select name="format" defaultValue={editingItem?.format || 'short'} className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px] bg-white">
+                      <option value="short">Short Video</option>
+                      <option value="long">Long Video</option>
+                      <option value="image">Image</option>
+                      <option value="carousel">Carousel</option>
+                      <option value="text">Text</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Target Date</label>
+                    <input 
+                      type="date"
+                      name="targetDate"
+                      defaultValue={editingItem?.targetDate ? editingItem.targetDate.split('T')[0] : ''}
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Owner</label>
+                    <input 
+                      name="owner"
+                      defaultValue={editingItem?.owner || 'Creator Lab'}
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px]" 
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Platforms (comma separated)</label>
+                  <input 
+                    name="platforms"
+                    defaultValue={editingItem?.platforms?.join(', ') || 'instagram, tiktok'}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px]" 
+                    placeholder="e.g. instagram, youtube, tiktok"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-medium text-zinc-700 mb-1.5">Notes</label>
+                  <textarea 
+                    name="notes"
+                    defaultValue={editingItem?.notes || ''}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-[8px] focus:outline-none focus:ring-1 focus:ring-brand-500 text-[13px] resize-none" 
+                  />
+                </div>
               </div>
-              <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-end space-x-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 transition-colors">Cancel</button>
+              <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex justify-end items-center space-x-2 shrink-0">
                 {editingItem && (
                   <button type="button" 
                     onClick={() => {
@@ -274,6 +355,14 @@ export function PipelinePage() {
                     className="px-4 py-2 text-[13px] font-medium text-status-danger hover:bg-status-danger/10 rounded-[8px] transition-colors mr-auto"
                   >Delete</button>
                 )}
+                
+                {editingItem?.stage === 'ready' && (
+                  <button type="button" onClick={() => window.location.href = `/create?pipelineId=${editingItem.id}`} className="px-4 py-2 text-[13px] font-medium bg-brand-100 text-brand-700 rounded-[8px] hover:bg-brand-200 transition-colors mr-auto">
+                    Create Post
+                  </button>
+                )}
+                
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 transition-colors">Cancel</button>
                 <button type="submit" className="px-4 py-2 text-[13px] font-medium bg-zinc-900 text-white rounded-[8px] hover:bg-zinc-800 shadow-sm transition-colors">Save</button>
               </div>
             </form>

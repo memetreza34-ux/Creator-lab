@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownRight, Eye, TrendingUp, Calendar, Sparkles, Mess
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
+import { getWorkspacePosts, getWorkspaceMedia, getWorkspaceAnalytics, getPostPlatforms } from '../utils/selectors';
 
 const data = [
   { name: 'Mon', reach: 14000, engagement: 240 },
@@ -21,9 +22,18 @@ export function DashboardPage() {
   const { state } = useApp();
   const navigate = useNavigate();
   
-  const scheduledPosts = state.posts
-    .filter(p => p.status === 'scheduled')
-    .sort((a, b) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime())
+  const workspacePosts = getWorkspacePosts(state);
+  const workspaceMedia = getWorkspaceMedia(state);
+  const analytics = getWorkspaceAnalytics(state);
+
+  const scheduledPosts = workspacePosts
+    .filter((p: any) => p.status === 'scheduled')
+    .sort((a: any, b: any) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime())
+    .slice(0, 4);
+
+  const publishedPosts = workspacePosts
+    .filter((p: any) => p.status === 'published')
+    .sort((a: any, b: any) => new Date(b.publishedAt || '').getTime() - new Date(a.publishedAt || '').getTime())
     .slice(0, 4);
 
   return (
@@ -31,7 +41,7 @@ export function DashboardPage() {
       
       {/* Compact Performance Strip */}
       <div className="flex flex-wrap items-center bg-white border border-zinc-200 rounded-[10px] shadow-sm divide-y md:divide-y-0 md:divide-x divide-zinc-100 overflow-hidden">
-        {state.analytics.map((metric, i) => (
+        {analytics.map((metric: any) => (
           <div key={metric.id} className="flex-1 min-w-[120px] px-5 py-3.5 flex flex-col justify-center">
             <h3 className="text-[12px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">{metric.label}</h3>
             <div className="flex items-center space-x-2">
@@ -106,25 +116,41 @@ export function DashboardPage() {
               <h3 className="text-[15px] font-semibold text-zinc-900">Top Content This Week</h3>
             </div>
             <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="group cursor-pointer">
-                  <div className="aspect-[4/5] rounded-lg bg-zinc-100 overflow-hidden relative mb-2 border border-zinc-200/60">
-                    <img src={`https://images.unsplash.com/photo-${1516280440502 + i}?w=300&q=80`} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <div className="flex items-center space-x-2 text-white text-xs font-medium">
-                        <span className="flex items-center"><Play className="w-3 h-3 mr-1 fill-current" /> 12K</span>
+              {publishedPosts.map((post: any, i: number) => {
+                const platforms = getPostPlatforms(post, state.socialAccounts);
+                const platform = platforms[0] || 'instagram';
+                const mediaAssetId = post.originalContent.mediaIds[0];
+                const mediaAsset = workspaceMedia.find((m: any) => m.id === mediaAssetId);
+
+                return (
+                  <div key={post.id} onClick={() => navigate(`/create?edit=${post.id}`)} className="group cursor-pointer">
+                    <div className="aspect-[4/5] rounded-lg bg-zinc-100 overflow-hidden relative mb-2 border border-zinc-200/60">
+                      {mediaAsset ? (
+                        <img src={mediaAsset.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-400 text-xs font-medium">Text</div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                        <div className="flex items-center space-x-2 text-white text-xs font-medium">
+                          <span className="flex items-center"><Play className="w-3 h-3 mr-1 fill-current" /> {Math.floor(Math.random() * 20) + 1}K</span>
+                        </div>
                       </div>
                     </div>
+                    <h4 className="text-[13px] font-medium text-zinc-900 leading-tight line-clamp-2 mb-1">
+                      {post.title || 'Untitled Post'}
+                    </h4>
+                    <div className="flex items-center text-[11px] text-zinc-500 capitalize">
+                      <PlatformIcon platform={platform} className="w-3 h-3 mr-1" />
+                      {platform}
+                    </div>
                   </div>
-                  <h4 className="text-[13px] font-medium text-zinc-900 leading-tight line-clamp-2 mb-1">
-                    Editing hooks {i} that actually work
-                  </h4>
-                  <div className="flex items-center text-[11px] text-zinc-500">
-                    <PlatformIcon platform={i % 2 === 0 ? 'instagram' : 'tiktok'} className="w-3 h-3 mr-1" />
-                    {i % 2 === 0 ? 'Reels' : 'TikTok'}
-                  </div>
+                );
+              })}
+              {publishedPosts.length === 0 && (
+                <div className="col-span-full py-8 text-center text-zinc-500 text-sm">
+                  Publish your first post to see top content here.
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -168,7 +194,7 @@ export function DashboardPage() {
                 <div key={post.id} onClick={() => navigate(`/create?edit=${post.id}`)} className="flex items-start space-x-3 py-3 border-b border-zinc-100 last:border-0 hover:bg-zinc-50 -mx-2 px-2 rounded-lg cursor-pointer transition-colors">
                   <div className="w-10 h-10 rounded shadow-sm bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200/50">
                     {post.originalContent.mediaIds[0] ? (
-                      <img src={state.mediaAssets.find(m => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
+                      <img src={workspaceMedia.find((m: any) => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[10px] text-zinc-400 font-medium">Text</div>
                     )}
@@ -181,8 +207,8 @@ export function DashboardPage() {
                         {new Date(post.scheduledAt || '').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                       </span>
                       <div className="flex items-center -space-x-1">
-                        {post.platformContent.map(pc => (
-                          <PlatformIcon key={pc.platform} platform={pc.platform} className="w-3.5 h-3.5 ring-1 ring-white" />
+                        {getPostPlatforms(post, state.socialAccounts).map((platform: any) => (
+                          <PlatformIcon key={platform} platform={platform} className="w-3.5 h-3.5 ring-1 ring-white" />
                         ))}
                       </div>
                     </div>

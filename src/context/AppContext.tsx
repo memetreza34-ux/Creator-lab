@@ -18,10 +18,14 @@ interface AppState {
   pipelineItems: ContentItem[];
   experiments: Experiment[];
   analytics: AnalyticsMetric[];
+  mediaFolders?: any[];
 }
 
 type Action = 
   | { type: 'SET_ACTIVE_WORKSPACE'; payload: string }
+  | { type: 'ADD_WORKSPACE'; payload: Workspace }
+  | { type: 'UPDATE_WORKSPACE'; payload: Workspace }
+  | { type: 'DELETE_WORKSPACE'; payload: string }
   | { type: 'ADD_POST'; payload: Post }
   | { type: 'UPDATE_POST'; payload: Post }
   | { type: 'DELETE_POST'; payload: string }
@@ -29,6 +33,10 @@ type Action =
   | { type: 'REMOVE_SOCIAL_ACCOUNT'; payload: string }
   | { type: 'ADD_MEDIA_ASSET'; payload: MediaAsset }
   | { type: 'REMOVE_MEDIA_ASSET'; payload: string }
+  | { type: 'ADD_MEDIA_FOLDER'; payload: any }
+  | { type: 'UPDATE_MEDIA_FOLDER'; payload: any }
+  | { type: 'DELETE_MEDIA_FOLDER'; payload: string }
+  | { type: 'UPDATE_MEDIA_ASSET'; payload: MediaAsset }
   | { type: 'ADD_PIPELINE_ITEM'; payload: ContentItem }
   | { type: 'UPDATE_PIPELINE_ITEM'; payload: ContentItem }
   | { type: 'DELETE_PIPELINE_ITEM'; payload: string };
@@ -53,6 +61,19 @@ function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_ACTIVE_WORKSPACE':
       return { ...state, activeWorkspaceId: action.payload };
+    case 'ADD_WORKSPACE':
+      return { ...state, workspaces: [...state.workspaces, action.payload] };
+    case 'UPDATE_WORKSPACE':
+      return { ...state, workspaces: state.workspaces.map(w => w.id === action.payload.id ? action.payload : w) };
+    case 'DELETE_WORKSPACE':
+      if (state.workspaces.length <= 1) return state; // Prevent deleting the last workspace
+      const newWorkspaces = state.workspaces.filter(w => w.id !== action.payload);
+      const newActiveId = state.activeWorkspaceId === action.payload ? newWorkspaces[0].id : state.activeWorkspaceId;
+      return { 
+        ...state, 
+        workspaces: newWorkspaces,
+        activeWorkspaceId: newActiveId
+      };
     case 'ADD_POST':
       return { ...state, posts: [...state.posts, action.payload] };
     case 'UPDATE_POST':
@@ -65,8 +86,20 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, socialAccounts: state.socialAccounts.filter(a => a.id !== action.payload) };
     case 'ADD_MEDIA_ASSET':
       return { ...state, mediaAssets: [...state.mediaAssets, action.payload] };
+    case 'UPDATE_MEDIA_ASSET':
+      return { ...state, mediaAssets: state.mediaAssets.map(m => m.id === action.payload.id ? action.payload : m) };
     case 'REMOVE_MEDIA_ASSET':
       return { ...state, mediaAssets: state.mediaAssets.filter(m => m.id !== action.payload) };
+    case 'ADD_MEDIA_FOLDER':
+      return { ...state, mediaFolders: [...(state.mediaFolders || []), action.payload] };
+    case 'UPDATE_MEDIA_FOLDER':
+      return { ...state, mediaFolders: (state.mediaFolders || []).map(f => f.id === action.payload.id ? action.payload : f) };
+    case 'DELETE_MEDIA_FOLDER':
+      return { 
+        ...state, 
+        mediaFolders: (state.mediaFolders || []).filter(f => f.id !== action.payload),
+        mediaAssets: state.mediaAssets.map(m => m.folderId === action.payload ? { ...m, folderId: undefined } : m)
+      };
     case 'ADD_PIPELINE_ITEM':
       return { ...state, pipelineItems: [...state.pipelineItems, action.payload] };
     case 'UPDATE_PIPELINE_ITEM':

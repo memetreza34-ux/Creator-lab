@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
+import { getWorkspacePosts, getWorkspaceMedia, getPostPlatforms } from '../utils/selectors';
 
 export function PostsPage() {
   const { state, dispatch } = useApp();
@@ -15,12 +16,14 @@ export function PostsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  const posts = state.posts
-    .filter(p => p.workspaceId === state.activeWorkspaceId)
-    .filter(p => activeTab === 'all' || p.status === activeTab)
-    .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const workspacePosts = getWorkspacePosts(state);
+  const workspaceMedia = getWorkspaceMedia(state);
+
+  const posts = workspacePosts
+    .filter((p: any) => activeTab === 'all' || p.status === activeTab)
+    .filter((p: any) => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                  p.originalContent.caption?.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDuplicate = (post: Post) => {
     const duplicated: Post = {
@@ -130,7 +133,7 @@ export function PostsPage() {
                       <div className="flex items-start space-x-3">
                         <div className="w-12 h-12 bg-zinc-100 rounded-[6px] overflow-hidden shrink-0 flex items-center justify-center text-zinc-400 border border-zinc-200">
                           {post.originalContent.mediaIds[0] ? (
-                            <img src={state.mediaAssets.find(m => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
+                            <img src={workspaceMedia.find((m: any) => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <ImageIcon className="w-5 h-5" />
                           )}
@@ -143,9 +146,9 @@ export function PostsPage() {
                     </td>
                     <td className="px-5 py-3 align-middle">
                       <div className="flex space-x-1.5">
-                        {post.platformContent.map(pc => (
-                          <div key={pc.platform} className="w-6 h-6 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600" title={pc.platform}>
-                            <PlatformIcon platform={pc.platform} className="w-3.5 h-3.5" />
+                        {getPostPlatforms(post, state.socialAccounts).map((platform: any) => (
+                          <div key={platform} className="w-6 h-6 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600" title={platform}>
+                            <PlatformIcon platform={platform} className="w-3.5 h-3.5" />
                           </div>
                         ))}
                       </div>
