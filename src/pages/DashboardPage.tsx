@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, Eye, TrendingUp, Calendar, Sparkles, MessageSquare, Heart, Share2, Play } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Calendar, Sparkles, MessageSquare, Play, Heart } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
@@ -16,14 +17,11 @@ const data = [
   { name: 'Sun', reach: 34900, engagement: 430 },
 ];
 
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 export function DashboardPage() {
   const { state } = useApp();
   const navigate = useNavigate();
   
   const workspacePosts = getWorkspacePosts(state);
-  const workspaceMedia = getWorkspaceMedia(state);
   const analytics = getWorkspaceAnalytics(state);
 
   const scheduledPosts = workspacePosts
@@ -31,25 +29,42 @@ export function DashboardPage() {
     .sort((a: any, b: any) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime())
     .slice(0, 4);
 
-  const publishedPosts = workspacePosts
-    .filter((p: any) => p.status === 'published')
-    .sort((a: any, b: any) => new Date(b.publishedAt || '').getTime() - new Date(a.publishedAt || '').getTime())
-    .slice(0, 4);
+  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId) || state.workspaces[0];
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto w-full space-y-8">
+    <div className="p-8 max-w-7xl mx-auto w-full space-y-12">
       
-      {/* Compact Performance Strip */}
-      <div className="flex flex-wrap items-center bg-white border border-zinc-200 rounded-[10px] shadow-sm divide-y md:divide-y-0 md:divide-x divide-zinc-100 overflow-hidden">
+      {/* Header section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#EBEBE9]">
+        <div>
+          <p className="text-[12px] font-sans font-semibold text-[#999996] uppercase tracking-[0.15em] mb-3">
+            Overview
+          </p>
+          <h1 className="text-4xl font-serif text-[#0A0A0A] font-medium tracking-tight">
+            Welcome back to {activeWorkspace?.name}
+          </h1>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => navigate('/create')}
+            className="px-5 py-2.5 bg-[#0A0A0A] text-white text-[13px] font-sans font-medium hover:bg-[#1A1A1A] transition-colors shadow-sm rounded-lg"
+          >
+            Create New Post
+          </button>
+        </div>
+      </div>
+
+      {/* Metrics Row (Flat Depth) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {analytics.map((metric: any) => (
-          <div key={metric.id} className="flex-1 min-w-[120px] px-5 py-3.5 flex flex-col justify-center">
-            <h3 className="text-[12px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">{metric.label}</h3>
-            <div className="flex items-center space-x-2">
-              <span className="text-lg font-bold text-zinc-900 leading-none">
+          <div key={metric.id} className="p-6 bg-white border border-[#EBEBE9] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[120px]">
+            <h3 className="text-[12px] font-sans font-medium text-[#666661] tracking-wide">{metric.label}</h3>
+            <div className="flex items-baseline justify-between mt-auto">
+              <span className="text-[28px] font-serif text-[#0A0A0A] leading-none">
                 {metric.label.includes('Rate') ? `${metric.value}%` : metric.value.toLocaleString()}
               </span>
-              <span className={`flex items-center text-[11px] font-medium ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                {metric.trend === 'up' ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
+              <span className={`flex items-center text-[12px] font-medium font-sans ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                {metric.trend === 'up' ? <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" /> : <ArrowDownRight className="w-3.5 h-3.5 mr-0.5" />}
                 {Math.abs(metric.change)}%
               </span>
             </div>
@@ -59,172 +74,135 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Main Content Column */}
+        {/* Main Chart Column */}
         <div className="lg:col-span-8 space-y-8">
           
-          {/* AI Insight */}
-          <div className="bg-brand-50 border border-brand-100 rounded-[10px] p-4 flex items-start space-x-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-            <div className="p-2 bg-white rounded-lg shadow-sm border border-brand-100 shrink-0 relative z-10">
-              <Sparkles className="w-5 h-5 text-brand-600" />
+          {/* AI Insight (Sophisticated, no gradients) */}
+          <div className="bg-[#F8F8F7] border border-[#EBEBE9] p-6 flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-5">
+            <div className="w-10 h-10 bg-white border border-[#D1D1CE] flex flex-col items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
+              <Sparkles className="w-4 h-4 text-[#0A0A0A]" />
             </div>
-            <div className="relative z-10 pt-0.5 flex-1">
-              <h3 className="text-[13px] font-bold text-brand-700 mb-1">CREATOR LAB INSIGHT</h3>
-              <p className="text-brand-900/80 text-sm leading-relaxed mb-3">
-                Educational tutorial videos generated 34% more engagement than your lifestyle content this month. 
-                Consider prioritizing the "Lighting Setup" script in your pipeline.
+            <div className="flex-1 pt-0.5">
+              <h3 className="text-[12px] font-sans font-semibold text-[#0A0A0A] tracking-[0.1em] uppercase mb-2">
+                Studio Intelligence
+              </h3>
+              <p className="text-[#666661] text-[14px] font-sans leading-relaxed max-w-2xl">
+                Your educational tutorials are outperforming lifestyle content by <strong className="text-[#0A0A0A] font-semibold">34%</strong> this month. 
+                Consider prioritizing the "Lighting Setup" script currently in your pipeline to capitalize on this momentum.
               </p>
-              <div className="flex items-center space-x-3">
-                <button className="text-[13px] font-semibold text-white bg-brand-500 hover:bg-brand-600 px-3 py-1.5 rounded flex items-center transition-colors">
-                  View Insight
-                </button>
-                <button className="text-[13px] font-medium text-brand-700 hover:text-brand-800 transition-colors">
-                  Create Variation
-                </button>
-              </div>
+            </div>
+            <div className="shrink-0 pt-0.5">
+              <button onClick={() => navigate('/pipeline')} className="px-4 py-2 border border-[#0A0A0A] text-[#0A0A0A] bg-white text-[12px] font-sans font-medium hover:bg-[#0A0A0A] hover:text-white transition-colors">
+                View Pipeline
+              </button>
             </div>
           </div>
 
-          {/* Performance Chart */}
-          <div className="bg-white p-5 rounded-[10px] border border-zinc-200 shadow-sm">
-            <h3 className="text-[15px] font-semibold text-zinc-900 mb-5">Performance Growth</h3>
-            <div className="h-[260px] w-full">
+          {/* Chart Section */}
+          <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Performance Trajectory</h3>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center text-[12px] text-[#666661] font-sans font-medium">
+                  <span className="w-2.5 h-2.5 bg-[#0A0A0A] mr-2"></span> Reach
+                </div>
+              </div>
+            </div>
+            <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorReach" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#635BFF" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#635BFF" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E7E7E5" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#71717A', fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#18181B', borderRadius: '6px', border: 'none', color: '#fff', fontSize: '12px' }}
-                    itemStyle={{ color: '#fff' }}
+                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EBEBE9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#999996', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 500 }} 
+                    dy={10} 
                   />
-                  <Area type="monotone" dataKey="reach" stroke="#635BFF" strokeWidth={2} fillOpacity={1} fill="url(#colorReach)" />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#999996', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 500 }} 
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0A0A0A', borderRadius: '0px', border: '1px solid #1A1A1A', color: '#fff', fontSize: '13px', fontFamily: 'var(--font-sans)' }}
+                    itemStyle={{ color: '#fff' }}
+                    cursor={{ stroke: '#EBEBE9', strokeWidth: 1 }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="reach" 
+                    stroke="#0A0A0A" 
+                    strokeWidth={2} 
+                    fillOpacity={0.05} 
+                    fill="#0A0A0A" 
+                    activeDot={{ r: 5, fill: '#0A0A0A', stroke: '#fff', strokeWidth: 2 }} 
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Top Content Visual */}
-          <div className="bg-white rounded-[10px] border border-zinc-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100">
-              <h3 className="text-[15px] font-semibold text-zinc-900">Top Content This Week</h3>
-            </div>
-            <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-              {publishedPosts.map((post: any, i: number) => {
-                const platforms = getPostPlatforms(post, state.socialAccounts);
-                const platform = platforms[0] || 'instagram';
-                const mediaAssetId = post.originalContent.mediaIds[0];
-                const mediaAsset = workspaceMedia.find((m: any) => m.id === mediaAssetId);
-
-                return (
-                  <div key={post.id} onClick={() => navigate(`/create?edit=${post.id}`)} className="group cursor-pointer">
-                    <div className="aspect-[4/5] rounded-lg bg-zinc-100 overflow-hidden relative mb-2 border border-zinc-200/60">
-                      {mediaAsset ? (
-                        <img src={mediaAsset.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-400 text-xs font-medium">Text</div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                        <div className="flex items-center space-x-2 text-white text-xs font-medium">
-                          <span className="flex items-center"><Play className="w-3 h-3 mr-1 fill-current" /> {Math.floor(Math.random() * 20) + 1}K</span>
-                        </div>
-                      </div>
-                    </div>
-                    <h4 className="text-[13px] font-medium text-zinc-900 leading-tight line-clamp-2 mb-1">
-                      {post.title || 'Untitled Post'}
-                    </h4>
-                    <div className="flex items-center text-[11px] text-zinc-500 capitalize">
-                      <PlatformIcon platform={platform} className="w-3 h-3 mr-1" />
-                      {platform}
-                    </div>
-                  </div>
-                );
-              })}
-              {publishedPosts.length === 0 && (
-                <div className="col-span-full py-8 text-center text-zinc-500 text-sm">
-                  Publish your first post to see top content here.
-                </div>
-              )}
-            </div>
-          </div>
-
         </div>
 
         {/* Sidebar Column */}
         <div className="lg:col-span-4 space-y-8">
           
-          {/* Your Week */}
-          <div className="bg-white p-5 rounded-[10px] border border-zinc-200 shadow-sm">
-            <h3 className="text-[13px] font-semibold text-zinc-500 uppercase tracking-wider mb-4">Your Week</h3>
-            <div className="flex justify-between items-end h-16">
-              {weekDays.map((day, i) => {
-                const activity = [2, 4, 1, 5, 0, 3, 2][i]; // simulated activity level
-                return (
-                  <div key={day} className="flex flex-col items-center flex-1">
-                    <div className="w-1.5 bg-brand-100 rounded-t-sm relative flex justify-center w-full group">
-                      {activity > 0 && (
-                        <div 
-                          className="w-1.5 bg-brand-500 rounded-sm absolute bottom-0 transition-all duration-300"
-                          style={{ height: `${activity * 8}px` }}
-                        ></div>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-medium text-zinc-400 mt-2">{day}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Upcoming Content */}
-          <div className="bg-white p-5 rounded-[10px] border border-zinc-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[13px] font-semibold text-zinc-500 uppercase tracking-wider">Upcoming</h3>
-              <button onClick={() => navigate('/calendar')} className="text-[12px] text-brand-600 font-medium hover:text-brand-700">View all</button>
+          <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Upcoming Releases</h3>
+              <button onClick={() => navigate('/calendar')} className="text-[#666661] hover:text-[#0A0A0A] transition-colors p-1">
+                <Calendar className="w-5 h-5" />
+              </button>
             </div>
             
-            <div className="space-y-0">
-              {scheduledPosts.map((post, i) => (
-                <div key={post.id} onClick={() => navigate(`/create?edit=${post.id}`)} className="flex items-start space-x-3 py-3 border-b border-zinc-100 last:border-0 hover:bg-zinc-50 -mx-2 px-2 rounded-lg cursor-pointer transition-colors">
-                  <div className="w-10 h-10 rounded shadow-sm bg-zinc-100 overflow-hidden shrink-0 border border-zinc-200/50">
-                    {post.originalContent.mediaIds[0] ? (
-                      <img src={workspaceMedia.find((m: any) => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-[10px] text-zinc-400 font-medium">Text</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-zinc-900 text-[13px] leading-tight truncate">{post.title || 'Untitled Post'}</h4>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <span className="text-[11px] text-zinc-500 flex items-center font-medium">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {new Date(post.scheduledAt || '').toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      </span>
-                      <div className="flex items-center -space-x-1">
-                        {getPostPlatforms(post, state.socialAccounts).map((platform: any) => (
-                          <PlatformIcon key={platform} platform={platform} className="w-3.5 h-3.5 ring-1 ring-white" />
-                        ))}
+            {scheduledPosts.length > 0 ? (
+              <div className="space-y-4">
+                {scheduledPosts.map((post: any) => {
+                  const date = new Date(post.scheduledAt);
+                  const isToday = new Date().toDateString() === date.toDateString();
+                  const platforms = getPostPlatforms(post, state.socialAccounts);
+                  
+                  return (
+                    <div key={post.id} className="group relative flex items-start space-x-4 p-4 border border-[#EBEBE9] hover:border-[#D1D1CE] transition-colors cursor-pointer bg-[#F8F8F7]" onClick={() => navigate(`/create?edit=${post.id}`)}>
+                      <div className="flex flex-col items-center justify-center min-w-[48px]">
+                        <span className="text-[11px] font-sans font-bold text-[#999996] uppercase mb-0.5">{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                        <span className={`text-[20px] font-serif leading-none ${isToday ? 'text-brand-600 font-bold' : 'text-[#0A0A0A]'}`}>
+                          {date.getDate()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center mb-1 space-x-2">
+                          <span className="text-[11px] font-sans font-medium text-[#666661] bg-white border border-[#EBEBE9] px-2 py-0.5 rounded">
+                            {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          </span>
+                          <div className="flex -space-x-1">
+                            {platforms.map(platform => (
+                              <div key={platform} className="w-5 h-5 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center text-[#666661] z-10">
+                                <PlatformIcon platform={platform} className="w-3 h-3" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <h4 className="text-[13px] font-sans font-medium text-[#0A0A0A] truncate">{post.title}</h4>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-              {scheduledPosts.length === 0 && (
-                <div className="text-center py-6">
-                  <div className="w-10 h-10 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-2 border border-zinc-100">
-                    <Calendar className="w-4 h-4 text-zinc-300" />
-                  </div>
-                  <p className="text-[13px] text-zinc-500 font-medium">No upcoming posts</p>
-                  <button onClick={() => navigate('/create')} className="mt-2 text-[12px] text-brand-600 font-medium">Plan your next post</button>
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-10 border border-dashed border-[#EBEBE9] bg-[#F8F8F7]">
+                <Calendar className="w-6 h-6 text-[#999996] mx-auto mb-2" />
+                <p className="text-[13px] font-sans text-[#666661]">No posts scheduled</p>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => navigate('/calendar')}
+              className="w-full mt-6 py-2.5 border border-[#0A0A0A] text-[#0A0A0A] font-sans font-medium text-[13px] hover:bg-[#0A0A0A] hover:text-white transition-colors"
+            >
+              Open Calendar
+            </button>
           </div>
 
         </div>

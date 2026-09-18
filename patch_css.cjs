@@ -1,0 +1,71 @@
+const fs = require('fs');
+
+const css = `
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #F3F1FF;
+  --color-brand-100: #E6E2FF;
+  --color-brand-200: #CFCAFF;
+  --color-brand-300: #AA9EFF;
+  --color-brand-400: #866AFF;
+  --color-brand-500: #6236FF;
+  --color-brand-600: #541BFF;
+  --color-brand-700: #4609EB;
+  --color-brand-800: #3A08C5;
+  --color-brand-900: #30089E;
+  
+  --color-surface-bg: #F8F8F7;
+  --color-surface-card: #FFFFFF;
+  --color-surface-hover: #F2F2F0;
+  
+  --color-border-subtle: #EBEBE9;
+  --color-border-strong: #D1D1CE;
+  
+  --color-text-main: #0A0A0A;
+  --color-text-muted: #666661;
+  --color-text-faint: #999996;
+  
+  --color-status-success: #059669;
+  --color-status-warning: #D97706;
+  --color-status-danger: #DC2626;
+  
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface-bg);
+    color: var(--color-text-main);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}
+`;
+
+fs.writeFileSync('src/index.css', css);
