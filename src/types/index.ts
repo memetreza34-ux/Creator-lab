@@ -9,6 +9,10 @@ export interface Workspace {
   color?: string;
 }
 
+export interface SocialAccountMetrics {
+  followers?: number;
+}
+
 export interface SocialAccount {
   id: string;
   workspaceId: string;
@@ -18,6 +22,7 @@ export interface SocialAccount {
   avatarUrl?: string;
   status: 'connected' | 'disconnected' | 'error';
   lastSync: string;
+  metrics?: SocialAccountMetrics;
 }
 
 export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'needs_review';
@@ -61,12 +66,13 @@ export interface MediaAsset {
   type: 'image' | 'video';
   thumbnailUrl?: string;
   name: string;
-  size: number; // bytes
+  size: number;
   createdAt: string;
   folderId?: string;
 }
 
 export type PipelineStage = 'ideas' | 'research' | 'script' | 'recording' | 'editing' | 'ready' | 'scheduled' | 'published';
+export type ContentFormat = 'short' | 'long' | 'image' | 'carousel' | 'text';
 
 export interface ContentItem {
   id: string;
@@ -74,7 +80,7 @@ export interface ContentItem {
   title: string;
   stage: PipelineStage;
   platforms: Platform[];
-  format: 'short' | 'long' | 'image' | 'carousel' | 'text';
+  format: ContentFormat;
   owner: string;
   targetDate?: string;
   tags: string[];
@@ -84,10 +90,10 @@ export interface ContentItem {
 
 export interface AnalyticsMetric {
   id: string;
-  workspaceId?: string;
+  workspaceId: string;
   label: string;
   value: number;
-  change: number; // percentage
+  change: number;
   trend: 'up' | 'down' | 'neutral';
 }
 
@@ -170,5 +176,5 @@ export interface AppState {
   pipelineItems: ContentItem[];
   experiments: Experiment[];
   analytics: AnalyticsMetric[];
-  postPerformances?: PostPerformance[];
+  postPerformances: PostPerformance[];
 }
