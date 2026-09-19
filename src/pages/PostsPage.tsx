@@ -7,7 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
-import { getWorkspacePosts, getWorkspaceMedia, getPostPlatforms } from '../utils/selectors';
+import {
+  getPostPlatforms,
+  getWorkspaceAccounts,
+  getWorkspaceMedia,
+  getWorkspacePosts,
+} from '../utils/selectors';
 
 export function PostsPage() {
   const { state, dispatch } = useApp();
@@ -18,12 +23,17 @@ export function PostsPage() {
 
   const workspacePosts = getWorkspacePosts(state);
   const workspaceMedia = getWorkspaceMedia(state);
+  const workspaceAccounts = getWorkspaceAccounts(state);
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const posts = workspacePosts
-    .filter((p: any) => activeTab === 'all' || p.status === activeTab)
-    .filter((p: any) => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                 p.originalContent.caption?.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .filter((post) => activeTab === 'all' || post.status === activeTab)
+    .filter((post) => {
+      if (!normalizedSearchQuery) return true;
+      return post.title.toLowerCase().includes(normalizedSearchQuery)
+        || post.originalContent.caption.toLowerCase().includes(normalizedSearchQuery);
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleDuplicate = (post: Post) => {
     const duplicated: Post = {
@@ -33,7 +43,7 @@ export function PostsPage() {
       status: 'draft',
       createdAt: new Date().toISOString(),
       scheduledAt: undefined,
-      publishedAt: undefined
+      publishedAt: undefined,
     };
     dispatch({ type: 'ADD_POST', payload: duplicated });
     toast.success('Post duplicated as draft');
@@ -62,15 +72,15 @@ export function PostsPage() {
           <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Posts</h1>
           <p className="text-[14px] text-zinc-500 mt-1">Manage and track your content.</p>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <div className="relative">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search posts..." 
+            <input
+              type="text"
+              placeholder="Search posts..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(event) => setSearchQuery(event.target.value)}
               className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 w-64 bg-white shadow-sm"
             />
           </div>
@@ -82,13 +92,13 @@ export function PostsPage() {
       </div>
 
       <div className="flex space-x-6 border-b border-zinc-200 mb-6 shrink-0">
-        {tabs.map(tab => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`pb-2.5 text-[14px] font-medium border-b-2 transition-colors ${
-              activeTab === tab.id 
-                ? 'border-brand-500 text-brand-700' 
+              activeTab === tab.id
+                ? 'border-brand-500 text-brand-700'
                 : 'border-transparent text-zinc-500 hover:text-zinc-700'
             }`}
           >
@@ -107,7 +117,7 @@ export function PostsPage() {
             <p className="text-[13px] text-zinc-500 mb-6 max-w-sm">
               {searchQuery ? 'Try adjusting your search filters.' : 'You haven\'t created any posts in this category yet.'}
             </p>
-            <button 
+            <button
               onClick={() => navigate('/create')}
               className="px-4 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 transition-colors shadow-sm"
             >
@@ -127,88 +137,98 @@ export function PostsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {posts.map(post => (
-                  <tr key={post.id} className="hover:bg-zinc-50/60 transition-colors group">
-                    <td className="px-5 py-3">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-12 h-12 bg-zinc-100 rounded-[6px] overflow-hidden shrink-0 flex items-center justify-center text-zinc-400 border border-zinc-200">
-                          {post.originalContent.mediaIds[0] ? (
-                            <img src={workspaceMedia.find((m: any) => m.id === post.originalContent.mediaIds[0])?.url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <ImageIcon className="w-5 h-5" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-zinc-900 truncate mb-0.5">{post.title}</p>
-                          <p className="text-[12px] text-zinc-500 line-clamp-1">{post.originalContent.caption || 'No caption'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 align-middle">
-                      <div className="flex space-x-1.5">
-                        {getPostPlatforms(post, state.socialAccounts).map((platform: any) => (
-                          <div key={platform} className="w-6 h-6 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600" title={platform}>
-                            <PlatformIcon platform={platform} className="w-3.5 h-3.5" />
+                {posts.map((post) => {
+                  const previewMedia = workspaceMedia.find(
+                    (asset) => asset.id === post.originalContent.mediaIds[0],
+                  );
+                  const platforms = getPostPlatforms(post, workspaceAccounts);
+                  const postDate = new Date(
+                    post.scheduledAt || post.publishedAt || post.createdAt,
+                  );
+
+                  return (
+                    <tr key={post.id} className="hover:bg-zinc-50/60 transition-colors group">
+                      <td className="px-5 py-3">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-12 h-12 bg-zinc-100 rounded-[6px] overflow-hidden shrink-0 flex items-center justify-center text-zinc-400 border border-zinc-200">
+                            {previewMedia ? (
+                              <img src={previewMedia.url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <ImageIcon className="w-5 h-5" />
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 align-middle">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                        post.status === 'published' ? 'bg-status-success/10 text-status-success' : 
-                        post.status === 'scheduled' ? 'bg-brand-50 text-brand-600' :
-                        'bg-zinc-100 text-zinc-600'
-                      }`}>
-                        {post.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 align-middle whitespace-nowrap">
-                      <p className="text-[13px] text-zinc-900 font-medium">
-                        {format(new Date(post.scheduledAt || post.publishedAt || post.createdAt), 'MMM d, yyyy')}
-                      </p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        {format(new Date(post.scheduledAt || post.publishedAt || post.createdAt), 'HH:mm')}
-                      </p>
-                    </td>
-                    <td className="px-5 py-3 align-middle text-right relative">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuId(openMenuId === post.id ? null : post.id);
-                        }}
-                        className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200/50 rounded-md transition-colors"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {openMenuId === post.id && (
-                        <div className="absolute right-6 top-10 w-40 bg-white border border-zinc-200 rounded-[8px] shadow-lg z-10 py-1 text-left">
-                          <button 
-                            onClick={() => navigate(`/create?edit=${post.id}`)}
-                            className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleDuplicate(post)}
-                            className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
-                          >
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicate
-                          </button>
-                          <div className="h-px bg-zinc-100 my-1 mx-2" />
-                          <button 
-                            onClick={() => handleDelete(post.id)}
-                            className="w-full px-4 py-1.5 text-[13px] text-status-danger hover:bg-status-danger/10 flex items-center"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </button>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-zinc-900 truncate mb-0.5">{post.title}</p>
+                            <p className="text-[12px] text-zinc-500 line-clamp-1">{post.originalContent.caption || 'No caption'}</p>
+                          </div>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3 align-middle">
+                        <div className="flex space-x-1.5">
+                          {platforms.map((platform) => (
+                            <div key={platform} className="w-6 h-6 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600" title={platform}>
+                              <PlatformIcon platform={platform} className="w-3.5 h-3.5" />
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 align-middle">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
+                          post.status === 'published' ? 'bg-status-success/10 text-status-success' :
+                          post.status === 'scheduled' ? 'bg-brand-50 text-brand-600' :
+                          'bg-zinc-100 text-zinc-600'
+                        }`}>
+                          {post.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 align-middle whitespace-nowrap">
+                        <p className="text-[13px] text-zinc-900 font-medium">
+                          {format(postDate, 'MMM d, yyyy')}
+                        </p>
+                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                          {format(postDate, 'HH:mm')}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3 align-middle text-right relative">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMenuId(openMenuId === post.id ? null : post.id);
+                          }}
+                          className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200/50 rounded-md transition-colors"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        {openMenuId === post.id && (
+                          <div className="absolute right-6 top-10 w-40 bg-white border border-zinc-200 rounded-[8px] shadow-lg z-10 py-1 text-left">
+                            <button
+                              onClick={() => navigate(`/create?edit=${post.id}`)}
+                              className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
+                            >
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDuplicate(post)}
+                              className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
+                            >
+                              <Copy className="w-4 h-4 mr-2" />
+                              Duplicate
+                            </button>
+                            <div className="h-px bg-zinc-100 my-1 mx-2" />
+                            <button
+                              onClick={() => handleDelete(post.id)}
+                              className="w-full px-4 py-1.5 text-[13px] text-status-danger hover:bg-status-danger/10 flex items-center"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
