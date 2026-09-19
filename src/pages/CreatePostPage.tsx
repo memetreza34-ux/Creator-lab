@@ -1,15 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { 
-  Platform, Post, PostContent, PlatformSpecificContent, 
-  MediaAsset, Experiment 
+import {
+  Experiment,
+  MediaAsset,
+  Platform,
+  PlatformSpecificContent,
+  Post,
+  PostContent,
 } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
-import { 
-  ImageIcon, X, Send, Save, Clock, Sparkles, Smile, 
-  Layers, CheckCircle2, ChevronDown, RotateCcw 
+import {
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  ImageIcon,
+  Layers,
+  RotateCcw,
+  Save,
+  Send,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import { PLATFORM_CONFIGS } from '../config/platformConfig';
@@ -26,8 +38,29 @@ const REWRITE_TONES = [
   'Educational',
   'Energetic',
   'Concise',
-  'Storytelling'
+  'Storytelling',
 ];
+
+function normalizeDateParam(value: string | null): string {
+  if (!value) return '';
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!match) return '';
+
+  const normalized = match[1];
+  const parsed = new Date(`${normalized}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? '' : normalized;
+}
+
+function normalizeTimeParam(value: string | null): string {
+  if (!value) return '18:00';
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : '18:00';
+}
+
+function isPlatformSpecificContent(
+  content: PlatformSpecificContent | undefined,
+): content is PlatformSpecificContent {
+  return Boolean(content);
+}
 
 export function CreatePostPage() {
   const { state, dispatch } = useApp();
@@ -35,33 +68,36 @@ export function CreatePostPage() {
   const [searchParams] = useSearchParams();
 
   const editId = searchParams.get('edit');
-  const dateParam = searchParams.get('date');
-  const timeParam = searchParams.get('time');
+  const dateParam = normalizeDateParam(searchParams.get('date'));
+  const timeParam = normalizeTimeParam(searchParams.get('time'));
   const mediaIdParam = searchParams.get('mediaId');
   const fromPipelineId = searchParams.get('fromPipeline');
   const titleParam = searchParams.get('title');
   const platformsParam = searchParams.get('platforms');
 
-  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId) || state.workspaces[0];
+  const activeWorkspace = state.workspaces.find(
+    (workspace) => workspace.id === state.activeWorkspaceId,
+  ) || state.workspaces[0];
   const availableAccounts = getWorkspaceAccounts(state);
   const workspaceMedia = getWorkspaceMedia(state);
 
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<'original' | Platform>('original');
-  const [isScheduling, setIsScheduling] = useState(!!dateParam);
-  const [scheduleDate, setScheduleDate] = useState(dateParam || '');
-  const [scheduleTime, setScheduleTime] = useState(timeParam || '18:00');
-  
-  const [originalContent, setOriginalContent] = useState<PostContent>({ 
-    caption: titleParam ? `${titleParam}\n\n` : '', 
-    mediaIds: mediaIdParam ? [mediaIdParam] : [] 
+  const [isScheduling, setIsScheduling] = useState(Boolean(dateParam));
+  const [scheduleDate, setScheduleDate] = useState(dateParam);
+  const [scheduleTime, setScheduleTime] = useState(timeParam);
+
+  const [originalContent, setOriginalContent] = useState<PostContent>({
+    caption: titleParam ? `${titleParam}\n\n` : '',
+    mediaIds: mediaIdParam ? [mediaIdParam] : [],
   });
-  const [platformContents, setPlatformContents] = useState<Record<Platform, PlatformSpecificContent>>({} as any);
+  const [platformContents, setPlatformContents] = useState<
+    Partial<Record<Platform, PlatformSpecificContent>>
+  >({});
 
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
-  // AI Result & History State
   const [activeAISuggestion, setActiveAISuggestion] = useState<{
     tool: string;
     originalText: string;
@@ -72,72 +108,77 @@ export function CreatePostPage() {
   const [aiHistory, setAiHistory] = useState<AIHistoryItem[]>([]);
   const [selectedRewriteTone, setSelectedRewriteTone] = useState<string>('Professional');
   const [showToneDropdown, setShowToneDropdown] = useState(false);
-
-  // Multi-platform optimization modal state
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
-  // Initialize from edit or params
   useEffect(() => {
     if (editId) {
-      const existing = state.posts.find(p => p.id === editId);
+      const existing = state.posts.find((post) => post.id === editId);
       if (existing) {
         setSelectedAccountIds(existing.destinationAccountIds);
         setOriginalContent(existing.originalContent);
-        
-        const pContents: any = {};
-        existing.platformContent.forEach(pc => {
-          pContents[pc.platform] = { ...pc, enabled: true };
+
+        const existingPlatformContents: Partial<
+          Record<Platform, PlatformSpecificContent>
+        > = {};
+        existing.platformContent.forEach((platformContent) => {
+          existingPlatformContents[platformContent.platform] = {
+            ...platformContent,
+            enabled: true,
+          };
         });
-        setPlatformContents(pContents);
+        setPlatformContents(existingPlatformContents);
 
         if (existing.scheduledAt) {
           setIsScheduling(true);
-          const d = new Date(existing.scheduledAt);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
+          const date = new Date(existing.scheduledAt);
+          const yyyy = date.getFullYear();
+          const mm = String(date.getMonth() + 1).padStart(2, '0');
+          const dd = String(date.getDate()).padStart(2, '0');
           setScheduleDate(`${yyyy}-${mm}-${dd}`);
-          const hh = String(d.getHours()).padStart(2, '0');
-          const min = String(d.getMinutes()).padStart(2, '0');
+          const hh = String(date.getHours()).padStart(2, '0');
+          const min = String(date.getMinutes()).padStart(2, '0');
           setScheduleTime(`${hh}:${min}`);
         }
       }
     } else if (platformsParam) {
-      // Prefill accounts matching platforms
       const targetPlatforms = platformsParam.split(',');
       const matchedAccountIds = availableAccounts
-        .filter(a => targetPlatforms.includes(a.platform))
-        .map(a => a.id);
+        .filter((account) => targetPlatforms.includes(account.platform))
+        .map((account) => account.id);
       if (matchedAccountIds.length > 0) {
         setSelectedAccountIds(matchedAccountIds);
       }
     } else if (availableAccounts.length > 0 && selectedAccountIds.length === 0) {
-      // Default to first available account
       setSelectedAccountIds([availableAccounts[0].id]);
     }
   }, [editId, state.posts, platformsParam]);
 
-  // Derived selected platforms
-  const selectedPlatforms = Array.from(new Set<Platform>(
-    availableAccounts.filter(a => selectedAccountIds.includes(a.id)).map(a => a.platform)
-  ));
+  const selectedPlatforms = Array.from(
+    new Set<Platform>(
+      availableAccounts
+        .filter((account) => selectedAccountIds.includes(account.id))
+        .map((account) => account.platform),
+    ),
+  );
 
-  // Determine current active content
-  const currentContentObj = activePreviewTab === 'original' 
-    ? originalContent 
-    : (platformContents[activePreviewTab]?.content || originalContent);
-    
+  const currentContentObj = activePreviewTab === 'original'
+    ? originalContent
+    : platformContents[activePreviewTab]?.content || originalContent;
+
   const currentContentText = currentContentObj.caption;
   const currentMediaIds = currentContentObj.mediaIds;
 
-  // Best time recommendation based on active platform or general
-  const primaryPlatform = activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0];
+  const primaryPlatform = activePreviewTab !== 'original'
+    ? activePreviewTab
+    : selectedPlatforms[0];
   const recommendedTime = getPrimaryRecommendedTime(primaryPlatform);
   const bestTimes = getRecommendedPostingTimes(activeWorkspace?.id, primaryPlatform);
 
   const toggleAccount = (id: string) => {
-    setSelectedAccountIds(prev => 
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    setSelectedAccountIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((accountId) => accountId !== id)
+        : [...previous, id],
     );
   };
 
@@ -146,10 +187,10 @@ export function CreatePostPage() {
       toast.error('Please enter some content first');
       return;
     }
-    
+
     setIsGeneratingAI(true);
     const toastId = toast.loading(`Consulting AI Assistant for ${tool}...`);
-    
+
     try {
       const response = await fetch('/api/ai/suggest', {
         method: 'POST',
@@ -157,23 +198,25 @@ export function CreatePostPage() {
         body: JSON.stringify({
           tool,
           content: currentContentText,
-          platform: activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0],
-          tone: tool.toLowerCase() === 'rewrite' ? (customTone || selectedRewriteTone) : undefined
-        })
+          platform: activePreviewTab !== 'original'
+            ? activePreviewTab
+            : selectedPlatforms[0],
+          tone: tool.toLowerCase() === 'rewrite'
+            ? customTone || selectedRewriteTone
+            : undefined,
+        }),
       });
-      
+
       const data = await response.json();
-      
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate');
       }
 
       toast.dismiss(toastId);
 
-      // Dedicated AI Result Panel display without overwriting
       let resultText = data.result || '';
-      let hooks: string[] | undefined = undefined;
-      let hashtags: string[] | undefined = undefined;
+      let hooks: string[] | undefined;
+      let hashtags: string[] | undefined;
 
       if (data.data && Array.isArray(data.data.hooks)) {
         hooks = data.data.hooks;
@@ -183,30 +226,36 @@ export function CreatePostPage() {
         resultText = hashtags.join(' ');
       }
 
-      const suggestionObj = {
-        tool: tool.toLowerCase() === 'rewrite' ? `Rewrite (${customTone || selectedRewriteTone})` : tool,
+      const suggestion = {
+        tool: tool.toLowerCase() === 'rewrite'
+          ? `Rewrite (${customTone || selectedRewriteTone})`
+          : tool,
         originalText: currentContentText,
         resultText,
         hooks,
-        hashtags
+        hashtags,
       };
 
-      setActiveAISuggestion(suggestionObj);
+      setActiveAISuggestion(suggestion);
 
-      // Push to session history
       const historyItem: AIHistoryItem = {
         id: uuidv4(),
-        tool: suggestionObj.tool,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        tool: suggestion.tool,
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         originalText: currentContentText,
         resultText,
         hooks,
-        hashtags
+        hashtags,
       };
-      setAiHistory(prev => [historyItem, ...prev.slice(0, 19)]);
-      
-    } catch (err: any) {
-      toast.error(err.message || 'AI Assistant unavailable', { id: toastId });
+      setAiHistory((previous) => [historyItem, ...previous.slice(0, 19)]);
+    } catch (error: unknown) {
+      const message = error instanceof Error
+        ? error.message
+        : 'AI Assistant unavailable';
+      toast.error(message, { id: toastId });
     } finally {
       setIsGeneratingAI(false);
     }
@@ -226,22 +275,22 @@ export function CreatePostPage() {
 
   const handleContentChange = (text: string) => {
     if (activePreviewTab === 'original') {
-      setOriginalContent(prev => ({ ...prev, caption: text }));
+      setOriginalContent((previous) => ({ ...previous, caption: text }));
     } else {
-      setPlatformContents(prev => ({
-        ...prev,
+      setPlatformContents((previous) => ({
+        ...previous,
         [activePreviewTab]: {
           platform: activePreviewTab,
-          enabled: true, // Ensured always true
-          content: { ...currentContentObj, caption: text }
-        }
+          enabled: true,
+          content: { ...currentContentObj, caption: text },
+        },
       }));
     }
   };
 
   const handleResetPlatformToBase = (platform: Platform) => {
-    setPlatformContents(prev => {
-      const copy = { ...prev };
+    setPlatformContents((previous) => {
+      const copy = { ...previous };
       delete copy[platform];
       return copy;
     });
@@ -250,15 +299,21 @@ export function CreatePostPage() {
 
   const addMediaToCurrent = (assetId: string) => {
     if (activePreviewTab === 'original') {
-      setOriginalContent(prev => ({ ...prev, mediaIds: [...prev.mediaIds, assetId] }));
+      setOriginalContent((previous) => ({
+        ...previous,
+        mediaIds: [...previous.mediaIds, assetId],
+      }));
     } else {
-      setPlatformContents(prev => ({
-        ...prev,
+      setPlatformContents((previous) => ({
+        ...previous,
         [activePreviewTab]: {
           platform: activePreviewTab,
           enabled: true,
-          content: { ...currentContentObj, mediaIds: [...currentContentObj.mediaIds, assetId] }
-        }
+          content: {
+            ...currentContentObj,
+            mediaIds: [...currentContentObj.mediaIds, assetId],
+          },
+        },
       }));
     }
     setShowMediaModal(false);
@@ -266,43 +321,51 @@ export function CreatePostPage() {
 
   const removeMediaFromCurrent = (assetId: string) => {
     if (activePreviewTab === 'original') {
-      setOriginalContent(prev => ({ ...prev, mediaIds: prev.mediaIds.filter(id => id !== assetId) }));
+      setOriginalContent((previous) => ({
+        ...previous,
+        mediaIds: previous.mediaIds.filter((id) => id !== assetId),
+      }));
     } else {
-      setPlatformContents(prev => ({
-        ...prev,
+      setPlatformContents((previous) => ({
+        ...previous,
         [activePreviewTab]: {
           platform: activePreviewTab,
           enabled: true,
-          content: { ...currentContentObj, mediaIds: currentContentObj.mediaIds.filter(id => id !== assetId) }
-        }
+          content: {
+            ...currentContentObj,
+            mediaIds: currentContentObj.mediaIds.filter((id) => id !== assetId),
+          },
+        },
       }));
     }
   };
+
+  const getCleanPlatformContent = (): PlatformSpecificContent[] =>
+    Object.values(platformContents)
+      .filter(isPlatformSpecificContent)
+      .map((platformContent) => ({
+        ...platformContent,
+        enabled: true,
+      }));
 
   const handleSaveDraft = () => {
     if (selectedAccountIds.length === 0) {
       toast.error('Select at least one destination account');
       return;
     }
-    
-    // Ensure enabled is true on all platform contents
-    const cleanPlatformContent: PlatformSpecificContent[] = (Object.values(platformContents) as PlatformSpecificContent[]).map(pc => ({
-      ...pc,
-      enabled: true
-    }));
 
     const post: Post = {
       id: editId || uuidv4(),
-      workspaceId: activeWorkspace?.id || 'ws-1',
+      workspaceId: state.activeWorkspaceId,
       title: originalContent.caption.slice(0, 40).trim() || 'Untitled Draft',
       status: 'draft',
       originalContent,
-      platformContent: cleanPlatformContent,
+      platformContent: getCleanPlatformContent(),
       destinationAccountIds: selectedAccountIds,
       sourceContentItemId: fromPipelineId || undefined,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    
+
     if (editId) {
       dispatch({ type: 'UPDATE_POST', payload: post });
       toast.success('Draft updated');
@@ -327,45 +390,47 @@ export function CreatePostPage() {
       return;
     }
 
-    let scheduledAt = undefined;
+    let scheduledAt: string | undefined;
     if (status === 'scheduled') {
-      const d = new Date(`${scheduleDate}T${scheduleTime}`);
-      scheduledAt = d.toISOString();
+      const date = new Date(`${scheduleDate}T${scheduleTime}`);
+      if (Number.isNaN(date.getTime())) {
+        toast.error('Select a valid scheduling date and time');
+        return;
+      }
+      scheduledAt = date.toISOString();
     }
-
-    const cleanPlatformContent: PlatformSpecificContent[] = (Object.values(platformContents) as PlatformSpecificContent[]).map(pc => ({
-      ...pc,
-      enabled: true
-    }));
 
     const post: Post = {
       id: editId || uuidv4(),
-      workspaceId: activeWorkspace?.id || 'ws-1',
+      workspaceId: state.activeWorkspaceId,
       title: originalContent.caption.slice(0, 40).trim() || 'Untitled Post',
       status,
       scheduledAt,
       publishedAt: status === 'published' ? new Date().toISOString() : undefined,
       originalContent,
-      platformContent: cleanPlatformContent,
+      platformContent: getCleanPlatformContent(),
       destinationAccountIds: selectedAccountIds,
       sourceContentItemId: fromPipelineId || undefined,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    
+
     if (editId) {
       dispatch({ type: 'UPDATE_POST', payload: post });
     } else {
       dispatch({ type: 'ADD_POST', payload: post });
     }
-    
+
     toast.success(status === 'scheduled' ? 'Post scheduled successfully!' : 'Post published!');
     navigate('/calendar');
   };
 
-  const handleCreateExperimentFromVariation = (variantContent: string, strategyName: string) => {
+  const handleCreateExperimentFromVariation = (
+    variantContent: string,
+    strategyName: string,
+  ) => {
     const newExperiment: Experiment = {
       id: uuidv4(),
-      workspaceId: activeWorkspace?.id || 'ws-1',
+      workspaceId: state.activeWorkspaceId,
       name: `Variation Test: ${strategyName} vs Original`,
       type: 'caption',
       hypothesis: `Testing ${strategyName} strategy against original baseline to lift audience engagement and retention.`,
@@ -374,14 +439,14 @@ export function CreatePostPage() {
       variantA: {
         label: 'Variant A (Current Base)',
         metric: 0,
-        content: originalContent.caption
+        content: originalContent.caption,
       },
       variantB: {
         label: `Variant B (${strategyName})`,
         metric: 0,
-        content: variantContent
+        content: variantContent,
       },
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     dispatch({ type: 'ADD_EXPERIMENT', payload: newExperiment });
@@ -389,21 +454,21 @@ export function CreatePostPage() {
     navigate('/experiments');
   };
 
-  // Resolve media asset objects for the active preview
   const activeMediaAssets: MediaAsset[] = currentMediaIds
-    .map(id => workspaceMedia.find(m => m.id === id))
-    .filter((m): m is MediaAsset => !!m);
+    .map((id) => workspaceMedia.find((asset) => asset.id === id))
+    .filter((asset): asset is MediaAsset => Boolean(asset));
 
-  // Check character limits for active platform
-  const activeConfig = activePreviewTab !== 'original' ? PLATFORM_CONFIGS[activePreviewTab] : null;
-  const isOverLimit = activeConfig && currentContentText.length > activeConfig.prototypeCaptionLimit;
+  const activeConfig = activePreviewTab !== 'original'
+    ? PLATFORM_CONFIGS[activePreviewTab]
+    : null;
+  const isOverLimit = Boolean(
+    activeConfig && currentContentText.length > activeConfig.prototypeCaptionLimit,
+  );
 
   return (
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-white">
-      {/* Composer Section (approx 62%) */}
       <div className="flex-1 lg:max-w-[62%] flex flex-col h-full border-r border-[#EBEBE9] overflow-y-auto">
         <div className="p-6 md:p-8 max-w-3xl mx-auto w-full space-y-6 flex-1">
-          
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Composer</h1>
@@ -419,14 +484,13 @@ export function CreatePostPage() {
             )}
           </div>
 
-          {/* Destination Accounts */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                 Destination Accounts ({selectedAccountIds.length})
               </label>
-              <button 
-                onClick={() => setSelectedAccountIds(availableAccounts.map(a => a.id))}
+              <button
+                onClick={() => setSelectedAccountIds(availableAccounts.map((account) => account.id))}
                 className="text-[11px] text-brand-600 hover:underline font-medium"
               >
                 Select All
@@ -434,15 +498,15 @@ export function CreatePostPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {availableAccounts.map(account => {
+              {availableAccounts.map((account) => {
                 const isSelected = selectedAccountIds.includes(account.id);
                 return (
                   <button
                     key={account.id}
                     onClick={() => toggleAccount(account.id)}
                     className={`flex items-center px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all ${
-                      isSelected 
-                        ? 'border-brand-500 bg-brand-50/70 text-brand-800 shadow-xs ring-1 ring-brand-500/20' 
+                      isSelected
+                        ? 'border-brand-500 bg-brand-50/70 text-brand-800 shadow-xs ring-1 ring-brand-500/20'
                         : 'border-[#EBEBE9] bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
                     }`}
                   >
@@ -460,30 +524,28 @@ export function CreatePostPage() {
             </div>
           </div>
 
-          {/* Editor Area */}
           <div className="space-y-3">
-            {/* Tabs for Original Base vs Customized Platforms */}
             <div className="flex items-center justify-between border-b border-[#EBEBE9] pb-0.5">
               <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
                 <button
                   onClick={() => setActivePreviewTab('original')}
                   className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activePreviewTab === 'original' 
-                      ? 'border-brand-600 text-brand-700 font-semibold' 
+                    activePreviewTab === 'original'
+                      ? 'border-brand-600 text-brand-700 font-semibold'
                       : 'border-transparent text-zinc-500 hover:text-zinc-800'
                   }`}
                 >
                   Original Base
                 </button>
-                {selectedPlatforms.map(platform => {
-                  const isCustomized = !!platformContents[platform];
+                {selectedPlatforms.map((platform) => {
+                  const isCustomized = Boolean(platformContents[platform]);
                   return (
                     <button
                       key={platform}
                       onClick={() => setActivePreviewTab(platform)}
                       className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex items-center ${
-                        activePreviewTab === platform 
-                          ? 'border-brand-600 text-brand-700 font-semibold' 
+                        activePreviewTab === platform
+                          ? 'border-brand-600 text-brand-700 font-semibold'
                           : 'border-transparent text-zinc-500 hover:text-zinc-800'
                       }`}
                     >
@@ -510,34 +572,30 @@ export function CreatePostPage() {
               )}
             </div>
 
-            {/* Post Text Input */}
             <div className="bg-white border border-[#EBEBE9] rounded-xl shadow-xs overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
               <textarea
                 value={currentContentText}
-                onChange={e => handleContentChange(e.target.value)}
-                placeholder={
-                  activeConfig 
-                    ? activeConfig.placeholderText 
-                    : "Write an engaging, high-signal post with hooks and clear takeaways..."
-                }
+                onChange={(event) => handleContentChange(event.target.value)}
+                placeholder={activeConfig
+                  ? activeConfig.placeholderText
+                  : 'Write an engaging, high-signal post with hooks and clear takeaways...'}
                 className="w-full min-h-[160px] p-4 text-[14px] text-zinc-900 resize-y focus:outline-none placeholder-zinc-400 font-sans leading-relaxed"
               />
-              
-              {/* Media Thumbnails */}
+
               {currentMediaIds.length > 0 && (
                 <div className="px-4 pb-3 flex gap-3 overflow-x-auto">
-                  {currentMediaIds.map(mid => {
-                    const asset = state.mediaAssets.find(a => a.id === mid);
+                  {currentMediaIds.map((mediaId) => {
+                    const asset = workspaceMedia.find((media) => media.id === mediaId);
                     if (!asset) return null;
                     return (
-                      <div key={mid} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9] group shrink-0 bg-zinc-100">
+                      <div key={mediaId} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9] group shrink-0 bg-zinc-100">
                         {asset.type === 'image' ? (
                           <img src={asset.url} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                         )}
-                        <button 
-                          onClick={() => removeMediaFromCurrent(mid)}
+                        <button
+                          onClick={() => removeMediaFromCurrent(mediaId)}
                           className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                         >
                           <X className="w-3 h-3" />
@@ -548,11 +606,10 @@ export function CreatePostPage() {
                 </div>
               )}
 
-              {/* Toolbar bar */}
               <div className="flex items-center justify-between px-3 py-2 bg-[#FAFAF9] border-t border-[#F2F2F0]">
                 <div className="flex items-center space-x-1">
-                  <button 
-                    onClick={() => setShowMediaModal(true)} 
+                  <button
+                    onClick={() => setShowMediaModal(true)}
                     className="flex items-center px-2.5 py-1 text-zinc-600 hover:bg-zinc-200/70 rounded-md text-[12px] font-medium transition-colors"
                   >
                     <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-zinc-500" />
@@ -573,16 +630,15 @@ export function CreatePostPage() {
               </div>
             </div>
 
-            {/* AI Assistant Quick Actions */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-[12px] font-semibold text-brand-600 flex items-center mr-1">
                 <Sparkles className="w-3.5 h-3.5 mr-1" />
                 AI Assist:
               </span>
 
-              {['Improve', 'Hook', 'Shorten', 'Hashtags'].map(tool => (
-                <button 
-                  key={tool} 
+              {['Improve', 'Hook', 'Shorten', 'Hashtags'].map((tool) => (
+                <button
+                  key={tool}
                   onClick={() => handleAITool(tool)}
                   disabled={isGeneratingAI}
                   className="px-2.5 py-1 text-[11px] font-medium text-zinc-700 bg-white border border-[#DCDCD8] hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-800 rounded-md transition-all shadow-2xs disabled:opacity-50"
@@ -591,7 +647,6 @@ export function CreatePostPage() {
                 </button>
               ))}
 
-              {/* Rewrite with tone selector */}
               <div className="relative inline-block">
                 <div className="flex rounded-md shadow-2xs">
                   <button
@@ -612,7 +667,7 @@ export function CreatePostPage() {
                 {showToneDropdown && (
                   <div className="absolute left-0 mt-1 w-36 bg-white border border-[#EBEBE9] rounded-lg shadow-lg z-20 py-1 text-[12px]">
                     <div className="px-2 py-1 text-[10px] font-bold uppercase text-zinc-400">Select Tone</div>
-                    {REWRITE_TONES.map(tone => (
+                    {REWRITE_TONES.map((tone) => (
                       <button
                         key={tone}
                         onClick={() => {
@@ -621,7 +676,9 @@ export function CreatePostPage() {
                           handleAITool('Rewrite', tone);
                         }}
                         className={`w-full text-left px-3 py-1.5 hover:bg-brand-50 ${
-                          selectedRewriteTone === tone ? 'font-semibold text-brand-700 bg-brand-50/40' : 'text-zinc-700'
+                          selectedRewriteTone === tone
+                            ? 'font-semibold text-brand-700 bg-brand-50/40'
+                            : 'text-zinc-700'
                         }`}
                       >
                         {tone}
@@ -632,7 +689,6 @@ export function CreatePostPage() {
               </div>
             </div>
 
-            {/* DEDICATED AI RESULT PANEL (Prevents overwriting, supports alternatives, history, hashtags chips) */}
             {activeAISuggestion && (
               <AIResultPanel
                 tool={activeAISuggestion.tool}
@@ -651,28 +707,26 @@ export function CreatePostPage() {
                     originalText: item.originalText,
                     resultText: item.resultText,
                     hooks: item.hooks,
-                    hashtags: item.hashtags
+                    hashtags: item.hashtags,
                   });
                 }}
               />
             )}
 
-            {/* CREATOR INTELLIGENCE PANEL (Score, Strengths, Weaknesses, Variations, Experiments) */}
             <CreatorIntelligencePanel
               content={currentContentText}
-              platform={activePreviewTab !== 'original' ? activePreviewTab : selectedPlatforms[0]}
+              platform={activePreviewTab !== 'original'
+                ? activePreviewTab
+                : selectedPlatforms[0]}
               platforms={selectedPlatforms}
               onApplyContent={handleContentChange}
               onCreateExperiment={handleCreateExperimentFromVariation}
             />
           </div>
-
         </div>
 
-        {/* Action Bottom Footer */}
         <div className="p-5 border-t border-[#EBEBE9] bg-[#FAFAF9] shrink-0">
           <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            
             <div className="flex-1 max-w-sm">
               {isScheduling && (
                 <div className="p-3 bg-white border border-[#EBEBE9] rounded-xl shadow-xs mb-3">
@@ -690,17 +744,17 @@ export function CreatePostPage() {
                     </button>
                   </div>
                   <div className="flex gap-2">
-                    <input 
-                      type="date" 
-                      value={scheduleDate} 
-                      onChange={e => setScheduleDate(e.target.value)} 
-                      className="flex-1 min-w-0 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      onChange={(event) => setScheduleDate(event.target.value)}
+                      className="flex-1 min-w-0 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
-                    <input 
-                      type="time" 
-                      value={scheduleTime} 
-                      onChange={e => setScheduleTime(e.target.value)} 
-                      className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500" 
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(event) => setScheduleTime(event.target.value)}
+                      className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </div>
                   {bestTimes.length > 0 && (
@@ -710,9 +764,9 @@ export function CreatePostPage() {
                   )}
                 </div>
               )}
-              
-              <button 
-                onClick={handleSaveDraft} 
+
+              <button
+                onClick={handleSaveDraft}
                 className="flex items-center px-3.5 py-2 text-zinc-600 font-medium text-[12px] hover:bg-zinc-200/60 rounded-lg transition-colors"
               >
                 <Save className="w-3.5 h-3.5 mr-1.5" />
@@ -721,11 +775,11 @@ export function CreatePostPage() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button 
+              <button
                 onClick={() => setIsScheduling(!isScheduling)}
                 className={`flex items-center px-3.5 py-2 font-medium text-[12px] rounded-lg transition-colors ${
-                  isScheduling 
-                    ? 'bg-brand-100 text-brand-700' 
+                  isScheduling
+                    ? 'bg-brand-100 text-brand-700'
                     : 'bg-white border border-[#DCDCD8] text-zinc-700 hover:bg-zinc-50 shadow-2xs'
                 }`}
               >
@@ -733,7 +787,7 @@ export function CreatePostPage() {
                 {isScheduling ? 'Scheduling' : 'Set Schedule'}
               </button>
 
-              <button 
+              <button
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
                 className="flex items-center px-4 py-2 bg-brand-600 text-white font-medium text-[12px] rounded-lg hover:bg-brand-700 transition-colors shadow-xs"
               >
@@ -741,18 +795,16 @@ export function CreatePostPage() {
                 {isScheduling ? 'Schedule Post' : 'Publish Now'}
               </button>
             </div>
-
           </div>
         </div>
       </div>
 
-      {/* Preview Section (approx 38%) */}
       <div className="hidden lg:flex lg:w-[38%] bg-[#FAFAF9] flex-col overflow-y-auto border-l border-[#EBEBE9]">
         <div className="sticky top-0 p-3.5 border-b border-[#EBEBE9] bg-white/90 backdrop-blur z-10 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-              {activePreviewTab === 'original' 
-                ? 'Base Content Preview' 
+              {activePreviewTab === 'original'
+                ? 'Base Content Preview'
                 : `${PLATFORM_CONFIGS[activePreviewTab]?.displayName || activePreviewTab} Preview`}
             </span>
           </div>
@@ -767,10 +819,9 @@ export function CreatePostPage() {
             </button>
           )}
         </div>
-        
+
         <div className="p-6 flex-1 flex flex-col items-center justify-start">
           {activePreviewTab === 'original' ? (
-            /* Base Cross-Platform Card Preview */
             <div className="w-full max-w-sm bg-white rounded-xl shadow-xs border border-[#EBEBE9] overflow-hidden text-[13px]">
               <div className="p-4 border-b border-[#F2F2F0] flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -783,9 +834,9 @@ export function CreatePostPage() {
                   </div>
                 </div>
                 <div className="flex -space-x-1">
-                  {selectedPlatforms.map(p => (
-                    <div key={p} className="w-5 h-5 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center p-0.5">
-                      <PlatformIcon platform={p} className="w-3 h-3" />
+                  {selectedPlatforms.map((platform) => (
+                    <div key={platform} className="w-5 h-5 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center p-0.5">
+                      <PlatformIcon platform={platform} className="w-3 h-3" />
                     </div>
                   ))}
                 </div>
@@ -793,7 +844,9 @@ export function CreatePostPage() {
 
               <div className="p-4">
                 <div className="text-[13px] text-zinc-800 whitespace-pre-wrap leading-relaxed mb-4">
-                  {currentContentText || <span className="text-zinc-400 italic">Enter caption text in composer to preview...</span>}
+                  {currentContentText || (
+                    <span className="text-zinc-400 italic">Enter caption text in composer to preview...</span>
+                  )}
                 </div>
 
                 {activeMediaAssets.length > 0 ? (
@@ -814,14 +867,16 @@ export function CreatePostPage() {
               </div>
             </div>
           ) : (
-            /* PLATFORM-SPECIFIC PREVIEW COMPONENT */
             <div className="w-full">
               <PlatformPreviewRenderer
                 platform={activePreviewTab}
-                account={availableAccounts.find(a => a.platform === activePreviewTab && selectedAccountIds.includes(a.id))}
+                account={availableAccounts.find(
+                  (account) => account.platform === activePreviewTab
+                    && selectedAccountIds.includes(account.id),
+                )}
                 caption={currentContentText}
                 mediaAssets={activeMediaAssets}
-                isCustomized={!!platformContents[activePreviewTab]}
+                isCustomized={Boolean(platformContents[activePreviewTab])}
                 onResetToBase={() => handleResetPlatformToBase(activePreviewTab)}
               />
             </div>
@@ -829,36 +884,36 @@ export function CreatePostPage() {
         </div>
       </div>
 
-      {/* Multi-Platform Content Adaptation Modal */}
       <PlatformOptimizationModal
         baseContent={originalContent.caption}
         selectedPlatforms={selectedPlatforms}
         isOpen={showOptimizeModal}
         onClose={() => setShowOptimizeModal(false)}
-        onApplyOptimization={(plat, adaptedText) => {
-          setPlatformContents(prev => ({
-            ...prev,
-            [plat]: {
-              platform: plat,
+        onApplyOptimization={(platform, adaptedText) => {
+          setPlatformContents((previous) => ({
+            ...previous,
+            [platform]: {
+              platform,
               enabled: true,
               content: {
                 caption: adaptedText,
-                mediaIds: prev[plat]?.content.mediaIds || originalContent.mediaIds
-              }
-            }
+                mediaIds: previous[platform]?.content.mediaIds || originalContent.mediaIds,
+              },
+            },
           }));
-          toast.success(`Adapted for ${plat}`);
+          toast.success(`Adapted for ${platform}`);
         }}
         onApplyAll={(optimizations) => {
           const next = { ...platformContents };
-          Object.entries(optimizations).forEach(([plat, text]) => {
-            next[plat as Platform] = {
-              platform: plat as Platform,
+          Object.entries(optimizations).forEach(([platformId, text]) => {
+            const platform = platformId as Platform;
+            next[platform] = {
+              platform,
               enabled: true,
               content: {
                 caption: text,
-                mediaIds: next[plat as Platform]?.content.mediaIds || originalContent.mediaIds
-              }
+                mediaIds: next[platform]?.content.mediaIds || originalContent.mediaIds,
+              },
             };
           });
           setPlatformContents(next);
@@ -866,7 +921,6 @@ export function CreatePostPage() {
         }}
       />
 
-      {/* Media Selection Modal */}
       {showMediaModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] border border-[#EBEBE9]">
@@ -875,20 +929,20 @@ export function CreatePostPage() {
                 <h3 className="font-semibold text-zinc-900 text-[14px]">Select Media from Library</h3>
                 <p className="text-[11px] text-zinc-500">Pick images or videos from this workspace</p>
               </div>
-              <button 
-                onClick={() => setShowMediaModal(false)} 
+              <button
+                onClick={() => setShowMediaModal(false)}
                 className="p-1 hover:bg-zinc-200/60 rounded-md text-zinc-500 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="p-5 overflow-y-auto flex-1 grid grid-cols-3 sm:grid-cols-4 gap-3 bg-white">
-              {workspaceMedia.map(asset => {
+              {workspaceMedia.map((asset) => {
                 const isAttached = currentMediaIds.includes(asset.id);
                 return (
-                  <div 
-                    key={asset.id} 
+                  <div
+                    key={asset.id}
                     onClick={() => {
                       if (isAttached) {
                         removeMediaFromCurrent(asset.id);
@@ -897,8 +951,8 @@ export function CreatePostPage() {
                       }
                     }}
                     className={`aspect-square bg-zinc-100 rounded-xl overflow-hidden border cursor-pointer group relative transition-all ${
-                      isAttached 
-                        ? 'border-brand-500 ring-2 ring-brand-400' 
+                      isAttached
+                        ? 'border-brand-500 ring-2 ring-brand-400'
                         : 'border-[#EBEBE9] hover:border-brand-400'
                     }`}
                   >
