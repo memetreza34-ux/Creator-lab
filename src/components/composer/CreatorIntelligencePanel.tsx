@@ -60,41 +60,42 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
         throw new Error(json.error || 'Failed to analyze content');
       }
 
-      if (json.data && typeof json.data.overallScore === 'number') {
-        setAnalysis({
-          overallScore: json.data.overallScore,
-          scores: json.data.scores || {
-            hookStrength: 75,
-            clarity: 80,
-            ctaStrength: 65,
-            platformFit: 82,
-            engagementPotential: 70
-          },
-          strengths: json.data.strengths || ['Clear premise', 'Good tone fit'],
-          weaknesses: json.data.weaknesses || ['CTA is passive', 'Hook lacks intrigue'],
-          recommendedChanges: json.data.recommendedChanges || ['Strengthen first sentence'],
-          assessedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      } else {
-        // Fallback default calculation if JSON was malformed
-        setAnalysis({
-          overallScore: 78,
-          scores: {
-            hookStrength: 72,
-            clarity: 85,
-            ctaStrength: 68,
-            platformFit: 80,
-            engagementPotential: 74
-          },
-          strengths: ['Clear core message', 'Direct phrasing with good rhythm'],
-          weaknesses: ['Opening sentence could provoke stronger curiosity', 'Call to action is understated'],
-          recommendedChanges: ['Introduce a contrasting question in the first 2 seconds', 'Add a clear question to spark comments'],
-          assessedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
+      if (!json.data || typeof json.data.overallScore !== 'number') {
+        throw new Error('The AI service did not return a valid diagnostic result.');
       }
-    } catch (err: any) {
+
+      const scores = json.data.scores;
+      if (
+        !scores ||
+        typeof scores.hookStrength !== 'number' ||
+        typeof scores.clarity !== 'number' ||
+        typeof scores.ctaStrength !== 'number' ||
+        typeof scores.platformFit !== 'number' ||
+        typeof scores.engagementPotential !== 'number'
+      ) {
+        throw new Error('The AI diagnostic response was incomplete.');
+      }
+
+      setAnalysis({
+        overallScore: json.data.overallScore,
+        scores,
+        strengths: Array.isArray(json.data.strengths) ? json.data.strengths : [],
+        weaknesses: Array.isArray(json.data.weaknesses) ? json.data.weaknesses : [],
+        recommendedChanges: Array.isArray(json.data.recommendedChanges)
+          ? json.data.recommendedChanges
+          : [],
+        assessedAt: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      });
+    } catch (err: unknown) {
       console.error(err);
-      setAnalysisError(err.message || 'Analysis service temporarily unavailable.');
+      setAnalysisError(
+        err instanceof Error
+          ? err.message
+          : 'Analysis service temporarily unavailable.',
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -119,16 +120,22 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to improve weak points');
 
-      if (json.data && json.data.improvedContent) {
-        setImprovedResult(json.data);
-      } else {
-        setImprovedResult({
-          improvedContent: json.result || content,
-          explanation: 'Restructured the opening hook to be punchier and added an explicit engagement prompt.'
-        });
+      if (
+        !json.data ||
+        typeof json.data.improvedContent !== 'string' ||
+        typeof json.data.explanation !== 'string'
+      ) {
+        throw new Error('The AI service did not return a valid improved version.');
       }
-    } catch (err: any) {
-      alert(err.message || 'Error improving content');
+
+      setImprovedResult({
+        improvedContent: json.data.improvedContent,
+        explanation: json.data.explanation,
+      });
+    } catch (err: unknown) {
+      setAnalysisError(
+        err instanceof Error ? err.message : 'Error improving content',
+      );
     } finally {
       setImprovingWeakPoints(false);
     }
@@ -152,32 +159,32 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to generate variations');
 
-      if (json.data && Array.isArray(json.data.variations)) {
-        setVariations(json.data.variations);
-      } else {
-        setVariations([
-          {
-            strategy: 'Direct Promise',
-            title: 'Value-First Guarantee',
-            content: `Want 2x faster editing? Here is the exact system:\n\n${content}`,
-            explanation: 'Immediate hook offering a tangible ROI within the first sentence.'
-          },
-          {
-            strategy: 'Curiosity Gap',
-            title: 'Contrarian Question',
-            content: `Why are 90% of creators still making this basic mistake?\n\n${content}`,
-            explanation: 'Creates tension and curiosity that stops rapid thumb scrolling.'
-          },
-          {
-            strategy: 'Story Hook',
-            title: 'Behind-the-Scenes Journey',
-            content: `Last month our workflow completely broke down. Here is what we learned:\n\n${content}`,
-            explanation: 'Vulnerability and personal stakes draw in high comment counts.'
-          }
-        ]);
+      if (!json.data || !Array.isArray(json.data.variations)) {
+        throw new Error('The AI service did not return valid strategic variations.');
       }
-    } catch (err: any) {
-      alert(err.message || 'Error generating variations');
+
+      const validVariations = json.data.variations.filter(
+        (variation: unknown): variation is ContentVariation => {
+          if (!variation || typeof variation !== 'object') return false;
+          const candidate = variation as Record<string, unknown>;
+          return (
+            typeof candidate.strategy === 'string' &&
+            typeof candidate.title === 'string' &&
+            typeof candidate.content === 'string' &&
+            typeof candidate.explanation === 'string'
+          );
+        },
+      );
+
+      if (validVariations.length === 0) {
+        throw new Error('No usable strategic variations were returned.');
+      }
+
+      setVariations(validVariations);
+    } catch (err: unknown) {
+      setAnalysisError(
+        err instanceof Error ? err.message : 'Error generating variations',
+      );
     } finally {
       setGeneratingVariations(false);
     }
@@ -199,7 +206,7 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
           </div>
           <div>
             <h3 className="font-semibold text-zinc-900 text-[14px]">Creator Intelligence</h3>
-            <p className="text-[11px] text-zinc-500">Diagnostic content scoring, weakness resolution & variations</p>
+            <p className="text-[11px] text-zinc-500">AI diagnostic feedback — not measured performance or a viral prediction</p>
           </div>
         </div>
 
@@ -236,7 +243,7 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
             Click <strong>Analyze Content</strong> to run our multi-vector heuristic on your hook, clarity, call to action, and platform pacing.
           </p>
           <span className="inline-block text-[11px] text-zinc-400 bg-zinc-50 border border-zinc-200 px-2.5 py-1 rounded-full">
-            Evaluates against platform-specific attention patterns
+            Heuristic AI review of the draft itself; no performance data is inferred
           </span>
         </div>
       ) : analysis ? (
@@ -250,19 +257,15 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <h4 className="font-semibold text-zinc-900 text-[14px]">Overall Content Score</h4>
+                  <h4 className="font-semibold text-zinc-900 text-[14px]">AI Diagnostic Score</h4>
                   <span className="text-[11px] text-zinc-400">Assessed at {analysis.assessedAt}</span>
                 </div>
                 <p className="text-[12px] text-zinc-600 mt-0.5">
-                  {analysis.overallScore >= 80 
-                    ? 'Strong engagement potential with crisp pacing and high platform alignment.' 
-                    : analysis.overallScore >= 60 
-                    ? 'Solid foundation. Actionable adjustments can elevate first-3-second retention.' 
-                    : 'Needs hook tightening and explicit value proposition.'}
+                  Review the diagnostic dimensions and recommendations below before deciding whether to apply any changes.
                 </p>
                 <div className="text-[10px] text-zinc-400 mt-1 flex items-center">
                   <ShieldCheck className="w-3 h-3 mr-1 text-emerald-600" />
-                  Diagnostic heuristics — AI estimation, not guaranteed virality
+                  AI heuristic only — not measured engagement, retention, or guaranteed virality
                 </div>
               </div>
             </div>
@@ -284,7 +287,7 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
                 { label: 'Clarity', val: analysis.scores.clarity },
                 { label: 'CTA Strength', val: analysis.scores.ctaStrength },
                 { label: 'Platform Fit', val: analysis.scores.platformFit },
-                { label: 'Engagement', val: analysis.scores.engagementPotential },
+                { label: 'Engagement heuristic', val: analysis.scores.engagementPotential },
               ].map((item, i) => (
                 <div key={i} className="p-2.5 rounded-lg border border-[#EBEBE9] bg-white">
                   <div className="text-[11px] text-zinc-500 truncate mb-1">{item.label}</div>
@@ -383,8 +386,9 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span>Weak Points Remediated</span>
                 </div>
-                <button 
+                <button
                   onClick={() => setImprovedResult(null)}
+                  aria-label="Dismiss improved content suggestion"
                   className="text-zinc-400 hover:text-zinc-600"
                 >
                   <X className="w-4 h-4" />
@@ -435,7 +439,7 @@ export const CreatorIntelligencePanel: React.FC<CreatorIntelligencePanelProps> =
                   <Layers className="w-4 h-4 text-indigo-600" />
                   <span>3 Strategic Variations for Testing</span>
                 </div>
-                <button onClick={() => setVariations(null)} className="text-zinc-400 hover:text-zinc-600">
+                <button onClick={() => setVariations(null)} aria-label="Dismiss strategic variations" className="text-zinc-400 hover:text-zinc-600">
                   <X className="w-4 h-4" />
                 </button>
               </div>
