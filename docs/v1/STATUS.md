@@ -94,21 +94,35 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Removed dead interaction styling from preview-only engagement chrome.
 - Phase 1 acceptance criteria reviewed and satisfied.
 
+## Phase 2 completed — lifecycle and traceability block
+
+- Added centralized content-operation helpers for deterministic pipeline movement, source-linked stage synchronization, and post media-reference cleanup.
+- Pipeline drag/drop now normalizes order in both source and target columns and persists changes through one batch action.
+- Creating or updating a linked scheduled/published post automatically advances its source ContentItem to the corresponding pipeline stage.
+- Deleting a ContentItem preserves downstream posts/experiments but clears their source references instead of leaving broken IDs.
+- Deleting a Post removes its performance rows and clears experiment source-post references.
+- Deleting a MediaAsset removes that asset ID from base and platform-specific post content.
+- Removing a SocialAccount removes its post destination references; a scheduled post that loses its final destination becomes `needs_review` and its schedule is cleared.
+- Platform-specific content for a removed account's platform is cleaned when no remaining destination still uses that platform.
+- Posts now expose `failed` and `needs_review` as real status tabs and no longer show a dead Filter button.
+- Pipeline form parsing now validates ContentFormat and Platform values instead of relying on `any`.
+- Added regression coverage for cross-stage ordering, same-stage ordering, post→pipeline stage synchronization, orphan cleanup, media cleanup, and lost-destination review behavior.
+
 ## Next exact task
 
-Start **PHASE 2 — CONTENT OPERATIONS** with a lifecycle/traceability audit before adding new UI:
+Continue **PHASE 2 — CONTENT OPERATIONS** with the second lifecycle/UI audit:
 
-- audit Pipeline → Composer → Post source traceability end-to-end,
-- verify stage transitions and persistent ordering remain deterministic,
-- define deletion/orphan behavior when source ContentItems, Posts, Media folders, or Media assets are removed,
-- verify Posts filters/statuses derive from authoritative post data rather than duplicated display state,
-- centralize shared content-operation helpers where lifecycle rules are currently embedded in pages,
-- add regression tests for the discovered lifecycle invariants,
-- do not add team/approval/enterprise features.
+- audit Posts, Media Library, Social Accounts, and Pipeline controls for dead or misleading actions,
+- make media-asset deletion impact visible before confirmation when the asset is referenced by drafts/posts,
+- improve linked Pipeline↔Post traceability in the UI without duplicating source-of-truth fields,
+- audit historical-post behavior when a social account is removed and document the limitation until the future PostDestination model exists,
+- verify folder deletion/move rules and media preview URLs remain durable and workspace-scoped,
+- add any deterministic regression tests required by those rules,
+- then evaluate the Phase 2 exit criteria before moving to Phase 3.
 
 ## Validation evidence
 
-GitHub Actions run 37657602706 on PR #9 completed successfully:
+GitHub Actions run 37658513649 on PR #10 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
