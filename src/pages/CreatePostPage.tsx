@@ -1042,11 +1042,20 @@ export function CreatePostPage() {
                 tool={activeAISuggestion.tool}
                 originalText={activeAISuggestion.originalText}
                 resultText={activeAISuggestion.resultText}
+                currentText={currentContentText}
                 hooks={activeAISuggestion.hooks}
                 hashtags={activeAISuggestion.hashtags}
                 onApply={handleApplyAISuggestion}
                 onInsert={handleInsertAtCursor}
-                onRegenerate={() => handleAITool(activeAISuggestion.tool)}
+                onRegenerate={() => {
+                  const rewriteMatch = activeAISuggestion.tool.match(
+                    /^Rewrite \((.+)\)$/,
+                  );
+                  void handleAITool(
+                    rewriteMatch ? 'Rewrite' : activeAISuggestion.tool,
+                    rewriteMatch?.[1],
+                  );
+                }}
                 onDiscard={() => setActiveAISuggestion(null)}
                 history={aiHistory}
                 onRestoreFromHistory={(item) => {
@@ -1153,7 +1162,7 @@ export function CreatePostPage() {
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
                 disabled={!isScheduling && !canPublishLive}
                 title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
-                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs ${
+                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs disabled:cursor-not-allowed ${
                   !isScheduling && !canPublishLive
                     ? 'bg-zinc-300 text-zinc-600 hover:bg-zinc-300'
                     : 'bg-brand-600 text-white hover:bg-brand-700'
@@ -1318,8 +1327,11 @@ export function CreatePostPage() {
               {workspaceMedia.map((asset) => {
                 const isAttached = currentMediaIds.includes(asset.id);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={asset.id}
+                    aria-pressed={isAttached}
+                    aria-label={`${isAttached ? 'Detach' : 'Attach'} ${asset.name}`}
                     onClick={() => {
                       if (isAttached) {
                         removeMediaFromCurrent(asset.id);
@@ -1327,7 +1339,7 @@ export function CreatePostPage() {
                         addMediaToCurrent(asset.id);
                       }
                     }}
-                    className={`aspect-square bg-zinc-100 rounded-xl overflow-hidden border cursor-pointer group relative transition-all ${
+                    className={`aspect-square bg-zinc-100 rounded-xl overflow-hidden border cursor-pointer group relative transition-all focus:outline-none focus:ring-2 focus:ring-brand-400 ${
                       isAttached
                         ? 'border-brand-500 ring-2 ring-brand-400'
                         : 'border-[#EBEBE9] hover:border-brand-400'
@@ -1344,7 +1356,7 @@ export function CreatePostPage() {
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
 
