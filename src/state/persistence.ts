@@ -385,9 +385,18 @@ export function deserializePersistedState(
 }
 
 export function serializePersistedState(state: AppState): string {
+  const serializableState: AppState = {
+    ...state,
+    mediaAssets: state.mediaAssets.map((asset) =>
+      asset.storageKind === 'indexeddb'
+        ? { ...asset, url: '' }
+        : asset,
+    ),
+  };
+
   const envelope: PersistedStateEnvelopeCurrent = {
     schemaVersion: PERSISTED_STATE_SCHEMA_VERSION,
-    state,
+    state: serializableState,
   };
 
   return JSON.stringify(envelope);
