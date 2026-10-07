@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   Experiment,
@@ -38,6 +38,10 @@ import { PlatformPreviewRenderer } from '../components/composer/previews/Platfor
 import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
 import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
 import { resolveMediaUrl } from '../utils/mediaStorage';
+import {
+  countInvalidMediaReferences,
+  sanitizeComposerContent,
+} from '../utils/composerContent';
 import { utcToZonedDateTime, zonedDateTimeToUtc } from '../utils/time';
 
 const REWRITE_TONES = [
@@ -95,10 +99,15 @@ export function CreatePostPage() {
   const [scheduleDate, setScheduleDate] = useState(dateParam);
   const [scheduleTime, setScheduleTime] = useState(timeParam);
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
+  const [isDirty, setIsDirty] = useState(false);
+  const navigationBypassRef = useRef(false);
 
   const [originalContent, setOriginalContent] = useState<PostContent>({
     caption: titleParam ? `${titleParam}\n\n` : '',
-    mediaIds: mediaIdParam ? [mediaIdParam] : [],
+    mediaIds:
+      mediaIdParam && workspaceMedia.some((asset) => asset.id === mediaIdParam)
+        ? [mediaIdParam]
+        : [],
   });
   const [platformContents, setPlatformContents] = useState<
     Partial<Record<Platform, PlatformSpecificContent>>
@@ -119,11 +128,77 @@ export function CreatePostPage() {
   const [showToneDropdown, setShowToneDropdown] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
 
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty &&
+      !navigationBypassRef.current &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search),
+  );
+
   useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+
+    const shouldLeave = window.confirm(
+      'You have unsaved Composer changes. Leave without saving?',
+    );
+
+    if (shouldLeave) {
+      blocker.proceed();
+    } else {
+      blocker.reset();
+    }
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  const markDirty = () => {
+    navigationBypassRef.current = false;
+    setIsDirty(true);
+  };
+
+  const markSaved = () => {
+    navigationBypassRef.current = true;
+    setIsDirty(false);
+  };
+
+  useEffect(() => {
+    navigationBypassRef.current = false;
+    setIsDirty(false);
+
     if (editId) {
-      const existing = state.posts.find((post) => post.id === editId);
+      const existing = state.posts.find(
+        (post) =>
+          post.id === editId &&
+          post.workspaceId === state.activeWorkspaceId,
+      );
+
+      if (!existing) {
+        toast.error('Post not found in the active workspace');
+        navigationBypassRef.current = true;
+        navigate('/posts', { replace: true });
+        return;
+      }
+
       if (existing) {
-        setSelectedAccountIds(existing.destinationAccountIds);
+        const availableAccountIds = new Set(
+          availableAccounts.map((account) => account.id),
+        );
+        setSelectedAccountIds(
+          existing.destinationAccountIds.filter((accountId) =>
+            availableAccountIds.has(accountId),
+          ),
+        );
         setOriginalContent(existing.originalContent);
 
         const existingPlatformContents: Partial<
@@ -163,7 +238,14 @@ export function CreatePostPage() {
     } else if (availableAccounts.length > 0 && selectedAccountIds.length === 0) {
       setSelectedAccountIds([availableAccounts[0].id]);
     }
-  }, [editId, state.posts, platformsParam, activeWorkspace?.timezone]);
+  }, [
+    editId,
+    state.posts,
+    state.socialAccounts,
+    state.activeWorkspaceId,
+    platformsParam,
+    activeWorkspace?.timezone,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,6 +305,7 @@ export function CreatePostPage() {
   const bestTimes = getRecommendedPostingTimes(activeWorkspace?.id, primaryPlatform);
 
   const toggleAccount = (id: string) => {
+    markDirty();
     setSelectedAccountIds((previous) =>
       previous.includes(id)
         ? previous.filter((accountId) => accountId !== id)
@@ -322,6 +405,7 @@ export function CreatePostPage() {
   };
 
   const handleContentChange = (text: string) => {
+    markDirty();
     if (activePreviewTab === 'original') {
       setOriginalContent((previous) => ({ ...previous, caption: text }));
     } else {
@@ -337,6 +421,7 @@ export function CreatePostPage() {
   };
 
   const handleResetPlatformToBase = (platform: Platform) => {
+    markDirty();
     setPlatformContents((previous) => {
       const copy = { ...previous };
       delete copy[platform];
@@ -346,6 +431,18 @@ export function CreatePostPage() {
   };
 
   const addMediaToCurrent = (assetId: string) => {
+    if (!workspaceMedia.some((asset) => asset.id === assetId)) {
+      toast.error('This media asset is not available in the active workspace');
+      return;
+    }
+
+    if (currentMediaIds.includes(assetId)) {
+      setShowMediaModal(false);
+      return;
+    }
+
+    markDirty();
+
     if (activePreviewTab === 'original') {
       setOriginalContent((previous) => ({
         ...previous,
@@ -368,6 +465,7 @@ export function CreatePostPage() {
   };
 
   const removeMediaFromCurrent = (assetId: string) => {
+    markDirty();
     if (activePreviewTab === 'original') {
       setOriginalContent((previous) => ({
         ...previous,
@@ -391,6 +489,9 @@ export function CreatePostPage() {
   const getCleanPlatformContent = (): PlatformSpecificContent[] =>
     Object.values(platformContents)
       .filter(isPlatformSpecificContent)
+      .filter((platformContent) =>
+        selectedPlatforms.includes(platformContent.platform),
+      )
       .map((platformContent) => ({
         ...platformContent,
         enabled: true,
@@ -406,23 +507,79 @@ export function CreatePostPage() {
     return contentMap;
   };
 
+  const allowedWorkspaceMediaIds = new Set(
+    workspaceMedia.map((asset) => asset.id),
+  );
+  const cleanPlatformContent = getCleanPlatformContent();
+  const invalidMediaReferenceCount = countInvalidMediaReferences(
+    originalContent,
+    cleanPlatformContent,
+    allowedWorkspaceMediaIds,
+  );
+  const composerValidationIssues = validateComposerDestinations({
+    intent: 'draft',
+    accounts: selectedAccounts,
+    baseContent: originalContent,
+    platformContent: getPlatformContentMap(),
+  });
+
+  const getSanitizedComposerContent = () =>
+    sanitizeComposerContent(
+      originalContent,
+      getCleanPlatformContent(),
+      new Set(workspaceMedia.map((asset) => asset.id)),
+      new Set(selectedPlatforms),
+    );
+
+  const applySanitizedContentState = (
+    sanitized: ReturnType<typeof sanitizeComposerContent>,
+  ) => {
+    setOriginalContent(sanitized.baseContent);
+    const nextPlatformContents: Partial<
+      Record<Platform, PlatformSpecificContent>
+    > = {};
+    sanitized.platformContent.forEach((entry) => {
+      nextPlatformContents[entry.platform] = entry;
+    });
+    setPlatformContents(nextPlatformContents);
+  };
+
   const handleSaveDraft = () => {
-    if (selectedAccountIds.length === 0) {
+    if (selectedAccounts.length === 0) {
       toast.error('Select at least one destination account');
       return;
     }
+
+    const sanitized = getSanitizedComposerContent();
+    const existingPost = editId
+      ? state.posts.find(
+          (candidate) =>
+            candidate.id === editId &&
+            candidate.workspaceId === state.activeWorkspaceId,
+        )
+      : undefined;
 
     const post: Post = {
       id: editId || uuidv4(),
       workspaceId: state.activeWorkspaceId,
       title: originalContent.caption.slice(0, 40).trim() || 'Untitled Draft',
       status: 'draft',
-      originalContent,
-      platformContent: getCleanPlatformContent(),
-      destinationAccountIds: selectedAccountIds,
-      sourceContentItemId: fromPipelineId || undefined,
-      createdAt: new Date().toISOString(),
+      originalContent: sanitized.baseContent,
+      platformContent: sanitized.platformContent,
+      destinationAccountIds: selectedAccounts.map((account) => account.id),
+      sourceContentItemId:
+        fromPipelineId || existingPost?.sourceContentItemId || undefined,
+      createdAt: existingPost?.createdAt || new Date().toISOString(),
     };
+
+    applySanitizedContentState(sanitized);
+    markSaved();
+
+    if (sanitized.removedMediaReferenceCount > 0) {
+      toast(
+        `Removed ${sanitized.removedMediaReferenceCount} unavailable or duplicate media reference(s).`,
+      );
+    }
 
     if (editId) {
       dispatch({ type: 'UPDATE_POST', payload: post });
@@ -435,12 +592,18 @@ export function CreatePostPage() {
   };
 
   const handleScheduleOrPublish = (status: 'scheduled' | 'published') => {
+    const sanitized = getSanitizedComposerContent();
+    const sanitizedPlatformMap: Partial<Record<Platform, PostContent>> = {};
+    sanitized.platformContent.forEach((entry) => {
+      sanitizedPlatformMap[entry.platform] = entry.content;
+    });
+
     const intent = status === 'published' ? 'publish' : 'schedule';
     const validationIssues = validateComposerDestinations({
       intent,
       accounts: selectedAccounts,
-      baseContent: originalContent,
-      platformContent: getPlatformContentMap(),
+      baseContent: sanitized.baseContent,
+      platformContent: sanitizedPlatformMap,
     });
     const blockingIssue = getFirstBlockingIssue(validationIssues);
 
@@ -473,19 +636,39 @@ export function CreatePostPage() {
       }
     }
 
+    const existingPost = editId
+      ? state.posts.find(
+          (candidate) =>
+            candidate.id === editId &&
+            candidate.workspaceId === state.activeWorkspaceId,
+        )
+      : undefined;
+
     const post: Post = {
       id: editId || uuidv4(),
       workspaceId: state.activeWorkspaceId,
-      title: originalContent.caption.slice(0, 40).trim() || 'Untitled Post',
+      title:
+        sanitized.baseContent.caption.slice(0, 40).trim() ||
+        'Untitled Post',
       status,
       scheduledAt,
       publishedAt: undefined,
-      originalContent,
-      platformContent: getCleanPlatformContent(),
-      destinationAccountIds: selectedAccountIds,
-      sourceContentItemId: fromPipelineId || undefined,
-      createdAt: new Date().toISOString(),
+      originalContent: sanitized.baseContent,
+      platformContent: sanitized.platformContent,
+      destinationAccountIds: selectedAccounts.map((account) => account.id),
+      sourceContentItemId:
+        fromPipelineId || existingPost?.sourceContentItemId || undefined,
+      createdAt: existingPost?.createdAt || new Date().toISOString(),
     };
+
+    applySanitizedContentState(sanitized);
+    markSaved();
+
+    if (sanitized.removedMediaReferenceCount > 0) {
+      toast(
+        `Removed ${sanitized.removedMediaReferenceCount} unavailable or duplicate media reference(s).`,
+      );
+    }
 
     if (editId) {
       dispatch({ type: 'UPDATE_POST', payload: post });
@@ -537,7 +720,10 @@ export function CreatePostPage() {
     navigate('/experiments');
   };
 
-  const activeMediaAssets: MediaAsset[] = currentMediaIds
+  const uniqueCurrentMediaIds: string[] = Array.from(
+    new Set<string>(currentMediaIds),
+  );
+  const activeMediaAssets: MediaAsset[] = uniqueCurrentMediaIds
     .map((id) => workspaceMedia.find((asset) => asset.id === id))
     .filter((asset): asset is MediaAsset => Boolean(asset));
 
@@ -573,7 +759,10 @@ export function CreatePostPage() {
                 Destination Accounts ({selectedAccountIds.length})
               </label>
               <button
-                onClick={() => setSelectedAccountIds(availableAccounts.map((account) => account.id))}
+                onClick={() => {
+                  markDirty();
+                  setSelectedAccountIds(availableAccounts.map((account) => account.id));
+                }}
                 className="text-[11px] text-brand-600 hover:underline font-medium"
               >
                 Select All
@@ -654,11 +843,15 @@ export function CreatePostPage() {
                     >
                       <PlatformIcon platform={platform} className="w-3.5 h-3.5 mr-1.5" />
                       <span className="capitalize">{PLATFORM_CONFIGS[platform]?.displayName || platform}</span>
-                      {isCustomized ? (
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 ml-1.5" title="Customized for this platform" />
-                      ) : (
-                        <span className="text-[10px] text-zinc-400 ml-1 font-normal">(Base)</span>
-                      )}
+                      <span
+                        className={`ml-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                          isCustomized
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-zinc-100 text-zinc-500'
+                        }`}
+                      >
+                        {isCustomized ? 'Customized' : 'Inherits base'}
+                      </span>
                     </button>
                   );
                 })}
@@ -685,9 +878,9 @@ export function CreatePostPage() {
                 className="w-full min-h-[160px] p-4 text-[14px] text-zinc-900 resize-y focus:outline-none placeholder-zinc-400 font-sans leading-relaxed"
               />
 
-              {currentMediaIds.length > 0 && (
+              {uniqueCurrentMediaIds.length > 0 && (
                 <div className="px-4 pb-3 flex gap-3 overflow-x-auto">
-                  {currentMediaIds.map((mediaId) => {
+                  {uniqueCurrentMediaIds.map((mediaId) => {
                     const asset = workspaceMedia.find((media) => media.id === mediaId);
                     if (!asset) return null;
                     return (
@@ -716,7 +909,7 @@ export function CreatePostPage() {
                     className="flex items-center px-2.5 py-1 text-zinc-600 hover:bg-zinc-200/70 rounded-md text-[12px] font-medium transition-colors"
                   >
                     <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-zinc-500" />
-                    Attach Media ({currentMediaIds.length})
+                    Attach Media ({uniqueCurrentMediaIds.length})
                   </button>
                 </div>
 
@@ -732,6 +925,31 @@ export function CreatePostPage() {
                 </div>
               </div>
             </div>
+
+            {(composerValidationIssues.length > 0 || invalidMediaReferenceCount > 0) && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <div>
+                    <p className="text-[11px] font-semibold text-rose-900">
+                      Composer needs attention
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-[11px] text-rose-800">
+                      {composerValidationIssues.slice(0, 3).map((issue, index) => (
+                        <li key={`${issue.code}-${issue.platform || 'base'}-${index}`}>
+                          • {issue.message}
+                        </li>
+                      ))}
+                      {invalidMediaReferenceCount > 0 && (
+                        <li>
+                          • {invalidMediaReferenceCount} unavailable or duplicate media reference(s) will be removed when saved.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-[12px] font-semibold text-brand-600 flex items-center mr-1">
@@ -839,7 +1057,10 @@ export function CreatePostPage() {
                       Schedule Posting Time
                     </h4>
                     <button
-                      onClick={() => setScheduleTime(recommendedTime)}
+                      onClick={() => {
+                        markDirty();
+                        setScheduleTime(recommendedTime);
+                      }}
                       className="text-[11px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded flex items-center transition-colors"
                       title={`Prototype suggested time: ${recommendedTime}`}
                     >
@@ -850,13 +1071,19 @@ export function CreatePostPage() {
                     <input
                       type="date"
                       value={scheduleDate}
-                      onChange={(event) => setScheduleDate(event.target.value)}
+                      onChange={(event) => {
+                        markDirty();
+                        setScheduleDate(event.target.value);
+                      }}
                       className="flex-1 min-w-0 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                     <input
                       type="time"
                       value={scheduleTime}
-                      onChange={(event) => setScheduleTime(event.target.value)}
+                      onChange={(event) => {
+                        markDirty();
+                        setScheduleTime(event.target.value);
+                      }}
                       className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </div>
@@ -879,7 +1106,10 @@ export function CreatePostPage() {
 
             <div className="flex items-center gap-2.5">
               <button
-                onClick={() => setIsScheduling(!isScheduling)}
+                onClick={() => {
+                  markDirty();
+                  setIsScheduling(!isScheduling);
+                }}
                 className={`flex items-center px-3.5 py-2 font-medium text-[12px] rounded-lg transition-colors ${
                   isScheduling
                     ? 'bg-brand-100 text-brand-700'
@@ -1008,6 +1238,7 @@ export function CreatePostPage() {
         isOpen={showOptimizeModal}
         onClose={() => setShowOptimizeModal(false)}
         onApplyOptimization={(platform, adaptedText) => {
+          markDirty();
           setPlatformContents((previous) => ({
             ...previous,
             [platform]: {
@@ -1022,6 +1253,7 @@ export function CreatePostPage() {
           toast.success(`Adapted for ${platform}`);
         }}
         onApplyAll={(optimizations) => {
+          markDirty();
           const next = { ...platformContents };
           Object.entries(optimizations).forEach(([platformId, text]) => {
             const platform = platformId as Platform;
