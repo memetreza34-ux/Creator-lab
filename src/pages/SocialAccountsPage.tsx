@@ -43,11 +43,12 @@ export function SocialAccountsPage() {
         username,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`,
         status: 'connected',
-        lastSync: 'Just now',
+        connectionMode: 'demo',
+        lastSync: 'Demo only',
       };
 
       dispatch({ type: 'ADD_SOCIAL_ACCOUNT', payload: newAccount });
-      toast.success(`${selectedPlatform.name} account connected`);
+      toast.success(`${selectedPlatform.name} demo account added`);
     }
 
     setShowConnectModal(false);
@@ -67,7 +68,7 @@ export function SocialAccountsPage() {
       <div className="flex items-center justify-between mb-8 shrink-0">
         <div>
           <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Social Accounts</h1>
-          <p className="text-[14px] text-zinc-500 mt-1">Manage connected channels and platform integrations.</p>
+          <p className="text-[14px] text-zinc-500 mt-1">Manage channel profiles. Real OAuth connections are added in the integrations phase.</p>
         </div>
 
         <button
@@ -109,18 +110,35 @@ export function SocialAccountsPage() {
               </div>
 
               <div className="flex items-center space-x-1.5 mb-5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
-                <span className="text-[11px] font-medium text-status-success">Connected</span>
-                <span className="text-[11px] text-zinc-400 ml-auto">Sync: {account.lastSync}</span>
+                {account.connectionMode === 'demo' ? (
+                  <>
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Demo account
+                    </span>
+                    <span className="text-[11px] text-zinc-400 ml-auto">No live sync</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
+                    <span className="text-[11px] font-medium text-status-success">Connected</span>
+                    <span className="text-[11px] text-zinc-400 ml-auto">Sync: {account.lastSync}</span>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center space-x-2 mt-auto border-t border-zinc-100 pt-4">
                 <button
-                  onClick={() => toast.success('Reconnected successfully')}
+                  onClick={() => {
+                    if (account.connectionMode === 'demo') {
+                      toast('Demo accounts are local previews and do not sync with the platform.');
+                      return;
+                    }
+                    toast.error('Live account refresh is not implemented yet.');
+                  }}
                   className="flex-1 flex items-center justify-center px-3 py-1.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-[12px] font-medium rounded-[6px] transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                  Refresh
+                  {account.connectionMode === 'demo' ? 'Demo Info' : 'Refresh'}
                 </button>
                 <button className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-[6px] transition-colors cursor-not-allowed opacity-50" title="Settings (Soon)">
                   <Settings className="w-4 h-4" />
@@ -144,10 +162,10 @@ export function SocialAccountsPage() {
             <div className="p-5 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
               <div>
                 <h3 className="text-[16px] font-semibold text-zinc-900 leading-tight">
-                  {connectStep === 1 ? 'Connect Account' : `Connect ${selectedPlatform?.name}`}
+                  {connectStep === 1 ? 'Add Demo Account' : `Add ${selectedPlatform?.name} Demo`}
                 </h3>
                 <p className="text-[12px] text-zinc-500 mt-0.5">
-                  {connectStep === 1 ? 'Select a platform to connect.' : 'Enter account details.'}
+                  {connectStep === 1 ? 'Choose a platform profile for local UI testing.' : 'This does not perform OAuth or enable real publishing.'}
                 </p>
               </div>
               <button onClick={() => setShowConnectModal(false)} className="p-1.5 hover:bg-zinc-200/60 rounded-md transition-colors text-zinc-400 hover:text-zinc-600">
@@ -197,7 +215,7 @@ export function SocialAccountsPage() {
                 </div>
                 <div className="pt-2 flex space-x-3">
                   <button type="submit" className="flex-1 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 transition-colors shadow-sm">
-                    Connect Account
+                    Add Demo Account
                   </button>
                 </div>
               </form>
