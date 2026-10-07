@@ -1,12 +1,10 @@
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import {
-  AnalyticsMetric,
   AppState,
   ContentItem,
   Experiment,
   MediaAsset,
   MediaFolder,
-  PlatformSpecificContent,
   Post,
   SocialAccount,
   Workspace,
@@ -22,6 +20,11 @@ import {
   mockSocialAccounts,
   mockWorkspaces,
 } from '../data/mockData';
+import {
+  PERSISTED_STATE_KEY,
+  deserializePersistedState,
+  serializePersistedState,
+} from '../state/persistence';
 
 export type { AppState };
 
@@ -67,76 +70,6 @@ const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<Action>;
 } | undefined>(undefined);
-
-function getDefaultTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
-
-function normalizePersistedState(raw: unknown): AppState | null {
-  if (!raw || typeof raw !== 'object') return null;
-
-  const parsed = raw as Partial<AppState>;
-  if (!Array.isArray(parsed.workspaces) || parsed.workspaces.length === 0) return null;
-
-  const now = new Date().toISOString();
-  const defaultTimezone = getDefaultTimezone();
-
-  const workspaces: Workspace[] = parsed.workspaces.map((workspace) => ({
-    ...workspace,
-    timezone: workspace.timezone || defaultTimezone,
-    createdAt: workspace.createdAt || now,
-  }));
-
-  const fallbackWorkspaceId = workspaces[0].id;
-  const activeWorkspaceId = workspaces.some(
-    (workspace) => workspace.id === parsed.activeWorkspaceId,
-  )
-    ? parsed.activeWorkspaceId as string
-    : fallbackWorkspaceId;
-
-  const posts: Post[] = (parsed.posts || []).map((post) => ({
-    ...post,
-    workspaceId: post.workspaceId || activeWorkspaceId,
-    platformContent: (post.platformContent || []).map(
-      (platformContent): PlatformSpecificContent => ({
-        ...platformContent,
-        enabled: platformContent.enabled ?? true,
-      }),
-    ),
-  }));
-
-  const pipelineItems: ContentItem[] = (parsed.pipelineItems || []).map(
-    (item, index) => ({
-      ...item,
-      workspaceId: item.workspaceId || activeWorkspaceId,
-      order: typeof item.order === 'number' ? item.order : index,
-      notes: item.notes || '',
-      tags: Array.isArray(item.tags) ? item.tags : [],
-    }),
-  );
-
-  const analytics: AnalyticsMetric[] = (parsed.analytics || []).map((metric) => ({
-    ...metric,
-    workspaceId: metric.workspaceId || activeWorkspaceId,
-  }));
-
-  return {
-    workspaces,
-    activeWorkspaceId,
-    socialAccounts: parsed.socialAccounts || [],
-    posts,
-    mediaAssets: parsed.mediaAssets || [],
-    mediaFolders: parsed.mediaFolders || [],
-    pipelineItems,
-    experiments: parsed.experiments || [],
-    analytics,
-    postPerformances: parsed.postPerformances || [],
-  };
-}
 
 function createSeedState(): AppState {
   return {
@@ -349,15 +282,17 @@ export function appReducer(state: AppState, action: Action): AppState {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState, () => {
-    const saved = localStorage.getItem('creator_lab_state');
+    try {
+      const saved = localStorage.getItem(PERSISTED_STATE_KEY);
 
-    if (saved) {
-      try {
-        const normalized = normalizePersistedState(JSON.parse(saved));
-        if (normalized) return normalized;
-      } catch (error) {
-        console.error('Failed to parse saved Creator Lab state', error);
+      if (saved) {
+        const persistedState = deserializePersistedState(saved);
+        if (persistedState) return persistedState;
+
+        console.warn('Ignoring incompatible or invalid persisted Creator Lab state');
       }
+    } catch (error) {
+      console.error('Failed to load saved Creator Lab state', error);
     }
 
     return createSeedState();
@@ -365,7 +300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('creator_lab_state', JSON.stringify(state));
+      localStorage.setItem(PERSISTED_STATE_KEY, serializePersistedState(state));
     } catch (error) {
       console.error('Failed to persist Creator Lab state', error);
     }

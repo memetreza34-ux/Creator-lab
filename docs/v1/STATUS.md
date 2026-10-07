@@ -22,7 +22,7 @@ Planning baseline established. Existing frontend is substantial, but production 
 
 ## Phase 0 remaining
 
-- [ ] Introduce an explicit persisted-state schema version and migration pipeline.
+- [x] Introduce an explicit persisted-state schema version and migration pipeline.
 - [x] Define/test workspace timezone -> UTC schedule conversion helpers.
 - [x] Add automated test framework and critical tests for reducer/selectors/time conversion.
 - [ ] Audit demo/mock truth labels so fake accounts/analytics cannot be mistaken for live provider data.
@@ -35,15 +35,19 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Added `tsx --test` using Node's built-in test runner; no new test dependency required.
 - Added tests for date/time validation, IANA timezone conversion, DST gaps, workspace selectors, and destructive workspace cascade behavior.
 - Composer scheduling now interprets date/time in the active workspace timezone and stores canonical UTC instead of silently using the browser timezone.
-- CI now runs automated tests before TypeScript validation and production build.
+- Added persisted-state schema version `1` with a deterministic migration pipeline for legacy unversioned `creator_lab_state`.
+- Legacy state now normalizes workspace ownership across accounts, posts, media, folders, pipeline items, experiments, analytics, and post performance.
+- Current state serializes through an explicit versioned envelope; unsupported future schemas are rejected instead of being guessed.
+- Added migration tests for ownership, legacy defaults, round-tripping, malformed JSON, and future-version rejection.
+- CI runs automated tests before TypeScript validation and production build.
 
 ## Next exact task
 
-Introduce an explicit persisted-state schema version and deterministic migration pipeline for `creator_lab_state`, with tests for legacy state normalization. Do not start Composer feature expansion yet.
+Audit demo/mock truth boundaries and media persistence. Ensure seeded accounts/analytics cannot be mistaken for live provider data, document current IndexedDB/local media behavior, and define the production migration boundary. Do not start Composer feature expansion yet.
 
 ## Validation evidence
 
-GitHub Actions run 37633539261 on PR #2 completed successfully:
+GitHub Actions run 37635769771 on PR #3 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
