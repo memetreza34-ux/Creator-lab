@@ -14,16 +14,16 @@ const baseState: AppState = {
     { id: 'account-b', workspaceId: 'b', platform: 'youtube', username: 'b', displayName: 'B', status: 'connected', connectionKind: 'provider', lastSync: '' },
   ],
   posts: [
-    { id: 'post-a', workspaceId: 'a', title: 'A', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '', storageKind: 'remote' },
-    { id: 'post-b', workspaceId: 'b', title: 'B', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '', storageKind: 'remote' },
+    { id: 'post-a', workspaceId: 'a', title: 'A', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '' },
+    { id: 'post-b', workspaceId: 'b', title: 'B', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '' },
   ],
   mediaAssets: [
     { id: 'media-a', workspaceId: 'a', url: '', type: 'image', name: 'A', size: 1, createdAt: '', storageKind: 'remote' },
     { id: 'media-b', workspaceId: 'b', url: '', type: 'image', name: 'B', size: 1, createdAt: '', storageKind: 'remote' },
   ],
   mediaFolders: [
-    { id: 'folder-a', workspaceId: 'a', name: 'A', createdAt: '', storageKind: 'remote' },
-    { id: 'folder-b', workspaceId: 'b', name: 'B', createdAt: '', storageKind: 'remote' },
+    { id: 'folder-a', workspaceId: 'a', name: 'A', createdAt: '' },
+    { id: 'folder-b', workspaceId: 'b', name: 'B', createdAt: '' },
   ],
   pipelineItems: [
     { id: 'item-a', workspaceId: 'a', title: 'A', stage: 'ideas', platforms: [], format: 'text', owner: '', tags: [], order: 0 },
