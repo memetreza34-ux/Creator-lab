@@ -12,7 +12,7 @@ interface PlatformOptimizationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApplyOptimization: (platform: Platform, adaptedContent: string) => void;
-  onApplyAll: (optimizations: Record<Platform, string>) => void;
+  onApplyAll: (optimizations: Partial<Record<Platform, string>>) => void;
 }
 
 export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps> = ({
@@ -24,8 +24,8 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
   onApplyAll
 }) => {
   const [loading, setLoading] = useState(false);
-  const [optimizations, setOptimizations] = useState<Record<string, string>>({});
-  const [appliedPlatforms, setAppliedPlatforms] = useState<Set<string>>(new Set());
+  const [optimizations, setOptimizations] = useState<Partial<Record<Platform, string>>>({});
+  const [appliedPlatforms, setAppliedPlatforms] = useState<Set<Platform>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -49,29 +49,31 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to adapt content');
 
-      if (json.data && json.data.optimizations) {
-        setOptimizations(json.data.optimizations);
-      } else {
-        // Fallback default adaptations if server raw
-        const fallbackMap: Record<string, string> = {};
-        selectedPlatforms.forEach(p => {
-          if (p === 'instagram') {
-            fallbackMap[p] = `${baseContent}\n\n.\n.\n#contentcreator #creatorlab #growth`;
-          } else if (p === 'tiktok') {
-            fallbackMap[p] = `Wait till the end! 🛑 ${baseContent.slice(0, 150)} #fyp #tips`;
-          } else if (p === 'linkedin') {
-            fallbackMap[p] = `Key Takeaway:\n\n${baseContent}\n\nWhat are your thoughts on this? Drop a comment below.`;
-          } else if (p === 'twitter') {
-            fallbackMap[p] = baseContent.slice(0, 260);
-          } else {
-            fallbackMap[p] = baseContent;
-          }
-        });
-        setOptimizations(fallbackMap);
+      const rawOptimizations = json.data?.optimizations;
+      if (!rawOptimizations || typeof rawOptimizations !== 'object') {
+        throw new Error('The AI service did not return structured platform adaptations.');
       }
-    } catch (err: any) {
+
+      const validated: Partial<Record<Platform, string>> = {};
+      selectedPlatforms.forEach((platform) => {
+        const value = (rawOptimizations as Record<string, unknown>)[platform];
+        if (typeof value === 'string' && value.trim()) {
+          validated[platform] = value.trim();
+        }
+      });
+
+      if (Object.keys(validated).length === 0) {
+        throw new Error('No usable platform adaptations were returned.');
+      }
+
+      setOptimizations(validated);
+      setAppliedPlatforms(new Set());
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Error adapting content');
+      setOptimizations({});
+      setError(
+        err instanceof Error ? err.message : 'Error adapting content',
+      );
     } finally {
       setLoading(false);
     }
@@ -83,19 +85,31 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
   };
 
   const handleApplyAllClick = () => {
-    const validMap: Record<Platform, string> = {} as any;
-    selectedPlatforms.forEach(p => {
-      if (optimizations[p]) {
-        validMap[p] = optimizations[p];
+    const validMap: Partial<Record<Platform, string>> = {};
+    selectedPlatforms.forEach((platform) => {
+      const text = optimizations[platform];
+      if (text) {
+        validMap[platform] = text;
       }
     });
+
+    if (Object.keys(validMap).length === 0) {
+      setError('Generate at least one valid adaptation before applying.');
+      return;
+    }
+
     onApplyAll(validMap);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl border border-[#EBEBE9] shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="platform-optimization-title"
+        className="bg-white rounded-2xl border border-[#EBEBE9] shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="p-4 border-b border-[#EBEBE9] flex items-center justify-between bg-[#FAFAF9]">
           <div className="flex items-center space-x-2.5">
@@ -103,19 +117,24 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-zinc-900 text-[15px]">Multi-Platform Content Adaptation</h3>
+              <h3 id="platform-optimization-title" className="font-semibold text-zinc-900 text-[15px]">Multi-Platform Content Adaptation</h3>
               <p className="text-[12px] text-zinc-500">
                 Tailors tone, line breaks, character count, and hashtag culture for each destination
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 p-1 rounded-md">
+          <button onClick={onClose} aria-label="Close platform adaptation dialog" className="text-zinc-400 hover:text-zinc-700 p-1 rounded-md">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          {error && (
+            <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
+              {error}
+            </div>
+          )}
           {Object.keys(optimizations).length === 0 && !loading ? (
             <div className="text-center py-8">
               <p className="text-[13px] text-zinc-600 mb-4 max-w-md mx-auto">
@@ -133,13 +152,13 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
             <div className="text-center py-12">
               <RefreshCw className="w-6 h-6 animate-spin text-brand-600 mx-auto mb-3" />
               <p className="text-[13px] text-zinc-700 font-medium">Adapting content for {selectedPlatforms.length} platforms...</p>
-              <p className="text-[11px] text-zinc-400 mt-1">Applying platform-specific heuristics and attention curves</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Generating draft adaptations for the selected destinations</p>
             </div>
           ) : (
             <div className="space-y-4">
               {selectedPlatforms.map(platform => {
                 const config = PLATFORM_CONFIGS[platform];
-                const adaptedText = optimizations[platform] || baseContent;
+                const adaptedText = optimizations[platform];
                 const isApplied = appliedPlatforms.has(platform);
 
                 return (
@@ -161,8 +180,9 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
                           </span>
                         ) : (
                           <button
-                            onClick={() => handleApplySingle(platform, adaptedText)}
-                            className="px-2.5 py-1 bg-white border border-[#DCDCD8] hover:bg-zinc-50 text-zinc-800 rounded-md text-[11px] font-medium flex items-center space-x-1"
+                            onClick={() => adaptedText && handleApplySingle(platform, adaptedText)}
+                            disabled={!adaptedText}
+                            className="px-2.5 py-1 bg-white border border-[#DCDCD8] hover:bg-zinc-50 text-zinc-800 rounded-md text-[11px] font-medium flex items-center space-x-1 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Check className="w-3 h-3" />
                             <span>Apply for {config?.displayName || platform}</span>
@@ -176,7 +196,9 @@ export const PlatformOptimizationModal: React.FC<PlatformOptimizationModalProps>
                     </p>
 
                     <div className="p-3 bg-[#FAFAF9] border border-[#F2F2F0] rounded-lg text-[12px] text-zinc-800 whitespace-pre-line leading-relaxed">
-                      {adaptedText}
+                      {adaptedText || (
+                        <span className="text-zinc-400 italic">No adaptation returned for this destination.</span>
+                      )}
                     </div>
                   </div>
                 );
