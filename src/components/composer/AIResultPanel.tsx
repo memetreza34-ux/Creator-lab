@@ -16,7 +16,6 @@ export interface AIHistoryItem {
   timestamp: string;
   originalText: string;
   resultText: string;
-  currentText: string;
   hooks?: string[];
   hashtags?: string[];
 }
@@ -25,6 +24,7 @@ interface AIResultPanelProps {
   tool: string;
   originalText: string;
   resultText: string;
+  currentText: string;
   hooks?: string[];
   hashtags?: string[];
   onApply: (text: string) => void;
