@@ -4,7 +4,7 @@ Last updated: 2026-10-07
 
 ## Current phase
 
-PHASE 2 — CONTENT OPERATIONS
+PHASE 3 — CALENDAR & SCHEDULING ENGINE
 
 ## Overall status
 
@@ -108,21 +108,36 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Pipeline form parsing now validates ContentFormat and Platform values instead of relying on `any`.
 - Added regression coverage for cross-stage ordering, same-stage ordering, post→pipeline stage synchronization, orphan cleanup, media cleanup, and lost-destination review behavior.
 
+## Phase 2 completed — content UI integrity block
+
+- Added workspace-scoped selectors for ContentItem↔Post traceability, MediaAsset usage, and SocialAccount usage.
+- Added regression tests proving those selectors do not leak records from other workspaces and do not double-count platform-specific media references.
+- Media Library now shows when an asset is referenced by posts and explains the exact local impact before destructive deletion.
+- Media deletion messaging explicitly distinguishes Creator Lab record cleanup from external social-platform content.
+- Posts resolves IndexedDB media URLs at runtime, so locally persisted uploads preview correctly after reload instead of depending on stale/empty persisted URLs.
+- Posts displays its linked Pipeline source when one exists, derived from sourceContentItemId rather than duplicated display state.
+- Pipeline cards show the number and latest status of linked posts without introducing a second source of truth.
+- Social Accounts now says "Add Demo Account" instead of implying real OAuth connectivity.
+- Removed the dead account Settings control and made account-removal impact explicit, including scheduled-post review behavior.
+- Documented the current historical-destination limitation and the required future PostDestination snapshot model instead of hiding the limitation with duplicated fields.
+- Phase 2 acceptance criteria reviewed and satisfied.
+
 ## Next exact task
 
-Continue **PHASE 2 — CONTENT OPERATIONS** with the second lifecycle/UI audit:
+Start **PHASE 3 — CALENDAR & SCHEDULING ENGINE** with a scheduling-state audit before adding queue features:
 
-- audit Posts, Media Library, Social Accounts, and Pipeline controls for dead or misleading actions,
-- make media-asset deletion impact visible before confirmation when the asset is referenced by drafts/posts,
-- improve linked Pipeline↔Post traceability in the UI without duplicating source-of-truth fields,
-- audit historical-post behavior when a social account is removed and document the limitation until the future PostDestination model exists,
-- verify folder deletion/move rules and media preview URLs remain durable and workspace-scoped,
-- add any deterministic regression tests required by those rules,
-- then evaluate the Phase 2 exit criteria before moving to Phase 3.
+- audit Calendar month/week/day behavior against one canonical scheduledAt UTC value,
+- verify every rendered/editable time uses the active workspace IANA timezone,
+- identify any remaining browser-local Date conversions that can cause timezone drift,
+- verify drag/drop rescheduling preserves intended local time in Month view and updates date/time correctly in Week/Day views,
+- verify published posts cannot be moved and failed/needs-review states are represented consistently,
+- centralize deterministic schedule/reschedule helpers where page code currently owns business rules,
+- add regression tests for timezone/DST/reschedule invariants,
+- do not add durable backend workers or real provider scheduling yet; those belong to Phase 4/5.
 
 ## Validation evidence
 
-GitHub Actions run 37658513649 on PR #10 completed successfully:
+GitHub Actions run 37659570369 on PR #11 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
@@ -133,4 +148,6 @@ GitHub Actions run 37658513649 on PR #10 completed successfully:
 
 **PHASE 1 — COMPOSER EXCELLENCE: COMPLETE**
 
-**Current phase: PHASE 2 — CONTENT OPERATIONS**
+**PHASE 2 — CONTENT OPERATIONS: COMPLETE**
+
+**Current phase: PHASE 3 — CALENDAR & SCHEDULING ENGINE**
