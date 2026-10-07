@@ -4,7 +4,7 @@ Last updated: 2026-10-07
 
 ## Current phase
 
-PHASE 1 — COMPOSER EXCELLENCE
+PHASE 2 — CONTENT OPERATIONS
 
 ## Overall status
 
@@ -79,22 +79,37 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Unsaved content, destination, media, and schedule changes are protected on internal navigation and browser unload.
 - Added deterministic media integrity tests; current suite contains 22 passing tests.
 
+## Phase 1 completed — final Composer quality audit
+
+- Removed fabricated likes, views, comments, repost counts, timestamps, and misleading sponsored/audio labels from platform previews.
+- Platform previews are now explicitly static previews; engagement is not simulated.
+- Preview media uses resolved runtime URLs instead of stale persisted blob URLs.
+- Centralized deterministic helpers now own platform override inheritance, cloning, and reset behavior.
+- Added regression tests proving base-content changes do not overwrite customized platform content and reset restores inheritance without mutating previous state.
+- AI "Insert at Cursor" now inserts at the actual textarea selection instead of silently appending.
+- AI history is keyboard-accessible, restored hooks apply to current Composer content, and rewrite regeneration preserves the selected tone.
+- Hashtag selections resync when a new AI result is shown.
+- Platform Optimization no longer invents fallback adaptations when the AI response is malformed; it shows an explicit error and changes nothing.
+- Added accessible labels/state for destination selection, rewrite tone, media removal/picker controls, schedule inputs, dialogs, and unavailable live publishing.
+- Removed dead interaction styling from preview-only engagement chrome.
+- Phase 1 acceptance criteria reviewed and satisfied.
+
 ## Next exact task
 
-Continue **PHASE 1 — COMPOSER EXCELLENCE** with a final Composer quality audit:
+Start **PHASE 2 — CONTENT OPERATIONS** with a lifecycle/traceability audit before adding new UI:
 
-- audit platform previews against the centralized configuration and remove misleading preview behavior,
-- verify every Composer control has a real effect and clear disabled/error state,
-- add accessible labels/titles for icon-only and stateful Composer controls,
-- audit AI result/apply/history behavior for accidental content loss,
-- verify base-content changes never overwrite customized platform content,
-- add regression tests for override inheritance/reset behavior where it can be kept deterministic,
-- then evaluate the Phase 1 exit criteria before moving to Phase 2.
+- audit Pipeline → Composer → Post source traceability end-to-end,
+- verify stage transitions and persistent ordering remain deterministic,
+- define deletion/orphan behavior when source ContentItems, Posts, Media folders, or Media assets are removed,
+- verify Posts filters/statuses derive from authoritative post data rather than duplicated display state,
+- centralize shared content-operation helpers where lifecycle rules are currently embedded in pages,
+- add regression tests for the discovered lifecycle invariants,
+- do not add team/approval/enterprise features.
 
 ## Validation evidence
 
-GitHub Actions run 37653293812 on PR #7 completed successfully:
-- Automated tests: success (22 tests)
+GitHub Actions run 37657602706 on PR #9 completed successfully:
+- Automated tests: success
 - TypeScript check: success
 - Production build: success
 
@@ -102,4 +117,6 @@ GitHub Actions run 37653293812 on PR #7 completed successfully:
 
 **PHASE 0 — FOUNDATION: COMPLETE**
 
-**Current phase: PHASE 1 — COMPOSER EXCELLENCE**
+**PHASE 1 — COMPOSER EXCELLENCE: COMPLETE**
+
+**Current phase: PHASE 2 — CONTENT OPERATIONS**

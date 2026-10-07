@@ -90,3 +90,45 @@ export function countInvalidMediaReferences(
 
   return invalidCount;
 }
+
+
+export type PlatformContentMap = Partial<
+  Record<Platform, PlatformSpecificContent>
+>;
+
+export function getEffectiveComposerContent(
+  baseContent: PostContent,
+  platformContent: PlatformContentMap,
+  platform: Platform,
+): PostContent {
+  return platformContent[platform]?.content || baseContent;
+}
+
+export function setPlatformContentOverride(
+  platformContent: PlatformContentMap,
+  platform: Platform,
+  content: PostContent,
+): PlatformContentMap {
+  return {
+    ...platformContent,
+    [platform]: {
+      platform,
+      enabled: true,
+      content: {
+        ...content,
+        mediaIds: [...content.mediaIds],
+      },
+    },
+  };
+}
+
+export function resetPlatformContentOverride(
+  platformContent: PlatformContentMap,
+  platform: Platform,
+): PlatformContentMap {
+  if (!platformContent[platform]) return platformContent;
+
+  const next = { ...platformContent };
+  delete next[platform];
+  return next;
+}
