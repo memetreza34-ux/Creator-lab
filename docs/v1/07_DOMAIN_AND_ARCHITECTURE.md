@@ -65,3 +65,30 @@ Do not visually blur these categories.
 ## AI boundary
 
 AI may transform content, explain patterns, and generate hypotheses. Deterministic code must handle permissions, platform limits, scheduling state, ownership, metrics math, and publish status.
+
+
+## Current historical-destination limitation
+
+The current V1-local `Post` model still stores destination references primarily as `destinationAccountIds` that point to mutable `SocialAccount` records.
+
+This is acceptable for the current local/demo phase, but it is not sufficient for immutable publishing history. If a social account is removed, a historical published post can lose part of its channel labeling because the platform/account identity is no longer resolvable from that mutable record.
+
+Until the production publishing model is introduced:
+
+- account removal must warn users when posts reference that account,
+- scheduled posts that lose their final destination move to `needs_review`,
+- the UI must not pretend historical destination identity is perfectly preserved,
+- no temporary duplicated display-state field should be added merely to hide this limitation.
+
+Phase 4/5 must migrate publishing history to a first-class `PostDestination` record that preserves at minimum:
+
+- post/workspace ownership,
+- platform,
+- connected account identity snapshot,
+- provider account identifier where permitted,
+- provider post identifier,
+- schedule/publish state,
+- published timestamp,
+- failure/retry state.
+
+Historical presentation must then read from `PostDestination` rather than depending solely on the continued existence of a mutable `SocialAccount`.
