@@ -75,7 +75,7 @@ export const InstagramPreview: React.FC<PreviewProps> = ({
           </div>
           <Bookmark className="w-5 h-5 cursor-pointer hover:text-zinc-600" />
         </div>
-        <div className="font-semibold text-[12px] text-zinc-900 mb-1.5">1,248 likes</div>
+        <div className="font-semibold text-[12px] text-zinc-900 mb-1.5">Preview likes</div>
         <div className="text-[12px] leading-relaxed text-zinc-800 whitespace-pre-line">
           <span className="font-semibold text-zinc-900 mr-1.5">{username.replace('@', '')}</span>
           {caption || <span className="text-zinc-400 italic">Caption preview will appear here...</span>}
@@ -148,7 +148,7 @@ export const TikTokPreview: React.FC<PreviewProps> = ({
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
             <Heart className="w-4 h-4 fill-white text-white" />
           </div>
-          <span className="mt-0.5 font-medium">84.2K</span>
+          <span className="mt-0.5 font-medium">—</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
@@ -230,7 +230,7 @@ export const YouTubePreview: React.FC<PreviewProps> = ({
               {caption ? caption.split('\n')[0].slice(0, 75) : 'Video Title Preview'}
             </h4>
             <div className="text-[11px] text-zinc-500 mt-1">
-              <span>{channelName}</span> • <span>14K views</span> • <span>3 days ago</span>
+              <span>{channelName}</span> • <span>Preview</span>
             </div>
           </div>
         </div>
@@ -296,9 +296,9 @@ export const LinkedInPreview: React.FC<PreviewProps> = ({
         <div className="flex items-center space-x-1">
           <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-white text-[9px]">👍</span>
           <span className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-white text-[9px]">💡</span>
-          <span className="text-[11px] ml-1">214</span>
+          <span className="text-[11px] ml-1">—</span>
         </div>
-        <div className="text-[11px]">38 comments • 12 reposts</div>
+        <div className="text-[11px]">Preview engagement</div>
       </div>
 
       <div className="px-4 py-2 bg-[#F8F8F7] border-t border-[#EBEBE9] flex items-center justify-between text-[11px]">
@@ -353,10 +353,10 @@ export const XPreview: React.FC<PreviewProps> = ({
               <Repeat className="w-3.5 h-3.5" /> <span>18</span>
             </span>
             <span className="flex items-center space-x-1 hover:text-rose-500 cursor-pointer">
-              <Heart className="w-3.5 h-3.5" /> <span>142</span>
+              <Heart className="w-3.5 h-3.5" /> <span>—</span>
             </span>
             <span className="flex items-center space-x-1 hover:text-blue-500 cursor-pointer">
-              <Eye className="w-3.5 h-3.5" /> <span>4.2K</span>
+              <Eye className="w-3.5 h-3.5" /> <span>—</span>
             </span>
           </div>
         </div>
