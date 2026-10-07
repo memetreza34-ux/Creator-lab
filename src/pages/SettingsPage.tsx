@@ -114,6 +114,7 @@ export function SettingsPage() {
       plan: 'free',
       timezone: newWorkspaceTimezone,
       createdAt: new Date().toISOString(),
+      dataMode: 'standard',
     };
 
     dispatch({ type: 'ADD_WORKSPACE', payload: newWorkspace });
