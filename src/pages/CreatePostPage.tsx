@@ -12,6 +12,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import {
+  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -25,13 +26,19 @@ import {
 } from 'lucide-react';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import { PLATFORM_CONFIGS } from '../config/platformConfig';
+import {
+  getDestinationCapability,
+  getFirstBlockingIssue,
+  validateComposerDestinations,
+} from '../config/destinationCapabilities';
 import { AIResultPanel, AIHistoryItem } from '../components/composer/AIResultPanel';
 import { CreatorIntelligencePanel } from '../components/composer/CreatorIntelligencePanel';
 import { PlatformOptimizationModal } from '../components/composer/PlatformOptimizationModal';
 import { PlatformPreviewRenderer } from '../components/composer/previews/PlatformPreviews';
 import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
 import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
-import { zonedDateTimeToUtc } from '../utils/time';
+import { resolveMediaUrl } from '../utils/mediaStorage';
+import { utcToZonedDateTime, zonedDateTimeToUtc } from '../utils/time';
 
 const REWRITE_TONES = [
   'Professional',
@@ -87,6 +94,7 @@ export function CreatePostPage() {
   const [isScheduling, setIsScheduling] = useState(Boolean(dateParam));
   const [scheduleDate, setScheduleDate] = useState(dateParam);
   const [scheduleTime, setScheduleTime] = useState(timeParam);
+  const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
 
   const [originalContent, setOriginalContent] = useState<PostContent>({
     caption: titleParam ? `${titleParam}\n\n` : '',
@@ -129,16 +137,19 @@ export function CreatePostPage() {
         });
         setPlatformContents(existingPlatformContents);
 
-        if (existing.scheduledAt) {
+        if (existing.scheduledAt && activeWorkspace?.timezone) {
           setIsScheduling(true);
-          const date = new Date(existing.scheduledAt);
-          const yyyy = date.getFullYear();
-          const mm = String(date.getMonth() + 1).padStart(2, '0');
-          const dd = String(date.getDate()).padStart(2, '0');
-          setScheduleDate(`${yyyy}-${mm}-${dd}`);
-          const hh = String(date.getHours()).padStart(2, '0');
-          const min = String(date.getMinutes()).padStart(2, '0');
-          setScheduleTime(`${hh}:${min}`);
+          try {
+            const zonedSchedule = utcToZonedDateTime(
+              existing.scheduledAt,
+              activeWorkspace.timezone,
+            );
+            setScheduleDate(zonedSchedule.date);
+            setScheduleTime(zonedSchedule.time);
+          } catch {
+            setScheduleDate('');
+            setScheduleTime('18:00');
+          }
         }
       }
     } else if (platformsParam) {
@@ -152,14 +163,50 @@ export function CreatePostPage() {
     } else if (availableAccounts.length > 0 && selectedAccountIds.length === 0) {
       setSelectedAccountIds([availableAccounts[0].id]);
     }
-  }, [editId, state.posts, platformsParam]);
+  }, [editId, state.posts, platformsParam, activeWorkspace?.timezone]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveWorkspaceMedia = async () => {
+      const entries = await Promise.all(
+        workspaceMedia.map(async (asset) => {
+          const url = await resolveMediaUrl(asset.id, asset.url);
+          return [asset.id, url] as const;
+        }),
+      );
+
+      if (!cancelled) {
+        setResolvedMediaUrls(Object.fromEntries(entries));
+      }
+    };
+
+    void resolveWorkspaceMedia();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.activeWorkspaceId, state.mediaAssets]);
+
+  const selectedAccounts = availableAccounts.filter((account) =>
+    selectedAccountIds.includes(account.id),
+  );
+  const destinationCapabilities = selectedAccounts.map(getDestinationCapability);
+  const hasDemoDestinations = destinationCapabilities.some(
+    (capability) => capability.isDemo,
+  );
+  const hasLocalOnlyDestinations = destinationCapabilities.some(
+    (capability) => !capability.canScheduleLive,
+  );
+  const canPublishLive =
+    selectedAccounts.length > 0 &&
+    destinationCapabilities.every((capability) => capability.canPublishLive);
+  const firstPublishBlockReason = destinationCapabilities.find(
+    (capability) => !capability.canPublishLive,
+  )?.publishBlockReason;
 
   const selectedPlatforms = Array.from(
-    new Set<Platform>(
-      availableAccounts
-        .filter((account) => selectedAccountIds.includes(account.id))
-        .map((account) => account.platform),
-    ),
+    new Set<Platform>(selectedAccounts.map((account) => account.platform)),
   );
 
   const currentContentObj = activePreviewTab === 'original'
@@ -349,6 +396,16 @@ export function CreatePostPage() {
         enabled: true,
       }));
 
+  const getPlatformContentMap = (): Partial<Record<Platform, PostContent>> => {
+    const contentMap: Partial<Record<Platform, PostContent>> = {};
+    Object.values(platformContents)
+      .filter(isPlatformSpecificContent)
+      .forEach((platformContent) => {
+        contentMap[platformContent.platform] = platformContent.content;
+      });
+    return contentMap;
+  };
+
   const handleSaveDraft = () => {
     if (selectedAccountIds.length === 0) {
       toast.error('Select at least one destination account');
@@ -378,14 +435,20 @@ export function CreatePostPage() {
   };
 
   const handleScheduleOrPublish = (status: 'scheduled' | 'published') => {
-    if (selectedAccountIds.length === 0) {
-      toast.error('Select at least one destination account');
+    const intent = status === 'published' ? 'publish' : 'schedule';
+    const validationIssues = validateComposerDestinations({
+      intent,
+      accounts: selectedAccounts,
+      baseContent: originalContent,
+      platformContent: getPlatformContentMap(),
+    });
+    const blockingIssue = getFirstBlockingIssue(validationIssues);
+
+    if (blockingIssue) {
+      toast.error(blockingIssue.message);
       return;
     }
-    if (!originalContent.caption.trim() && originalContent.mediaIds.length === 0) {
-      toast.error('Post content cannot be empty');
-      return;
-    }
+
     if (status === 'scheduled' && (!scheduleDate || !scheduleTime)) {
       toast.error('Select a date and time for scheduling');
       return;
@@ -416,7 +479,7 @@ export function CreatePostPage() {
       title: originalContent.caption.slice(0, 40).trim() || 'Untitled Post',
       status,
       scheduledAt,
-      publishedAt: status === 'published' ? new Date().toISOString() : undefined,
+      publishedAt: undefined,
       originalContent,
       platformContent: getCleanPlatformContent(),
       destinationAccountIds: selectedAccountIds,
@@ -430,7 +493,17 @@ export function CreatePostPage() {
       dispatch({ type: 'ADD_POST', payload: post });
     }
 
-    toast.success(status === 'scheduled' ? 'Post scheduled successfully!' : 'Post published!');
+    if (status === 'scheduled') {
+      toast.success(
+        hasLocalOnlyDestinations
+          ? 'Scheduled locally for planning. Nothing was sent to a social platform.'
+          : 'Post scheduled successfully.',
+      );
+      navigate('/calendar');
+      return;
+    }
+
+    toast.success('Post published successfully.');
     navigate('/calendar');
   };
 
@@ -522,6 +595,11 @@ export function CreatePostPage() {
                   >
                     <PlatformIcon platform={account.platform} className="w-3.5 h-3.5 mr-2" />
                     <span className="mr-1.5">{account.displayName}</span>
+                    {account.connectionMode === 'demo' && (
+                      <span className="mr-1.5 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
+                        Demo
+                      </span>
+                    )}
                     {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-brand-600 ml-1" />}
                   </button>
                 );
@@ -532,6 +610,21 @@ export function CreatePostPage() {
                 </div>
               )}
             </div>
+
+            {selectedAccounts.length > 0 && (hasDemoDestinations || !canPublishLive) && (
+              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div>
+                  <p className="text-[11px] font-semibold text-amber-900">
+                    Local planning destination
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-amber-800">
+                    Drafts and local scheduling are available. Live publishing is not active for these destinations yet.
+                    {firstPublishBlockReason ? ` ${firstPublishBlockReason}` : ''}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -600,7 +693,7 @@ export function CreatePostPage() {
                     return (
                       <div key={mediaId} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9] group shrink-0 bg-zinc-100">
                         {asset.type === 'image' ? (
-                          <img src={asset.url} alt="" className="w-full h-full object-cover" />
+                          <img src={resolvedMediaUrls[asset.id] || asset.url} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                         )}
@@ -748,9 +841,9 @@ export function CreatePostPage() {
                     <button
                       onClick={() => setScheduleTime(recommendedTime)}
                       className="text-[11px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded flex items-center transition-colors"
-                      title={`Best time derived from historical performance: ${recommendedTime}`}
+                      title={`Prototype suggested time: ${recommendedTime}`}
                     >
-                      <Sparkles className="w-3 h-3 mr-1" /> Best: {recommendedTime}
+                      <Sparkles className="w-3 h-3 mr-1" /> Suggested: {recommendedTime}
                     </button>
                   </div>
                   <div className="flex gap-2">
@@ -769,7 +862,7 @@ export function CreatePostPage() {
                   </div>
                   {bestTimes.length > 0 && (
                     <div className="text-[10px] text-zinc-400 mt-1.5">
-                      Recommended: {bestTimes[0].dayName} at {bestTimes[0].time} ({bestTimes[0].reason})
+                      Prototype suggestion: {bestTimes[0].dayName} at {bestTimes[0].time} ({bestTimes[0].reason})
                     </div>
                   )}
                 </div>
@@ -799,10 +892,21 @@ export function CreatePostPage() {
 
               <button
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
-                className="flex items-center px-4 py-2 bg-brand-600 text-white font-medium text-[12px] rounded-lg hover:bg-brand-700 transition-colors shadow-xs"
+                title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
+                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs ${
+                  !isScheduling && !canPublishLive
+                    ? 'bg-zinc-300 text-zinc-600 hover:bg-zinc-300'
+                    : 'bg-brand-600 text-white hover:bg-brand-700'
+                }`}
               >
                 <Send className="w-3.5 h-3.5 mr-1.5" />
-                {isScheduling ? 'Schedule Post' : 'Publish Now'}
+                {isScheduling
+                  ? hasLocalOnlyDestinations
+                    ? 'Schedule Locally'
+                    : 'Schedule Post'
+                  : canPublishLive
+                    ? 'Publish Now'
+                    : 'Live Publish Unavailable'}
               </button>
             </div>
           </div>
@@ -861,7 +965,11 @@ export function CreatePostPage() {
 
                 {activeMediaAssets.length > 0 ? (
                   <div className="w-full rounded-lg overflow-hidden border border-[#F2F2F0] bg-zinc-100 max-h-60 flex items-center justify-center">
-                    <img src={activeMediaAssets[0].url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={resolvedMediaUrls[activeMediaAssets[0].id] || activeMediaAssets[0].url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ) : (
                   <div className="w-full h-24 bg-[#FAFAF9] rounded-lg flex flex-col items-center justify-center text-zinc-400 border border-dashed border-[#EBEBE9]">
@@ -967,7 +1075,7 @@ export function CreatePostPage() {
                     }`}
                   >
                     {asset.type === 'image' ? (
-                      <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                      <img src={resolvedMediaUrls[asset.id] || asset.url} alt={asset.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                     )}

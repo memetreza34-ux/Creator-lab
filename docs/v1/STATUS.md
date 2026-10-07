@@ -52,20 +52,35 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Documented the production object-storage migration boundary in `docs/v1/MEDIA_STORAGE.md`.
 - Persistence schema advanced to version 2 so legacy local state receives the new truth/storage metadata safely.
 
+## Phase 1 completed — destination capability block
+
+- Added a centralized platform publishing capability registry.
+- Demo accounts can be used for drafts, previews, and local planning only.
+- Live publishing now requires both a real OAuth account and a verified Creator Lab provider adapter.
+- No current platform is falsely marked as live before Phase 5 integration work.
+- Composer validation now checks destination availability and platform caption limits through one deterministic layer.
+- Demo destination chips are visibly labeled.
+- "Publish Now" no longer creates a fake published post when live publishing is unavailable.
+- Local scheduling explicitly says that nothing was sent to a social platform.
+- Editing a scheduled post now converts stored UTC back into the workspace IANA timezone instead of the browser timezone.
+- IndexedDB media URLs are resolved again inside Composer after reload.
+- Prototype best-time UI is now labeled as a suggestion instead of claiming historical evidence.
+- Added automated destination-capability tests.
+
 ## Next exact task
 
-Begin **PHASE 1 — COMPOSER EXCELLENCE**.
+Continue **PHASE 1 — COMPOSER EXCELLENCE** with platform-content validation and override lifecycle:
 
-First Composer task:
-- centralize destination capability/validation rules,
-- distinguish demo destinations from future live destinations,
-- prevent any demo account from presenting a real publish success,
-- preserve existing base-content/platform-override behavior,
-- keep all changes within Composer scope.
+- create one composer validation summary for all selected destinations,
+- make inherited vs customized platform state explicit and stable,
+- prevent duplicate media IDs and invalid cross-workspace media references,
+- preserve original `createdAt` while editing existing drafts/posts,
+- add unsaved-change protection before destructive navigation,
+- keep unsupported platform-specific fields out of the UI rather than adding fake controls.
 
 ## Validation evidence
 
-GitHub Actions run 37650875678 on PR #5 completed successfully:
+GitHub Actions run 37651788834 on PR #6 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
