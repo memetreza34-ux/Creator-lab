@@ -67,21 +67,34 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Prototype best-time UI is now labeled as a suggestion instead of claiming historical evidence.
 - Added automated destination-capability tests.
 
+## Phase 1 completed — Composer integrity block
+
+- Composer edit routes are now workspace-scoped; a post from another workspace cannot be edited through a guessed URL.
+- Existing destination IDs are filtered to accounts owned by the active workspace.
+- Duplicate and unavailable media references are detected and sanitized before persistence.
+- Platform overrides for unselected destinations are not persisted as stale hidden content.
+- Existing `createdAt` and source-content traceability are preserved when editing.
+- Inherited vs customized platform content is explicit in the UI.
+- Composer shows a single validation summary for selected destinations and invalid media references.
+- Unsaved content, destination, media, and schedule changes are protected on internal navigation and browser unload.
+- Added deterministic media integrity tests; current suite contains 22 passing tests.
+
 ## Next exact task
 
-Continue **PHASE 1 — COMPOSER EXCELLENCE** with platform-content validation and override lifecycle:
+Continue **PHASE 1 — COMPOSER EXCELLENCE** with a final Composer quality audit:
 
-- create one composer validation summary for all selected destinations,
-- make inherited vs customized platform state explicit and stable,
-- prevent duplicate media IDs and invalid cross-workspace media references,
-- preserve original `createdAt` while editing existing drafts/posts,
-- add unsaved-change protection before destructive navigation,
-- keep unsupported platform-specific fields out of the UI rather than adding fake controls.
+- audit platform previews against the centralized configuration and remove misleading preview behavior,
+- verify every Composer control has a real effect and clear disabled/error state,
+- add accessible labels/titles for icon-only and stateful Composer controls,
+- audit AI result/apply/history behavior for accidental content loss,
+- verify base-content changes never overwrite customized platform content,
+- add regression tests for override inheritance/reset behavior where it can be kept deterministic,
+- then evaluate the Phase 1 exit criteria before moving to Phase 2.
 
 ## Validation evidence
 
-GitHub Actions run 37651788834 on PR #6 completed successfully:
-- Automated tests: success
+GitHub Actions run 37653293812 on PR #7 completed successfully:
+- Automated tests: success (22 tests)
 - TypeScript check: success
 - Production build: success
 
