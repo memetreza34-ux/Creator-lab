@@ -785,7 +785,17 @@ export function CalendarPage() {
                   {selectedPost.status}
                 </span>
                 <span className="text-[12px] text-zinc-500">
-                  {selectedPost.scheduledAt ? format(parseISO(selectedPost.scheduledAt), 'PPP p') : 'Draft'}
+                  {selectedPost.scheduledAt
+                    ? (() => {
+                        const localSchedule = getPostLocalSchedule(
+                          selectedPost,
+                          workspaceTimeZone,
+                        );
+                        return localSchedule
+                          ? `${localSchedule.date} · ${localSchedule.time} (${workspaceTimeZone})`
+                          : 'Invalid schedule';
+                      })()
+                    : 'Draft'}
                 </span>
               </div>
               <button 
