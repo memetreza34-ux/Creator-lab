@@ -16,6 +16,7 @@ export interface AIHistoryItem {
   timestamp: string;
   originalText: string;
   resultText: string;
+  currentText: string;
   hooks?: string[];
   hashtags?: string[];
 }
@@ -38,6 +39,7 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
   tool,
   originalText,
   resultText,
+  currentText,
   hooks,
   hashtags,
   onApply,
@@ -185,7 +187,7 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
                       </p>
                       <div className="flex items-center space-x-2 pt-1">
                         <button
-                          onClick={() => onApply(hook + '\n\n' + originalText)}
+                          onClick={() => onApply(hook + '\n\n' + currentText)}
                           className="px-2.5 py-1 bg-brand-600 text-white rounded text-[11px] font-semibold hover:bg-brand-700 flex items-center space-x-1 shadow-sm"
                         >
                           <Check className="w-3 h-3" />
@@ -276,7 +278,7 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 <div className="border border-[#EBEBE9] bg-[#FAFAF9] rounded-lg p-3">
                   <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-1">
-                    Original Base
+                    Content at generation
                   </div>
                   <p className="text-[12px] text-zinc-600 whitespace-pre-line leading-relaxed max-h-[140px] overflow-y-auto">
                     {originalText || <span className="italic">Empty</span>}
