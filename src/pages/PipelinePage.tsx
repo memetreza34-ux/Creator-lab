@@ -12,8 +12,7 @@ import {
   DragStartEvent,
   useDroppable
 } from '@dnd-kit/core';
-import { 
-  arrayMove,
+import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -21,7 +20,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useApp } from '../context/AppContext';
-import { ContentItem, PipelineStage } from '../types';
+import {
+  ContentFormat,
+  ContentItem,
+  PipelineStage,
+  Platform,
+} from '../types';
 import { 
   Plus, GripVertical, Calendar, User, X, Send, 
   Trash2, Edit3, Sparkles, MoreHorizontal, ArrowRight 
@@ -30,6 +34,8 @@ import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
+import { ALL_PLATFORMS } from '../config/platformConfig';
+import { movePipelineItem } from '../utils/contentOperations';
 
 const stages: { id: PipelineStage; label: string; description: string }[] = [
   { id: 'ideas', label: 'Ideas', description: 'Brainstorms & concepts' },
@@ -228,71 +234,75 @@ export function PipelinePage() {
 
     if (!over) return;
 
-    const activeItemId = active.id as string;
-    const overId = over.id as string;
+    const activeItemId = String(active.id);
+    const overId = String(over.id);
 
-    const draggedItem = items.find(i => i.id === activeItemId);
+    if (activeItemId === overId) return;
+
+    const draggedItem = items.find((item) => item.id === activeItemId);
     if (!draggedItem) return;
 
-    // Check if dropping onto a column or another card
-    const isOverAColumn = stages.some(s => s.id === overId);
+    const isOverColumn = stages.some((stage) => stage.id === overId);
     let targetStage: PipelineStage;
-    let newIndex = 0;
+    let targetIndex: number;
 
-    if (isOverAColumn) {
+    if (isOverColumn) {
       targetStage = overId as PipelineStage;
-      const columnItems = items.filter(i => i.stage === targetStage && i.id !== activeItemId);
-      newIndex = columnItems.length;
+      targetIndex = items.filter(
+        (item) =>
+          item.stage === targetStage &&
+          item.id !== activeItemId,
+      ).length;
     } else {
-      const overItem = items.find(i => i.id === overId);
+      const overItem = items.find((item) => item.id === overId);
       if (!overItem) return;
+
       targetStage = overItem.stage;
-      const columnItems = items.filter(i => i.stage === targetStage);
-      newIndex = columnItems.findIndex(i => i.id === overId);
+      const targetItems = items
+        .filter(
+          (item) =>
+            item.stage === targetStage &&
+            item.id !== activeItemId,
+        )
+        .sort((a, b) => a.order - b.order);
+      targetIndex = targetItems.findIndex((item) => item.id === overId);
+      if (targetIndex < 0) targetIndex = targetItems.length;
     }
 
-    if (draggedItem.stage === targetStage) {
-      // Reordering within the same column
-      const columnItems = items.filter(i => i.stage === targetStage);
-      const oldIndex = columnItems.findIndex(i => i.id === activeItemId);
-      if (oldIndex !== newIndex && oldIndex !== -1 && newIndex !== -1) {
-        const reordered: ContentItem[] = arrayMove(columnItems, oldIndex, newIndex);
-        // Persist normalized order values
-        reordered.forEach((item: ContentItem, idx: number) => {
-          dispatch({
-            type: 'UPDATE_PIPELINE_ITEM',
-            payload: { ...item, order: idx }
-          });
-        });
-        toast.success('Card reordered', { duration: 1500 });
-      }
-    } else {
-      // Moving between columns
-      const targetColumnItems = items.filter(i => i.stage === targetStage && i.id !== activeItemId);
-      targetColumnItems.splice(newIndex, 0, draggedItem);
+    const nextItems = movePipelineItem(
+      items,
+      activeItemId,
+      targetStage,
+      targetIndex,
+    );
 
-      // Update dragged item stage and order
-      dispatch({ 
-        type: 'UPDATE_PIPELINE_ITEM', 
-        payload: { 
-          ...draggedItem, 
-          stage: targetStage, 
-          order: newIndex 
-        } 
-      });
+    if (nextItems === items) return;
 
-      // Update order of remaining items in target column
-      targetColumnItems.forEach((item, idx) => {
-        if (item.id !== draggedItem.id) {
-          dispatch({
-            type: 'UPDATE_PIPELINE_ITEM',
-            payload: { ...item, order: idx }
-          });
-        }
-      });
+    const changedItems = nextItems.filter((nextItem) => {
+      const previous = items.find((item) => item.id === nextItem.id);
+      return Boolean(
+        previous &&
+        (previous.stage !== nextItem.stage ||
+          previous.order !== nextItem.order),
+      );
+    });
 
-      toast.success(`Moved to ${stages.find(s => s.id === targetStage)?.label}`);
-    }
+    if (changedItems.length === 0) return;
+
+    dispatch({
+      type: 'BATCH_UPDATE_PIPELINE_ITEMS',
+      payload: changedItems,
+    });
+
+    const stageLabel =
+      stages.find((stage) => stage.id === targetStage)?.label ||
+      targetStage;
+    toast.success(
+      draggedItem.stage === targetStage
+        ? 'Card reordered'
+        : `Moved to ${stageLabel}`,
+      { duration: 1500 },
+    );
   };
 
   const activeItem = activeId ? items.find(i => i.id === activeId) : null;
@@ -311,7 +321,19 @@ export function PipelinePage() {
     const formData = new FormData(e.currentTarget);
     const title = formData.get('title') as string;
     const stage = (formData.get('stage') as PipelineStage) || 'ideas';
-    const format = (formData.get('format') as any) || 'short';
+    const rawFormat = String(formData.get('format') || 'short');
+    const validFormats: ContentFormat[] = [
+      'short',
+      'long',
+      'image',
+      'carousel',
+      'text',
+    ];
+    const format: ContentFormat = validFormats.includes(
+      rawFormat as ContentFormat,
+    )
+      ? rawFormat as ContentFormat
+      : 'short';
     const targetDate = formData.get('targetDate') as string;
     const owner = (formData.get('owner') as string) || 'Creator';
     const platformsRaw = formData.get('platforms') as string;
@@ -319,8 +341,10 @@ export function PipelinePage() {
     
     const platforms = platformsRaw
       .split(',')
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean) as any[];
+      .map((value) => value.trim().toLowerCase())
+      .filter((value): value is Platform =>
+        ALL_PLATFORMS.includes(value as Platform),
+      );
     
     if (editingItem) {
       dispatch({ 
@@ -389,8 +413,10 @@ export function PipelinePage() {
       platforms: ['instagram'],
       format: 'short',
       owner: 'Creator',
-      tags: []
-    } as any);
+      tags: [],
+      notes: '',
+      order: items.filter((item) => item.stage === stageId).length,
+    });
     setIsModalOpen(true);
   };
 

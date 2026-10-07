@@ -70,3 +70,132 @@ test('the final workspace cannot be deleted', () => {
     singleWorkspace,
   );
 });
+
+
+test('deleting a pipeline item clears source references without deleting posts or experiments', () => {
+  const state: AppState = {
+    ...baseState,
+    posts: [
+      {
+        ...baseState.posts[0],
+        sourceContentItemId: 'item-a',
+      },
+    ],
+    experiments: [
+      {
+        ...baseState.experiments[0],
+        sourceContentItemId: 'item-a',
+      },
+    ],
+  };
+
+  const next = appReducer(state, {
+    type: 'DELETE_PIPELINE_ITEM',
+    payload: 'item-a',
+  });
+
+  assert.equal(next.pipelineItems.some((item) => item.id === 'item-a'), false);
+  assert.equal(next.posts[0].sourceContentItemId, undefined);
+  assert.equal(next.experiments[0].sourceContentItemId, undefined);
+});
+
+test('deleting a post clears linked performance and experiment source reference', () => {
+  const state: AppState = {
+    ...baseState,
+    experiments: [
+      {
+        ...baseState.experiments[0],
+        sourcePostId: 'post-a',
+      },
+    ],
+  };
+
+  const next = appReducer(state, {
+    type: 'DELETE_POST',
+    payload: 'post-a',
+  });
+
+  assert.equal(next.posts.some((post) => post.id === 'post-a'), false);
+  assert.equal(
+    next.postPerformances.some((performance) => performance.postId === 'post-a'),
+    false,
+  );
+  assert.equal(next.experiments[0].sourcePostId, undefined);
+});
+
+test('removing a media asset also removes every post reference to it', () => {
+  const state: AppState = {
+    ...baseState,
+    posts: [
+      {
+        ...baseState.posts[0],
+        originalContent: {
+          caption: 'base',
+          mediaIds: ['media-a'],
+        },
+        platformContent: [
+          {
+            platform: 'youtube',
+            enabled: true,
+            content: {
+              caption: 'yt',
+              mediaIds: ['media-a'],
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const next = appReducer(state, {
+    type: 'REMOVE_MEDIA_ASSET',
+    payload: 'media-a',
+  });
+
+  assert.equal(next.mediaAssets.some((asset) => asset.id === 'media-a'), false);
+  assert.deepEqual(next.posts[0].originalContent.mediaIds, []);
+  assert.deepEqual(next.posts[0].platformContent[0].content.mediaIds, []);
+});
+
+test('adding a scheduled linked post advances its source pipeline item', () => {
+  const scheduledPost = {
+    ...baseState.posts[0],
+    id: 'scheduled-post',
+    sourceContentItemId: 'item-a',
+    status: 'scheduled' as const,
+    scheduledAt: '2026-10-08T12:00:00.000Z',
+  };
+
+  const next = appReducer(baseState, {
+    type: 'ADD_POST',
+    payload: scheduledPost,
+  });
+
+  assert.equal(
+    next.pipelineItems.find((item) => item.id === 'item-a')?.stage,
+    'scheduled',
+  );
+});
+
+test('removing the last destination from a scheduled post moves it to needs review', () => {
+  const state: AppState = {
+    ...baseState,
+    posts: [
+      {
+        ...baseState.posts[0],
+        destinationAccountIds: ['account-a'],
+        status: 'scheduled',
+        scheduledAt: '2026-10-08T12:00:00.000Z',
+      },
+    ],
+  };
+
+  const next = appReducer(state, {
+    type: 'REMOVE_SOCIAL_ACCOUNT',
+    payload: 'account-a',
+  });
+
+  assert.deepEqual(next.posts[0].destinationAccountIds, []);
+  assert.equal(next.posts[0].status, 'needs_review');
+  assert.equal(next.posts[0].scheduledAt, undefined);
+});

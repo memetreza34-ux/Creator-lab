@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Post, PostStatus } from '../types';
 import { format } from 'date-fns';
-import { Search, Filter, MoreHorizontal, Copy, Trash2, Edit2, ImageIcon, Calendar } from 'lucide-react';
+import { Search, MoreHorizontal, Copy, Trash2, Edit2, ImageIcon, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
@@ -63,6 +63,8 @@ export function PostsPage() {
     { id: 'draft', label: 'Drafts' },
     { id: 'scheduled', label: 'Scheduled' },
     { id: 'published', label: 'Published' },
+    { id: 'needs_review', label: 'Needs Review' },
+    { id: 'failed', label: 'Failed' },
   ];
 
   return (
@@ -84,10 +86,6 @@ export function PostsPage() {
               className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 w-64 bg-white shadow-sm"
             />
           </div>
-          <button className="flex items-center px-4 py-1.5 bg-white border border-zinc-200 text-zinc-700 rounded-[8px] text-[13px] font-medium hover:bg-zinc-50 shadow-sm transition-colors">
-            <Filter className="w-4 h-4 mr-1.5" />
-            Filter
-          </button>
         </div>
       </div>
 
@@ -176,6 +174,8 @@ export function PostsPage() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
                           post.status === 'published' ? 'bg-status-success/10 text-status-success' :
                           post.status === 'scheduled' ? 'bg-brand-50 text-brand-600' :
+                          post.status === 'failed' ? 'bg-status-danger/10 text-status-danger' :
+                          post.status === 'needs_review' ? 'bg-amber-50 text-amber-700' :
                           'bg-zinc-100 text-zinc-600'
                         }`}>
                           {post.status}
