@@ -23,7 +23,9 @@ Read in this order:
 6. 08_V1_ROADMAP.md
 7. 09_QUALITY_STANDARD.md
 8. 10_RELEASE_CRITERIA.md
-9. STATUS.md
+9. DATA_TRUTH.md
+10. MEDIA_PERSISTENCE.md
+11. STATUS.md
 
 Before implementing any feature, verify that it belongs to the current phase in STATUS.md. Otherwise defer it to a later phase or POST_V1_BACKLOG.md.
 
