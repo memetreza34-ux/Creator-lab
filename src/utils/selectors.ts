@@ -32,29 +32,54 @@ export const getWorkspaceExperiments = (state: AppState): Experiment[] =>
   );
 
 export const getWorkspaceAnalytics = (state: AppState): AnalyticsMetric[] => {
-  const posts = getWorkspacePosts(state);
-  const accounts = getWorkspaceAccounts(state);
   const scopedAnalytics = state.analytics.filter(
     (metric) => metric.workspaceId === state.activeWorkspaceId,
   );
 
   if (scopedAnalytics.length > 0) return scopedAnalytics;
 
-  if (posts.length === 0 && accounts.length === 0) {
+  const posts = getWorkspacePosts(state);
+  const performances = state.postPerformances.filter(
+    (performance) => performance.workspaceId === state.activeWorkspaceId,
+  );
+  const publishedCount = posts.filter((post) => post.status === 'published').length;
+
+  if (performances.length === 0) {
     return [
-      { id: 'm-empty-1', workspaceId: state.activeWorkspaceId, label: 'Total Reach', value: 0, change: 0, trend: 'neutral' },
-      { id: 'm-empty-2', workspaceId: state.activeWorkspaceId, label: 'Engagement Rate', value: 0, change: 0, trend: 'neutral' },
-      { id: 'm-empty-3', workspaceId: state.activeWorkspaceId, label: 'Follower Growth', value: 0, change: 0, trend: 'neutral' },
-      { id: 'm-empty-4', workspaceId: state.activeWorkspaceId, label: 'Published Posts', value: 0, change: 0, trend: 'neutral' },
+      { id: 'm-empty-1', workspaceId: state.activeWorkspaceId, label: 'Total Reach', value: 0, change: 0, trend: 'neutral', source: 'derived' },
+      { id: 'm-empty-2', workspaceId: state.activeWorkspaceId, label: 'Engagement Rate', value: 0, change: 0, trend: 'neutral', source: 'derived' },
+      { id: 'm-empty-3', workspaceId: state.activeWorkspaceId, label: 'Follower Growth', value: 0, change: 0, trend: 'neutral', source: 'derived' },
+      { id: 'm-empty-4', workspaceId: state.activeWorkspaceId, label: 'Published Posts', value: publishedCount, change: 0, trend: 'neutral', source: 'derived' },
     ];
   }
 
-  const publishedCount = posts.filter((post) => post.status === 'published').length;
+  const totalReach = performances.reduce(
+    (total, performance) => total + performance.reach,
+    0,
+  );
+  const engagementRate =
+    performances.reduce(
+      (total, performance) => total + performance.engagementRate,
+      0,
+    ) / performances.length;
+  const followerGrowth = performances.reduce(
+    (total, performance) => total + performance.followersGained,
+    0,
+  );
+
+  const source: AnalyticsMetric['source'] = performances.some(
+    (performance) => performance.source === 'demo',
+  )
+    ? 'demo'
+    : performances.every((performance) => performance.source === 'provider')
+      ? 'provider'
+      : 'derived';
+
   return [
-    { id: 'm-calc-1', workspaceId: state.activeWorkspaceId, label: 'Total Reach', value: publishedCount * 12500, change: 8.4, trend: 'up' },
-    { id: 'm-calc-2', workspaceId: state.activeWorkspaceId, label: 'Engagement Rate', value: publishedCount > 0 ? 5.1 : 0, change: publishedCount > 0 ? 0.6 : 0, trend: publishedCount > 0 ? 'up' : 'neutral' },
-    { id: 'm-calc-3', workspaceId: state.activeWorkspaceId, label: 'Follower Growth', value: accounts.length * 450, change: accounts.length > 0 ? 4.2 : 0, trend: accounts.length > 0 ? 'up' : 'neutral' },
-    { id: 'm-calc-4', workspaceId: state.activeWorkspaceId, label: 'Published Posts', value: publishedCount, change: publishedCount > 0 ? 2.0 : 0, trend: publishedCount > 0 ? 'up' : 'neutral' },
+    { id: 'm-derived-1', workspaceId: state.activeWorkspaceId, label: 'Total Reach', value: totalReach, change: 0, trend: 'neutral', source },
+    { id: 'm-derived-2', workspaceId: state.activeWorkspaceId, label: 'Engagement Rate', value: Number(engagementRate.toFixed(1)), change: 0, trend: 'neutral', source },
+    { id: 'm-derived-3', workspaceId: state.activeWorkspaceId, label: 'Follower Growth', value: followerGrowth, change: 0, trend: 'neutral', source },
+    { id: 'm-derived-4', workspaceId: state.activeWorkspaceId, label: 'Published Posts', value: publishedCount, change: 0, trend: 'neutral', source },
   ];
 };
 

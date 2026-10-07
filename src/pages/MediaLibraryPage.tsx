@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWorkspaceMedia, getWorkspaceMediaFolders } from '../utils/selectors';
-import { saveMediaBlob, deleteMediaBlob } from '../utils/mediaStorage';
+import { deleteMediaBlob, resolveMediaUrl, saveMediaBlob } from '../utils/mediaStorage';
 import { MediaAsset, MediaFolder } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -20,6 +20,7 @@ export function MediaLibraryPage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
 
   // Folder management states
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -38,49 +39,99 @@ export function MediaLibraryPage() {
     .filter((m: MediaAsset) => activeTab === 'all' || m.type === activeTab)
     .filter((m: MediaAsset) => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveUrls = async () => {
+      const entries = await Promise.all(
+        allWorkspaceMedia.map(async (asset) => {
+          const url = await resolveMediaUrl(asset.id, asset.url);
+          return [asset.id, url] as const;
+        }),
+      );
+
+      if (!cancelled) {
+        setResolvedUrls(Object.fromEntries(entries));
+      }
+    };
+
+    void resolveUrls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allWorkspaceMedia]);
+
   const selectedFolderName = selectedFolderId 
     ? mediaFolders.find((f: MediaFolder) => f.id === selectedFolderId)?.name 
     : 'All Media';
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files: File[] = Array.from(e.target.files);
-      const loadingToast = toast.loading(`Uploading ${files.length} asset(s)...`);
+    if (!e.target.files || e.target.files.length === 0) return;
 
-      for (const file of files) {
-        const id = uuidv4();
-        // Persist to IndexedDB
+    const files: File[] = Array.from(e.target.files);
+    const loadingToast = toast.loading(`Uploading ${files.length} asset(s)...`);
+    let savedCount = 0;
+    let failedCount = 0;
+
+    for (const file of files) {
+      const id = uuidv4();
+
+      try {
         await saveMediaBlob(id, file);
 
-        const url = URL.createObjectURL(file);
         const newAsset: MediaAsset = {
           id,
           workspaceId: state.activeWorkspaceId,
           folderId: selectedFolderId || undefined,
-          url,
+          url: '',
+          storageType: 'indexeddb',
           type: file.type.startsWith('video/') ? 'video' : 'image',
           name: file.name,
           size: file.size,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
 
         dispatch({
           type: 'ADD_MEDIA_ASSET',
-          payload: newAsset
+          payload: newAsset,
         });
+        savedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        console.error('Failed to persist uploaded media', error);
       }
-
-      toast.success(`Successfully uploaded ${files.length} asset(s)`, { id: loadingToast });
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+
+    if (savedCount > 0 && failedCount === 0) {
+      toast.success(`Successfully uploaded ${savedCount} asset(s)`, { id: loadingToast });
+    } else if (savedCount > 0) {
+      toast.error(`${savedCount} saved, ${failedCount} failed to store locally`, { id: loadingToast });
+    } else {
+      toast.error('Upload failed. Media could not be stored in this browser.', { id: loadingToast });
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDeleteAsset = async (asset: MediaAsset, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(`Delete "${asset.name}"?`)) {
-      await deleteMediaBlob(asset.id);
+    if (!window.confirm(`Delete "${asset.name}"?`)) return;
+
+    try {
+      if (asset.storageType === 'indexeddb') {
+        await deleteMediaBlob(asset.id);
+      }
       dispatch({ type: 'REMOVE_MEDIA_ASSET', payload: asset.id });
+      setResolvedUrls((previous) => {
+        const next = { ...previous };
+        delete next[asset.id];
+        return next;
+      });
       toast.success('Asset removed');
+    } catch (error) {
+      console.error('Failed to delete media asset', error);
+      toast.error('Could not remove the stored media file');
     }
   };
 
@@ -399,7 +450,7 @@ export function MediaLibraryPage() {
                   <div className="aspect-square bg-zinc-100 overflow-hidden relative group/thumb">
                     {asset.type === 'image' ? (
                       <img 
-                        src={asset.url} 
+                        src={resolvedUrls[asset.id] || asset.url} 
                         alt={asset.name} 
                         className="w-full h-full object-cover group-hover:scale-105 duration-200 transition-transform" 
                       />
@@ -410,8 +461,20 @@ export function MediaLibraryPage() {
                       </div>
                     )}
 
-                    <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-xs rounded text-[9px] font-bold text-white uppercase tracking-wider">
-                      {asset.type}
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 bg-black/60 backdrop-blur-xs rounded text-[9px] font-bold text-white uppercase tracking-wider">
+                        {asset.type}
+                      </span>
+                      {asset.storageType === 'demo_remote' && (
+                        <span className="px-1.5 py-0.5 bg-amber-500/90 rounded text-[9px] font-bold text-white uppercase tracking-wider">
+                          Demo
+                        </span>
+                      )}
+                      {asset.storageType === 'indexeddb' && (
+                        <span className="px-1.5 py-0.5 bg-zinc-900/80 rounded text-[9px] font-bold text-white uppercase tracking-wider">
+                          Local
+                        </span>
+                      )}
                     </div>
 
                     {/* Hover Actions Overlay */}
@@ -482,7 +545,7 @@ export function MediaLibraryPage() {
                         <div className="flex items-center space-x-3">
                           <div className="w-9 h-9 rounded-lg overflow-hidden bg-zinc-100 shrink-0 border border-[#EBEBE9]">
                             {asset.type === 'image' ? (
-                              <img src={asset.url} className="w-full h-full object-cover" alt="" />
+                              <img src={resolvedUrls[asset.id] || asset.url} className="w-full h-full object-cover" alt="" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-zinc-400 bg-zinc-800 text-white">
                                 VID

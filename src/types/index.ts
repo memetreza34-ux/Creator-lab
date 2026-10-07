@@ -9,6 +9,10 @@ export interface Workspace {
   color?: string;
 }
 
+export type DataOrigin = 'demo' | 'provider' | 'derived' | 'user';
+export type SocialConnectionMode = 'demo' | 'oauth';
+export type MediaStorageType = 'demo_remote' | 'indexeddb' | 'remote';
+
 export interface SocialAccountMetrics {
   followers?: number;
 }
@@ -21,6 +25,7 @@ export interface SocialAccount {
   displayName: string;
   avatarUrl?: string;
   status: 'connected' | 'disconnected' | 'error';
+  connectionMode: SocialConnectionMode;
   lastSync: string;
   metrics?: SocialAccountMetrics;
 }
@@ -69,6 +74,7 @@ export interface MediaAsset {
   size: number;
   createdAt: string;
   folderId?: string;
+  storageType: MediaStorageType;
 }
 
 export type PipelineStage = 'ideas' | 'research' | 'script' | 'recording' | 'editing' | 'ready' | 'scheduled' | 'published';
@@ -95,6 +101,7 @@ export interface AnalyticsMetric {
   value: number;
   change: number;
   trend: 'up' | 'down' | 'neutral';
+  source: DataOrigin;
 }
 
 export interface PostPerformance {
@@ -113,6 +120,7 @@ export interface PostPerformance {
   followersGained: number;
   watchTime?: number;
   publishedAt: string;
+  source: DataOrigin;
 }
 
 export type ExperimentType = 'hook' | 'title' | 'caption' | 'thumbnail' | 'cta' | 'posting_time';

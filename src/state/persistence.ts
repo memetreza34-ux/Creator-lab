@@ -15,9 +15,9 @@ import {
 } from '../types';
 
 export const PERSISTED_STATE_KEY = 'creator_lab_state';
-export const PERSISTED_STATE_SCHEMA_VERSION = 1 as const;
+export const PERSISTED_STATE_SCHEMA_VERSION = 2 as const;
 
-export interface PersistedStateEnvelopeV1 {
+export interface PersistedStateEnvelopeV2 {
   schemaVersion: typeof PERSISTED_STATE_SCHEMA_VERSION;
   state: AppState;
 }
@@ -122,6 +122,7 @@ export function normalizeAppState(
   ).map((account) => ({
     ...account,
     workspaceId: account.workspaceId || activeWorkspaceId,
+    connectionMode: account.connectionMode === 'oauth' ? 'oauth' : 'demo',
     lastSync: typeof account.lastSync === 'string' ? account.lastSync : '',
   }));
 
@@ -145,14 +146,29 @@ export function normalizeAppState(
   }));
 
   const mediaAssets: MediaAsset[] = asArray<MediaAsset>(parsed.mediaAssets).map(
-    (asset) => ({
-      ...asset,
-      workspaceId: asset.workspaceId || activeWorkspaceId,
-      createdAt:
-        typeof asset.createdAt === 'string' && asset.createdAt
-          ? asset.createdAt
-          : now,
-    }),
+    (asset) => {
+      const inferredStorageType =
+        asset.storageType === 'remote' ||
+        asset.storageType === 'indexeddb' ||
+        asset.storageType === 'demo_remote'
+          ? asset.storageType
+          : asset.url?.startsWith('blob:')
+            ? 'indexeddb'
+            : asset.url?.startsWith('http://') || asset.url?.startsWith('https://')
+              ? 'demo_remote'
+              : 'indexeddb';
+
+      return {
+        ...asset,
+        workspaceId: asset.workspaceId || activeWorkspaceId,
+        url: inferredStorageType === 'indexeddb' ? '' : (asset.url || ''),
+        storageType: inferredStorageType,
+        createdAt:
+          typeof asset.createdAt === 'string' && asset.createdAt
+            ? asset.createdAt
+            : now,
+      };
+    },
   );
 
   const mediaFolders: MediaFolder[] = asArray<MediaFolder>(
@@ -190,6 +206,12 @@ export function normalizeAppState(
   ).map((metric) => ({
     ...metric,
     workspaceId: metric.workspaceId || activeWorkspaceId,
+    source:
+      metric.source === 'provider' ||
+      metric.source === 'derived' ||
+      metric.source === 'user'
+        ? metric.source
+        : 'demo',
   }));
 
   const postPerformances: PostPerformance[] = asArray<PostPerformance>(
@@ -197,6 +219,12 @@ export function normalizeAppState(
   ).map((performance) => ({
     ...performance,
     workspaceId: performance.workspaceId || activeWorkspaceId,
+    source:
+      performance.source === 'provider' ||
+      performance.source === 'derived' ||
+      performance.source === 'user'
+        ? performance.source
+        : 'demo',
   }));
 
   return {
@@ -249,12 +277,21 @@ const migrations: Record<number, Migration> = {
       state,
     };
   },
+  1: (envelope, options) => {
+    const state = normalizeAppState(envelope.state, options);
+    if (!state) return null;
+
+    return {
+      schemaVersion: 2,
+      state,
+    };
+  },
 };
 
 export function migratePersistedState(
   raw: unknown,
   options: PersistenceNormalizationOptions = {},
-): PersistedStateEnvelopeV1 | null {
+): PersistedStateEnvelopeV2 | null {
   let envelope = toVersionedEnvelope(raw);
   if (!envelope) return null;
 
@@ -292,7 +329,7 @@ export function deserializePersistedState(
 }
 
 export function serializePersistedState(state: AppState): string {
-  const envelope: PersistedStateEnvelopeV1 = {
+  const envelope: PersistedStateEnvelopeV2 = {
     schemaVersion: PERSISTED_STATE_SCHEMA_VERSION,
     state,
   };
