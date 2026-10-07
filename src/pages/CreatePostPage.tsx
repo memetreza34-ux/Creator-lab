@@ -350,11 +350,21 @@ export function CreatePostPage() {
       let hashtags: string[] | undefined;
 
       if (data.data && Array.isArray(data.data.hooks)) {
-        hooks = data.data.hooks;
+        hooks = data.data.hooks.filter(
+          (hook: unknown): hook is string =>
+            typeof hook === 'string' && Boolean(hook.trim()),
+        );
         resultText = hooks.join('\n\n');
       } else if (data.data && Array.isArray(data.data.hashtags)) {
-        hashtags = data.data.hashtags;
+        hashtags = data.data.hashtags.filter(
+          (hashtag: unknown): hashtag is string =>
+            typeof hashtag === 'string' && Boolean(hashtag.trim()),
+        );
         resultText = hashtags.join(' ');
+      }
+
+      if (!resultText.trim()) {
+        throw new Error('The AI service returned an empty suggestion.');
       }
 
       const suggestion = {
@@ -398,10 +408,10 @@ export function CreatePostPage() {
     toast.success('Applied to composer');
   };
 
-  const handleInsertAtCursor = (textToInsert: string) => {
-    handleContentChange(currentContentText + textToInsert);
+  const handleAppendAIText = (textToAppend: string) => {
+    handleContentChange(currentContentText + textToAppend);
     setActiveAISuggestion(null);
-    toast.success('Inserted into content');
+    toast.success('Appended to post');
   };
 
   const handleContentChange = (text: string) => {
@@ -727,6 +737,11 @@ export function CreatePostPage() {
     .map((id) => workspaceMedia.find((asset) => asset.id === id))
     .filter((asset): asset is MediaAsset => Boolean(asset));
 
+  const previewMediaAssets: MediaAsset[] = activeMediaAssets.map((asset) => ({
+    ...asset,
+    url: resolvedMediaUrls[asset.id] || asset.url,
+  }));
+
   const activeConfig = activePreviewTab !== 'original'
     ? PLATFORM_CONFIGS[activePreviewTab]
     : null;
@@ -769,13 +784,16 @@ export function CreatePostPage() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" aria-label="Destination accounts">
               {availableAccounts.map((account) => {
                 const isSelected = selectedAccountIds.includes(account.id);
                 return (
                   <button
                     key={account.id}
+                    type="button"
                     onClick={() => toggleAccount(account.id)}
+                    aria-pressed={isSelected}
+                    aria-label={`${isSelected ? 'Remove' : 'Add'} ${account.displayName} destination`}
                     className={`flex items-center px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all ${
                       isSelected
                         ? 'border-brand-500 bg-brand-50/70 text-brand-800 shadow-xs ring-1 ring-brand-500/20'
@@ -818,8 +836,11 @@ export function CreatePostPage() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-[#EBEBE9] pb-0.5">
-              <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Composer content versions">
                 <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activePreviewTab === 'original'}
                   onClick={() => setActivePreviewTab('original')}
                   className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activePreviewTab === 'original'
@@ -834,6 +855,9 @@ export function CreatePostPage() {
                   return (
                     <button
                       key={platform}
+                      type="button"
+                      role="tab"
+                      aria-selected={activePreviewTab === platform}
                       onClick={() => setActivePreviewTab(platform)}
                       className={`px-3 py-2 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap flex items-center ${
                         activePreviewTab === platform
@@ -870,6 +894,7 @@ export function CreatePostPage() {
 
             <div className="bg-white border border-[#EBEBE9] rounded-xl shadow-xs overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
               <textarea
+                aria-label={activePreviewTab === 'original' ? 'Base post content' : `${PLATFORM_CONFIGS[activePreviewTab].displayName} customized content`}
                 value={currentContentText}
                 onChange={(event) => handleContentChange(event.target.value)}
                 placeholder={activeConfig
@@ -891,7 +916,9 @@ export function CreatePostPage() {
                           <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                         )}
                         <button
+                          type="button"
                           onClick={() => removeMediaFromCurrent(mediaId)}
+                          aria-label={`Remove ${asset.name} from current content`}
                           className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                         >
                           <X className="w-3 h-3" />
@@ -978,7 +1005,10 @@ export function CreatePostPage() {
                     Rewrite ({selectedRewriteTone})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setShowToneDropdown(!showToneDropdown)}
+                    aria-label="Choose rewrite tone"
+                    aria-expanded={showToneDropdown}
                     className="px-1.5 py-1 bg-[#FAFAF9] border-t border-r border-b border-[#DCDCD8] text-zinc-500 hover:text-zinc-800 rounded-r-md"
                   >
                     <ChevronDown className="w-3 h-3" />
@@ -1018,7 +1048,7 @@ export function CreatePostPage() {
                 hooks={activeAISuggestion.hooks}
                 hashtags={activeAISuggestion.hashtags}
                 onApply={handleApplyAISuggestion}
-                onInsert={handleInsertAtCursor}
+                onInsert={handleAppendAIText}
                 onRegenerate={() => handleAITool(activeAISuggestion.tool)}
                 onDiscard={() => setActiveAISuggestion(null)}
                 history={aiHistory}
@@ -1070,6 +1100,7 @@ export function CreatePostPage() {
                   <div className="flex gap-2">
                     <input
                       type="date"
+                      aria-label="Scheduled publication date"
                       value={scheduleDate}
                       onChange={(event) => {
                         markDirty();
@@ -1079,6 +1110,7 @@ export function CreatePostPage() {
                     />
                     <input
                       type="time"
+                      aria-label="Scheduled publication time"
                       value={scheduleTime}
                       onChange={(event) => {
                         markDirty();
@@ -1106,6 +1138,8 @@ export function CreatePostPage() {
 
             <div className="flex items-center gap-2.5">
               <button
+                type="button"
+                aria-pressed={isScheduling}
                 onClick={() => {
                   markDirty();
                   setIsScheduling(!isScheduling);
@@ -1122,10 +1156,12 @@ export function CreatePostPage() {
 
               <button
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
+                disabled={!isScheduling && !canPublishLive}
+                aria-disabled={!isScheduling && !canPublishLive}
                 title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
                 className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs ${
                   !isScheduling && !canPublishLive
-                    ? 'bg-zinc-300 text-zinc-600 hover:bg-zinc-300'
+                    ? 'bg-zinc-300 text-zinc-600 cursor-not-allowed'
                     : 'bg-brand-600 text-white hover:bg-brand-700'
                 }`}
               >
@@ -1223,7 +1259,7 @@ export function CreatePostPage() {
                     && selectedAccountIds.includes(account.id),
                 )}
                 caption={currentContentText}
-                mediaAssets={activeMediaAssets}
+                mediaAssets={previewMediaAssets}
                 isCustomized={Boolean(platformContents[activePreviewTab])}
                 onResetToBase={() => handleResetPlatformToBase(activePreviewTab)}
               />
@@ -1256,6 +1292,7 @@ export function CreatePostPage() {
           markDirty();
           const next = { ...platformContents };
           Object.entries(optimizations).forEach(([platformId, text]) => {
+            if (!text) return;
             const platform = platformId as Platform;
             next[platform] = {
               platform,
@@ -1273,14 +1310,20 @@ export function CreatePostPage() {
 
       {showMediaModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] border border-[#EBEBE9]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="media-picker-title"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] border border-[#EBEBE9]">
             <div className="p-4 border-b border-[#EBEBE9] flex justify-between items-center bg-[#FAFAF9]">
               <div>
-                <h3 className="font-semibold text-zinc-900 text-[14px]">Select Media from Library</h3>
+                <h3 id="media-picker-title" className="font-semibold text-zinc-900 text-[14px]">Select Media from Library</h3>
                 <p className="text-[11px] text-zinc-500">Pick images or videos from this workspace</p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowMediaModal(false)}
+                aria-label="Close media picker"
                 className="p-1 hover:bg-zinc-200/60 rounded-md text-zinc-500 transition-colors"
               >
                 <X className="w-4 h-4" />
