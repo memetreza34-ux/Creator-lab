@@ -40,7 +40,10 @@ import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
 import { resolveMediaUrl } from '../utils/mediaStorage';
 import {
   countInvalidMediaReferences,
+  getEffectiveComposerContent,
+  resetPlatformContentOverride,
   sanitizeComposerContent,
+  setPlatformContentOverride,
 } from '../utils/composerContent';
 import { utcToZonedDateTime, zonedDateTimeToUtc } from '../utils/time';
 
@@ -101,6 +104,7 @@ export function CreatePostPage() {
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
   const navigationBypassRef = useRef(false);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [originalContent, setOriginalContent] = useState<PostContent>({
     caption: titleParam ? `${titleParam}\n\n` : '',
@@ -293,7 +297,11 @@ export function CreatePostPage() {
 
   const currentContentObj = activePreviewTab === 'original'
     ? originalContent
-    : platformContents[activePreviewTab]?.content || originalContent;
+    : getEffectiveComposerContent(
+        originalContent,
+        platformContents,
+        activePreviewTab,
+      );
 
   const currentContentText = currentContentObj.caption;
   const currentMediaIds = currentContentObj.mediaIds;
@@ -399,9 +407,27 @@ export function CreatePostPage() {
   };
 
   const handleInsertAtCursor = (textToInsert: string) => {
-    handleContentChange(currentContentText + textToInsert);
+    const textarea = contentTextareaRef.current;
+    const selectionStart = textarea?.selectionStart ?? currentContentText.length;
+    const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+    const nextText =
+      currentContentText.slice(0, selectionStart) +
+      textToInsert +
+      currentContentText.slice(selectionEnd);
+
+    handleContentChange(nextText);
     setActiveAISuggestion(null);
-    toast.success('Inserted into content');
+
+    requestAnimationFrame(() => {
+      const cursorPosition = selectionStart + textToInsert.length;
+      contentTextareaRef.current?.focus();
+      contentTextareaRef.current?.setSelectionRange(
+        cursorPosition,
+        cursorPosition,
+      );
+    });
+
+    toast.success('Inserted at cursor');
   };
 
   const handleContentChange = (text: string) => {
@@ -409,24 +435,20 @@ export function CreatePostPage() {
     if (activePreviewTab === 'original') {
       setOriginalContent((previous) => ({ ...previous, caption: text }));
     } else {
-      setPlatformContents((previous) => ({
-        ...previous,
-        [activePreviewTab]: {
-          platform: activePreviewTab,
-          enabled: true,
-          content: { ...currentContentObj, caption: text },
-        },
-      }));
+      setPlatformContents((previous) =>
+        setPlatformContentOverride(previous, activePreviewTab, {
+          ...currentContentObj,
+          caption: text,
+        }),
+      );
     }
   };
 
   const handleResetPlatformToBase = (platform: Platform) => {
     markDirty();
-    setPlatformContents((previous) => {
-      const copy = { ...previous };
-      delete copy[platform];
-      return copy;
-    });
+    setPlatformContents((previous) =>
+      resetPlatformContentOverride(previous, platform),
+    );
     toast.success(`Reset ${platform} content to base`);
   };
 
@@ -449,17 +471,12 @@ export function CreatePostPage() {
         mediaIds: [...previous.mediaIds, assetId],
       }));
     } else {
-      setPlatformContents((previous) => ({
-        ...previous,
-        [activePreviewTab]: {
-          platform: activePreviewTab,
-          enabled: true,
-          content: {
-            ...currentContentObj,
-            mediaIds: [...currentContentObj.mediaIds, assetId],
-          },
-        },
-      }));
+      setPlatformContents((previous) =>
+        setPlatformContentOverride(previous, activePreviewTab, {
+          ...currentContentObj,
+          mediaIds: [...currentContentObj.mediaIds, assetId],
+        }),
+      );
     }
     setShowMediaModal(false);
   };
@@ -472,17 +489,12 @@ export function CreatePostPage() {
         mediaIds: previous.mediaIds.filter((id) => id !== assetId),
       }));
     } else {
-      setPlatformContents((previous) => ({
-        ...previous,
-        [activePreviewTab]: {
-          platform: activePreviewTab,
-          enabled: true,
-          content: {
-            ...currentContentObj,
-            mediaIds: currentContentObj.mediaIds.filter((id) => id !== assetId),
-          },
-        },
-      }));
+      setPlatformContents((previous) =>
+        setPlatformContentOverride(previous, activePreviewTab, {
+          ...currentContentObj,
+          mediaIds: currentContentObj.mediaIds.filter((id) => id !== assetId),
+        }),
+      );
     }
   };
 
@@ -726,6 +738,10 @@ export function CreatePostPage() {
   const activeMediaAssets: MediaAsset[] = uniqueCurrentMediaIds
     .map((id) => workspaceMedia.find((asset) => asset.id === id))
     .filter((asset): asset is MediaAsset => Boolean(asset));
+  const previewMediaAssets: MediaAsset[] = activeMediaAssets.map((asset) => ({
+    ...asset,
+    url: resolvedMediaUrls[asset.id] || asset.url,
+  }));
 
   const activeConfig = activePreviewTab !== 'original'
     ? PLATFORM_CONFIGS[activePreviewTab]
@@ -775,6 +791,8 @@ export function CreatePostPage() {
                 return (
                   <button
                     key={account.id}
+                    type="button"
+                    aria-pressed={isSelected}
                     onClick={() => toggleAccount(account.id)}
                     className={`flex items-center px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all ${
                       isSelected
@@ -870,6 +888,10 @@ export function CreatePostPage() {
 
             <div className="bg-white border border-[#EBEBE9] rounded-xl shadow-xs overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
               <textarea
+                ref={contentTextareaRef}
+                aria-label={activePreviewTab === 'original'
+                  ? 'Base post content'
+                  : `${PLATFORM_CONFIGS[activePreviewTab].displayName} customized content`}
                 value={currentContentText}
                 onChange={(event) => handleContentChange(event.target.value)}
                 placeholder={activeConfig
@@ -891,6 +913,8 @@ export function CreatePostPage() {
                           <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-zinc-500">Video</div>
                         )}
                         <button
+                          type="button"
+                          aria-label={`Remove ${asset.name} from current content`}
                           onClick={() => removeMediaFromCurrent(mediaId)}
                           className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                         >
@@ -978,6 +1002,9 @@ export function CreatePostPage() {
                     Rewrite ({selectedRewriteTone})
                   </button>
                   <button
+                    type="button"
+                    aria-label="Choose rewrite tone"
+                    aria-expanded={showToneDropdown}
                     onClick={() => setShowToneDropdown(!showToneDropdown)}
                     className="px-1.5 py-1 bg-[#FAFAF9] border-t border-r border-b border-[#DCDCD8] text-zinc-500 hover:text-zinc-800 rounded-r-md"
                   >
@@ -1070,6 +1097,7 @@ export function CreatePostPage() {
                   <div className="flex gap-2">
                     <input
                       type="date"
+                      aria-label="Schedule date"
                       value={scheduleDate}
                       onChange={(event) => {
                         markDirty();
@@ -1079,6 +1107,7 @@ export function CreatePostPage() {
                     />
                     <input
                       type="time"
+                      aria-label="Schedule time"
                       value={scheduleTime}
                       onChange={(event) => {
                         markDirty();
@@ -1122,6 +1151,7 @@ export function CreatePostPage() {
 
               <button
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
+                disabled={!isScheduling && !canPublishLive}
                 title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
                 className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs ${
                   !isScheduling && !canPublishLive
@@ -1223,7 +1253,7 @@ export function CreatePostPage() {
                     && selectedAccountIds.includes(account.id),
                 )}
                 caption={currentContentText}
-                mediaAssets={activeMediaAssets}
+                mediaAssets={previewMediaAssets}
                 isCustomized={Boolean(platformContents[activePreviewTab])}
                 onResetToBase={() => handleResetPlatformToBase(activePreviewTab)}
               />
@@ -1239,32 +1269,27 @@ export function CreatePostPage() {
         onClose={() => setShowOptimizeModal(false)}
         onApplyOptimization={(platform, adaptedText) => {
           markDirty();
-          setPlatformContents((previous) => ({
-            ...previous,
-            [platform]: {
-              platform,
-              enabled: true,
-              content: {
-                caption: adaptedText,
-                mediaIds: previous[platform]?.content.mediaIds || originalContent.mediaIds,
-              },
-            },
-          }));
+          setPlatformContents((previous) =>
+            setPlatformContentOverride(previous, platform, {
+              caption: adaptedText,
+              mediaIds:
+                previous[platform]?.content.mediaIds ||
+                originalContent.mediaIds,
+            }),
+          );
           toast.success(`Adapted for ${platform}`);
         }}
         onApplyAll={(optimizations) => {
           markDirty();
-          const next = { ...platformContents };
+          let next = { ...platformContents };
           Object.entries(optimizations).forEach(([platformId, text]) => {
+            if (typeof text !== 'string') return;
             const platform = platformId as Platform;
-            next[platform] = {
-              platform,
-              enabled: true,
-              content: {
-                caption: text,
-                mediaIds: next[platform]?.content.mediaIds || originalContent.mediaIds,
-              },
-            };
+            next = setPlatformContentOverride(next, platform, {
+              caption: text,
+              mediaIds:
+                next[platform]?.content.mediaIds || originalContent.mediaIds,
+            });
           });
           setPlatformContents(next);
           toast.success(`Applied customizations for ${Object.keys(optimizations).length} platforms`);
@@ -1280,6 +1305,8 @@ export function CreatePostPage() {
                 <p className="text-[11px] text-zinc-500">Pick images or videos from this workspace</p>
               </div>
               <button
+                type="button"
+                aria-label="Close media picker"
                 onClick={() => setShowMediaModal(false)}
                 className="p-1 hover:bg-zinc-200/60 rounded-md text-zinc-500 transition-colors"
               >
