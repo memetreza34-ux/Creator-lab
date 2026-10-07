@@ -5,6 +5,7 @@ import {
   getWorkspaceAccounts,
   getWorkspaceAnalytics,
   getWorkspaceMedia,
+  getContentForPlatform,
   getWorkspacePerformance,
   getWorkspacePosts,
 } from './selectors';
@@ -46,4 +47,58 @@ test('workspace selectors never return records owned by another workspace', () =
   assert.deepEqual(getWorkspaceMedia(state).map((item) => item.id), ['media-a']);
   assert.deepEqual(getWorkspaceAnalytics(state).map((item) => item.id), ['metric-a']);
   assert.deepEqual(getWorkspacePerformance(state).map((item) => item.postId), ['post-a']);
+});
+
+
+test('platform content inherits base content until an enabled override exists', () => {
+  const post = {
+    id: 'inheritance-post',
+    workspaceId: 'a',
+    title: 'Inheritance',
+    destinationAccountIds: [],
+    originalContent: { caption: 'Base caption', mediaIds: ['media-a'] },
+    platformContent: [],
+    status: 'draft' as const,
+    createdAt: '',
+  };
+
+  assert.deepEqual(getContentForPlatform(post, 'instagram'), post.originalContent);
+
+  const customized = {
+    ...post,
+    platformContent: [
+      {
+        platform: 'instagram' as const,
+        enabled: true,
+        content: { caption: 'Instagram override', mediaIds: [] },
+      },
+    ],
+  };
+
+  assert.deepEqual(getContentForPlatform(customized, 'instagram'), {
+    caption: 'Instagram override',
+    mediaIds: [],
+  });
+  assert.deepEqual(getContentForPlatform(customized, 'youtube'), post.originalContent);
+});
+
+test('disabled platform override falls back to base content', () => {
+  const post = {
+    id: 'disabled-override-post',
+    workspaceId: 'a',
+    title: 'Disabled override',
+    destinationAccountIds: [],
+    originalContent: { caption: 'Base caption', mediaIds: [] },
+    platformContent: [
+      {
+        platform: 'instagram' as const,
+        enabled: false,
+        content: { caption: 'Stale override', mediaIds: [] },
+      },
+    ],
+    status: 'draft' as const,
+    createdAt: '',
+  };
+
+  assert.deepEqual(getContentForPlatform(post, 'instagram'), post.originalContent);
 });
