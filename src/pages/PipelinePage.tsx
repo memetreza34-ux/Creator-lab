@@ -25,6 +25,7 @@ import {
   ContentItem,
   PipelineStage,
   Platform,
+  Post,
 } from '../types';
 import { 
   Plus, GripVertical, Calendar, User, X, Send, 
@@ -36,6 +37,7 @@ import { format, parseISO } from 'date-fns';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import { ALL_PLATFORMS } from '../config/platformConfig';
 import { movePipelineItem } from '../utils/contentOperations';
+import { getWorkspacePosts } from '../utils/selectors';
 
 const stages: { id: PipelineStage; label: string; description: string }[] = [
   { id: 'ideas', label: 'Ideas', description: 'Brainstorms & concepts' },
@@ -109,12 +111,16 @@ const DroppableColumn: React.FC<DroppableColumnProps> = ({
 
 interface SortableCardProps {
   item: ContentItem;
+  linkedPosts?: Post[];
   onClick?: () => void;
   onCreatePost: (item: ContentItem) => void;
 }
 
-const SortableCard: React.FC<SortableCardProps> = ({ 
-  item, onClick, onCreatePost 
+const SortableCard: React.FC<SortableCardProps> = ({
+  item,
+  linkedPosts = [],
+  onClick,
+  onCreatePost,
 }) => {
   const {
     attributes,
@@ -129,6 +135,11 @@ const SortableCard: React.FC<SortableCardProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const latestLinkedPost = [...linkedPosts].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )[0];
 
   return (
     <div
@@ -175,6 +186,17 @@ const SortableCard: React.FC<SortableCardProps> = ({
           {item.notes}
         </p>
       )}
+
+      {latestLinkedPost && (
+        <div className="mb-2.5 flex items-center justify-between gap-2 rounded-md border border-brand-100 bg-brand-50/60 px-2 py-1.5 text-[10px]">
+          <span className="font-medium text-brand-800 truncate">
+            {linkedPosts.length} linked post{linkedPosts.length === 1 ? '' : 's'}
+          </span>
+          <span className="shrink-0 font-bold uppercase tracking-wider text-brand-600">
+            {latestLinkedPost.status.replace('_', ' ')}
+          </span>
+        </div>
+      )}
       
       <div className="flex items-center justify-between pt-2 border-t border-[#F2F2F0]">
         <div className="flex items-center space-x-2 text-[10px] text-zinc-500 font-medium">
@@ -213,7 +235,16 @@ export function PipelinePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
-  
+
+  const workspacePosts = getWorkspacePosts(state);
+  const linkedPostsByContentItem = new Map<string, Post[]>();
+  workspacePosts.forEach((post) => {
+    if (!post.sourceContentItemId) return;
+    const existing = linkedPostsByContentItem.get(post.sourceContentItemId) || [];
+    existing.push(post);
+    linkedPostsByContentItem.set(post.sourceContentItemId, existing);
+  });
+
   // Workspace items sorted by order
   const items = state.pipelineItems
     .filter(i => i.workspaceId === state.activeWorkspaceId)
@@ -467,9 +498,10 @@ export function PipelinePage() {
                     strategy={verticalListSortingStrategy}
                   >
                     {columnItems.map(item => (
-                      <SortableCard 
-                        key={item.id} 
-                        item={item} 
+                      <SortableCard
+                        key={item.id}
+                        item={item}
+                        linkedPosts={linkedPostsByContentItem.get(item.id)}
                         onClick={() => {
                           setEditingItem(item);
                           setIsModalOpen(true);
@@ -485,9 +517,10 @@ export function PipelinePage() {
 
           <DragOverlay>
             {activeItem ? (
-              <SortableCard 
-                item={activeItem} 
-                onCreatePost={handleCreatePost} 
+              <SortableCard
+                item={activeItem}
+                linkedPosts={linkedPostsByContentItem.get(activeItem.id)}
+                onCreatePost={handleCreatePost}
               />
             ) : null}
           </DragOverlay>

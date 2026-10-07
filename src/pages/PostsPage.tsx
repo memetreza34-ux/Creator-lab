@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Post, PostStatus } from '../types';
 import { format } from 'date-fns';
-import { Search, MoreHorizontal, Copy, Trash2, Edit2, ImageIcon, Calendar } from 'lucide-react';
+import {
+  Search,
+  MoreHorizontal,
+  Copy,
+  Trash2,
+  Edit2,
+  ImageIcon,
+  Calendar,
+  Link2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import {
   getPostPlatforms,
+  getSourceContentItemForPost,
   getWorkspaceAccounts,
   getWorkspaceMedia,
   getWorkspacePosts,
 } from '../utils/selectors';
+import { resolveMediaUrl } from '../utils/mediaStorage';
 
 export function PostsPage() {
   const { state, dispatch } = useApp();
@@ -20,10 +31,34 @@ export function PostsPage() {
   const [activeTab, setActiveTab] = useState<PostStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
 
   const workspacePosts = getWorkspacePosts(state);
   const workspaceMedia = getWorkspaceMedia(state);
   const workspaceAccounts = getWorkspaceAccounts(state);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveUrls = async () => {
+      const entries = await Promise.all(
+        workspaceMedia.map(async (asset) => {
+          const url = await resolveMediaUrl(asset.id, asset.url);
+          return [asset.id, url] as const;
+        }),
+      );
+
+      if (!cancelled) {
+        setResolvedMediaUrls(Object.fromEntries(entries));
+      }
+    };
+
+    void resolveUrls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceMedia]);
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const posts = workspacePosts
@@ -140,6 +175,7 @@ export function PostsPage() {
                     (asset) => asset.id === post.originalContent.mediaIds[0],
                   );
                   const platforms = getPostPlatforms(post, workspaceAccounts);
+                  const sourceItem = getSourceContentItemForPost(state, post);
                   const postDate = new Date(
                     post.scheduledAt || post.publishedAt || post.createdAt,
                   );
@@ -150,7 +186,11 @@ export function PostsPage() {
                         <div className="flex items-start space-x-3">
                           <div className="w-12 h-12 bg-zinc-100 rounded-[6px] overflow-hidden shrink-0 flex items-center justify-center text-zinc-400 border border-zinc-200">
                             {previewMedia ? (
-                              <img src={previewMedia.url} alt="" className="w-full h-full object-cover" />
+                              <img
+                                src={resolvedMediaUrls[previewMedia.id] || previewMedia.url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <ImageIcon className="w-5 h-5" />
                             )}
@@ -158,6 +198,12 @@ export function PostsPage() {
                           <div className="min-w-0">
                             <p className="text-[13px] font-medium text-zinc-900 truncate mb-0.5">{post.title}</p>
                             <p className="text-[12px] text-zinc-500 line-clamp-1">{post.originalContent.caption || 'No caption'}</p>
+                            {sourceItem && (
+                              <div className="mt-1 flex items-center text-[10px] font-medium text-brand-700">
+                                <Link2 className="w-3 h-3 mr-1 shrink-0" />
+                                <span className="truncate">Pipeline: {sourceItem.title}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -191,6 +237,9 @@ export function PostsPage() {
                       </td>
                       <td className="px-5 py-3 align-middle text-right relative">
                         <button
+                          type="button"
+                          aria-label={`Open actions for ${post.title}`}
+                          aria-expanded={openMenuId === post.id}
                           onClick={(event) => {
                             event.stopPropagation();
                             setOpenMenuId(openMenuId === post.id ? null : post.id);

@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Platform, SocialAccount } from '../types';
-import { Plus, CheckCircle2, RefreshCw, LogOut, Settings, X } from 'lucide-react';
+import { Plus, CheckCircle2, RefreshCw, LogOut, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
-import { getWorkspaceAccounts } from '../utils/selectors';
+import {
+  getPostsUsingAccount,
+  getWorkspaceAccounts,
+} from '../utils/selectors';
 
 interface AvailablePlatform {
   id: Platform;
@@ -56,9 +59,31 @@ export function SocialAccountsPage() {
     setSelectedPlatform(null);
   };
 
-  const handleRemove = (id: string) => {
-    if (window.confirm('Are you sure you want to remove this account?')) {
-      dispatch({ type: 'REMOVE_SOCIAL_ACCOUNT', payload: id });
+  const handleRemove = (account: SocialAccount) => {
+    const affectedPosts = getPostsUsingAccount(state, account.id);
+    const scheduledCount = affectedPosts.filter(
+      (post) => post.status === 'scheduled',
+    ).length;
+    const publishedCount = affectedPosts.filter(
+      (post) => post.status === 'published',
+    ).length;
+
+    const impactLines = [
+      affectedPosts.length > 0
+        ? `\n\nThis account is referenced by ${affectedPosts.length} post${affectedPosts.length === 1 ? '' : 's'}.`
+        : '',
+      scheduledCount > 0
+        ? `\n${scheduledCount} scheduled post${scheduledCount === 1 ? '' : 's'} may move to Needs Review if no destination remains.`
+        : '',
+      publishedCount > 0
+        ? '\nHistorical published posts may lose channel labeling in the current local model. This will be solved by the future PostDestination snapshot model.'
+        : '',
+    ].join('');
+
+    if (window.confirm(
+      `Remove ${account.displayName || account.username}?${impactLines}`,
+    )) {
+      dispatch({ type: 'REMOVE_SOCIAL_ACCOUNT', payload: account.id });
       toast.success('Account removed');
     }
   };
@@ -76,7 +101,7 @@ export function SocialAccountsPage() {
           className="flex items-center px-4 py-2 bg-brand-500 text-white rounded-[8px] text-[13px] font-medium hover:bg-brand-600 shadow-sm transition-colors"
         >
           <Plus className="w-4 h-4 mr-1.5" />
-          Connect
+          Add Demo Account
         </button>
       </div>
 
@@ -85,9 +110,9 @@ export function SocialAccountsPage() {
           <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mb-4">
             <Plus className="w-6 h-6 text-zinc-400" />
           </div>
-          <h3 className="text-[16px] font-semibold text-zinc-900 mb-2">No accounts connected</h3>
+          <h3 className="text-[16px] font-semibold text-zinc-900 mb-2">No demo accounts added</h3>
           <p className="text-[13px] text-zinc-500 mb-6 max-w-md">
-            Connect your social media accounts to start scheduling and publishing content.
+            Add a local demo profile to test Composer, previews, and scheduling UI. Real OAuth connections and live publishing are introduced in the integrations phase.
           </p>
         </div>
       ) : (
@@ -140,13 +165,10 @@ export function SocialAccountsPage() {
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                   {account.connectionMode === 'demo' ? 'Demo Info' : 'Refresh'}
                 </button>
-                <button className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-[6px] transition-colors cursor-not-allowed opacity-50" title="Settings (Soon)">
-                  <Settings className="w-4 h-4" />
-                </button>
                 <button
-                  onClick={() => handleRemove(account.id)}
+                  onClick={() => handleRemove(account)}
                   className="p-1.5 text-zinc-400 hover:text-status-danger hover:bg-status-danger/10 rounded-[6px] transition-colors tooltip"
-                  title="Remove"
+                  title="Remove account and clean dependent destinations"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -168,7 +190,12 @@ export function SocialAccountsPage() {
                   {connectStep === 1 ? 'Choose a platform profile for local UI testing.' : 'This does not perform OAuth or enable real publishing.'}
                 </p>
               </div>
-              <button onClick={() => setShowConnectModal(false)} className="p-1.5 hover:bg-zinc-200/60 rounded-md transition-colors text-zinc-400 hover:text-zinc-600">
+              <button
+                type="button"
+                aria-label="Close demo account dialog"
+                onClick={() => setShowConnectModal(false)}
+                className="p-1.5 hover:bg-zinc-200/60 rounded-md transition-colors text-zinc-400 hover:text-zinc-600"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
