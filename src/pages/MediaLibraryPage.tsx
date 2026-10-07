@@ -2,12 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
-  Upload, Folder, Image as ImageIcon, FileVideo, Search, 
-  Trash2, Plus, Grid, List, ChevronRight, Edit2, 
-  ArrowRight, FolderInput, Check, X, MoveRight 
+  Upload, Folder, Image as ImageIcon, FileVideo, Search,
+  Trash2, Plus, Grid, List, ChevronRight, Edit2,
+  ArrowRight, FolderInput, Check, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getWorkspaceMedia, getWorkspaceMediaFolders } from '../utils/selectors';
+import {
+  getPostsUsingMedia,
+  getWorkspaceMedia,
+  getWorkspaceMediaFolders,
+} from '../utils/selectors';
 import { deleteMediaBlob, resolveMediaUrl, saveMediaBlob } from '../utils/mediaStorage';
 import { MediaAsset, MediaFolder } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -116,7 +120,20 @@ export function MediaLibraryPage() {
 
   const handleDeleteAsset = async (asset: MediaAsset, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete "${asset.name}"?`)) return;
+
+    const referencedPosts = getPostsUsingMedia(state, asset.id);
+    const referenceWarning = referencedPosts.length > 0
+      ? `\n\nThis asset is used by ${referencedPosts.length} post${referencedPosts.length === 1 ? '' : 's'}. Removing it will also remove the media reference from those Creator Lab post records.`
+      : '';
+    const publishedWarning = referencedPosts.some((post) => post.status === 'published')
+      ? '\nPublished content on external platforms is not deleted, but Creator Lab will no longer retain this media reference in its local post record.'
+      : '';
+
+    if (!window.confirm(
+      `Delete "${asset.name}"?${referenceWarning}${publishedWarning}`,
+    )) {
+      return;
+    }
 
     try {
       if (asset.storageType === 'indexeddb') {
@@ -437,13 +454,14 @@ export function MediaLibraryPage() {
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 pb-8">
               {/* Upload Tile */}
-              <div 
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="aspect-square bg-white rounded-xl border-2 border-dashed border-[#DCDCD8] flex flex-col items-center justify-center text-zinc-400 hover:bg-brand-50/40 hover:text-brand-600 hover:border-brand-300 transition-all cursor-pointer group"
+                className="aspect-square bg-white rounded-xl border-2 border-dashed border-[#DCDCD8] flex flex-col items-center justify-center text-zinc-400 hover:bg-brand-50/40 hover:text-brand-600 hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-400 transition-all cursor-pointer group"
               >
                 <Upload className="w-6 h-6 mb-2 group-hover:scale-110 transition-transform" />
                 <span className="text-[12px] font-semibold">Upload Media</span>
-              </div>
+              </button>
               
               {mediaAssets.map((asset: MediaAsset) => (
                 <div key={asset.id} className="group flex flex-col bg-white rounded-xl border border-[#EBEBE9] overflow-hidden hover:border-brand-300 hover:shadow-xs transition-all">
@@ -522,6 +540,11 @@ export function MediaLibraryPage() {
                         </span>
                       )}
                     </div>
+                    {getPostsUsingMedia(state, asset.id).length > 0 && (
+                      <p className="mt-1 text-[10px] font-medium text-brand-700">
+                        Used in {getPostsUsingMedia(state, asset.id).length} post{getPostsUsingMedia(state, asset.id).length === 1 ? '' : 's'}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -552,9 +575,16 @@ export function MediaLibraryPage() {
                               </div>
                             )}
                           </div>
-                          <span className="text-[13px] font-medium text-zinc-900 truncate max-w-xs" title={asset.name}>
-                            {asset.name}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="block text-[13px] font-medium text-zinc-900 truncate max-w-xs" title={asset.name}>
+                              {asset.name}
+                            </span>
+                            {getPostsUsingMedia(state, asset.id).length > 0 && (
+                              <span className="block text-[10px] font-medium text-brand-700 mt-0.5">
+                                Used in {getPostsUsingMedia(state, asset.id).length} post{getPostsUsingMedia(state, asset.id).length === 1 ? '' : 's'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-2.5">
