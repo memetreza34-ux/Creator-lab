@@ -5,6 +5,7 @@ import {
   Experiment,
   MediaAsset,
   MediaFolder,
+  Platform,
   PlatformSpecificContent,
   Post,
   PostContent,
@@ -170,7 +171,7 @@ export function normalizeAppState(
   ).map((item, index) => ({
     ...item,
     workspaceId: item.workspaceId || activeWorkspaceId,
-    platforms: asArray(item.platforms),
+    platforms: asArray<Platform>(item.platforms),
     owner: typeof item.owner === 'string' ? item.owner : '',
     order: typeof item.order === 'number' ? item.order : index,
     notes: typeof item.notes === 'string' ? item.notes : '',
