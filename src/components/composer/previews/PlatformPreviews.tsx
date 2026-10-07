@@ -75,12 +75,14 @@ export const InstagramPreview: React.FC<PreviewProps> = ({
           </div>
           <Bookmark className="w-5 h-5 cursor-pointer hover:text-zinc-600" />
         </div>
-        <div className="font-semibold text-[12px] text-zinc-900 mb-1.5">1,248 likes</div>
+        <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-400 mb-1.5">
+          Illustrative post layout
+        </div>
         <div className="text-[12px] leading-relaxed text-zinc-800 whitespace-pre-line">
           <span className="font-semibold text-zinc-900 mr-1.5">{username.replace('@', '')}</span>
           {caption || <span className="text-zinc-400 italic">Caption preview will appear here...</span>}
         </div>
-        <div className="text-[10px] text-zinc-400 mt-2 uppercase tracking-wide">2 HOURS AGO</div>
+        <div className="text-[10px] text-zinc-400 mt-2 uppercase tracking-wide">Preview only</div>
       </div>
 
       {/* Customization Badge Footer */}
@@ -148,19 +150,19 @@ export const TikTokPreview: React.FC<PreviewProps> = ({
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
             <Heart className="w-4 h-4 fill-white text-white" />
           </div>
-          <span className="mt-0.5 font-medium">84.2K</span>
+          <span className="mt-0.5 font-medium">Like</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
             <MessageCircle className="w-4 h-4 fill-white text-white" />
           </div>
-          <span className="mt-0.5 font-medium">1,402</span>
+          <span className="mt-0.5 font-medium">Comment</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
             <Bookmark className="w-4 h-4 fill-white text-white" />
           </div>
-          <span className="mt-0.5 font-medium">4,910</span>
+          <span className="mt-0.5 font-medium">Save</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="w-8 h-8 rounded-full bg-zinc-900/60 backdrop-blur flex items-center justify-center">
@@ -211,7 +213,7 @@ export const YouTubePreview: React.FC<PreviewProps> = ({
           </div>
         )}
         <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-          12:44
+          Preview
         </span>
       </div>
 
@@ -230,7 +232,7 @@ export const YouTubePreview: React.FC<PreviewProps> = ({
               {caption ? caption.split('\n')[0].slice(0, 75) : 'Video Title Preview'}
             </h4>
             <div className="text-[11px] text-zinc-500 mt-1">
-              <span>{channelName}</span> • <span>14K views</span> • <span>3 days ago</span>
+              <span>{channelName}</span> • <span>Illustrative layout</span>
             </div>
           </div>
         </div>
@@ -272,8 +274,8 @@ export const LinkedInPreview: React.FC<PreviewProps> = ({
           </div>
           <div>
             <div className="font-semibold text-zinc-900 leading-tight">{displayName}</div>
-            <div className="text-[11px] text-zinc-500">Founder & Content Strategist • 1st</div>
-            <div className="text-[10px] text-zinc-400">1h • 🌐</div>
+            <div className="text-[11px] text-zinc-500">Creator profile • Preview</div>
+            <div className="text-[10px] text-zinc-400">Illustrative post • 🌐</div>
           </div>
         </div>
         <MoreHorizontal className="w-4 h-4 text-zinc-500" />
@@ -291,14 +293,8 @@ export const LinkedInPreview: React.FC<PreviewProps> = ({
         </div>
       )}
 
-      {/* Engagement bar */}
-      <div className="px-4 py-2 border-t border-[#F2F2F0] flex items-center justify-between text-zinc-500 text-[12px]">
-        <div className="flex items-center space-x-1">
-          <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-white text-[9px]">👍</span>
-          <span className="w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-white text-[9px]">💡</span>
-          <span className="text-[11px] ml-1">214</span>
-        </div>
-        <div className="text-[11px]">38 comments • 12 reposts</div>
+      <div className="px-4 py-2 border-t border-[#F2F2F0] text-zinc-400 text-[11px]">
+        Engagement controls are shown for layout only — no live metrics.
       </div>
 
       <div className="px-4 py-2 bg-[#F8F8F7] border-t border-[#EBEBE9] flex items-center justify-between text-[11px]">
@@ -332,7 +328,7 @@ export const XPreview: React.FC<PreviewProps> = ({
           <div className="flex items-center space-x-1.5">
             <span className="font-bold text-zinc-900 truncate">{displayName}</span>
             <span className="text-zinc-500 text-[12px]">{username}</span>
-            <span className="text-zinc-400">· 2h</span>
+            <span className="text-zinc-400">· Preview</span>
           </div>
 
           <p className="mt-1 text-[13px] text-zinc-900 leading-relaxed whitespace-pre-line">
@@ -345,18 +341,18 @@ export const XPreview: React.FC<PreviewProps> = ({
             </div>
           )}
 
-          <div className="mt-3 flex items-center justify-between text-zinc-500 text-[12px] max-w-xs">
-            <span className="flex items-center space-x-1 hover:text-blue-500 cursor-pointer">
-              <MessageCircle className="w-3.5 h-3.5" /> <span>24</span>
+          <div className="mt-3 flex items-center justify-between text-zinc-500 text-[11px] max-w-xs" aria-label="Illustrative engagement controls">
+            <span className="flex items-center space-x-1">
+              <MessageCircle className="w-3.5 h-3.5" /> <span>Reply</span>
             </span>
-            <span className="flex items-center space-x-1 hover:text-green-500 cursor-pointer">
-              <Repeat className="w-3.5 h-3.5" /> <span>18</span>
+            <span className="flex items-center space-x-1">
+              <Repeat className="w-3.5 h-3.5" /> <span>Repost</span>
             </span>
-            <span className="flex items-center space-x-1 hover:text-rose-500 cursor-pointer">
-              <Heart className="w-3.5 h-3.5" /> <span>142</span>
+            <span className="flex items-center space-x-1">
+              <Heart className="w-3.5 h-3.5" /> <span>Like</span>
             </span>
-            <span className="flex items-center space-x-1 hover:text-blue-500 cursor-pointer">
-              <Eye className="w-3.5 h-3.5" /> <span>4.2K</span>
+            <span className="flex items-center space-x-1">
+              <Eye className="w-3.5 h-3.5" /> <span>View</span>
             </span>
           </div>
         </div>
@@ -383,7 +379,7 @@ export const FacebookPreview: React.FC<PreviewProps> = ({
         </div>
         <div>
           <div className="font-semibold text-zinc-900">{account?.displayName || 'Creator Page'}</div>
-          <div className="text-[11px] text-zinc-400">Sponsored or Public • 🌐</div>
+          <div className="text-[11px] text-zinc-400">Post preview • Public layout • 🌐</div>
         </div>
       </div>
       <div className="px-3 pb-2 text-[13px] text-zinc-800 whitespace-pre-line leading-relaxed">
@@ -449,7 +445,7 @@ export const ThreadsPreview: React.FC<PreviewProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-zinc-900">{account?.username || '@creator'}</span>
-            <span className="text-zinc-400 text-[12px]">42m</span>
+            <span className="text-zinc-400 text-[12px]">Preview</span>
           </div>
           <p className="mt-1 text-zinc-800 leading-relaxed whitespace-pre-line">
             {caption || <span className="text-zinc-400 italic">Casual real-time thought preview...</span>}
@@ -472,24 +468,47 @@ export const ThreadsPreview: React.FC<PreviewProps> = ({
 };
 
 export const PlatformPreviewRenderer: React.FC<PreviewProps> = (props) => {
+  let preview: React.ReactNode;
+
   switch (props.platform) {
     case 'instagram':
-      return <InstagramPreview {...props} />;
+      preview = <InstagramPreview {...props} />;
+      break;
     case 'tiktok':
-      return <TikTokPreview {...props} />;
+      preview = <TikTokPreview {...props} />;
+      break;
     case 'youtube':
-      return <YouTubePreview {...props} />;
+      preview = <YouTubePreview {...props} />;
+      break;
     case 'linkedin':
-      return <LinkedInPreview {...props} />;
+      preview = <LinkedInPreview {...props} />;
+      break;
     case 'twitter':
-      return <XPreview {...props} />;
+      preview = <XPreview {...props} />;
+      break;
     case 'facebook':
-      return <FacebookPreview {...props} />;
+      preview = <FacebookPreview {...props} />;
+      break;
     case 'pinterest':
-      return <PinterestPreview {...props} />;
+      preview = <PinterestPreview {...props} />;
+      break;
     case 'threads':
-      return <ThreadsPreview {...props} />;
+      preview = <ThreadsPreview {...props} />;
+      break;
     default:
-      return <InstagramPreview {...props} />;
+      preview = (
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-center text-[12px] text-zinc-500">
+          Preview unavailable for this destination.
+        </div>
+      );
   }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-center text-[10px] font-medium text-zinc-400">
+        Illustrative preview — not live platform data
+      </div>
+      {preview}
+    </div>
+  );
 };
