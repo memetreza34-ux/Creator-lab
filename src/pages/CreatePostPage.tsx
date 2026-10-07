@@ -29,9 +29,8 @@ import { AIResultPanel, AIHistoryItem } from '../components/composer/AIResultPan
 import { CreatorIntelligencePanel } from '../components/composer/CreatorIntelligencePanel';
 import { PlatformOptimizationModal } from '../components/composer/PlatformOptimizationModal';
 import { PlatformPreviewRenderer } from '../components/composer/previews/PlatformPreviews';
-import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
 import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
-import { zonedDateTimeToUtc } from '../utils/time';
+import { utcToZonedDateTime, zonedDateTimeToUtc } from '../utils/time';
 
 const REWRITE_TONES = [
   'Professional',
@@ -129,16 +128,19 @@ export function CreatePostPage() {
         });
         setPlatformContents(existingPlatformContents);
 
-        if (existing.scheduledAt) {
+        if (existing.scheduledAt && activeWorkspace?.timezone) {
           setIsScheduling(true);
-          const date = new Date(existing.scheduledAt);
-          const yyyy = date.getFullYear();
-          const mm = String(date.getMonth() + 1).padStart(2, '0');
-          const dd = String(date.getDate()).padStart(2, '0');
-          setScheduleDate(`${yyyy}-${mm}-${dd}`);
-          const hh = String(date.getHours()).padStart(2, '0');
-          const min = String(date.getMinutes()).padStart(2, '0');
-          setScheduleTime(`${hh}:${min}`);
+          try {
+            const localSchedule = utcToZonedDateTime(
+              existing.scheduledAt,
+              activeWorkspace.timezone,
+            );
+            setScheduleDate(localSchedule.date);
+            setScheduleTime(localSchedule.time);
+          } catch {
+            setScheduleDate('');
+            setScheduleTime('18:00');
+          }
         }
       }
     } else if (platformsParam) {
@@ -152,7 +154,7 @@ export function CreatePostPage() {
     } else if (availableAccounts.length > 0 && selectedAccountIds.length === 0) {
       setSelectedAccountIds([availableAccounts[0].id]);
     }
-  }, [editId, state.posts, platformsParam]);
+  }, [editId, state.posts, platformsParam, activeWorkspace?.timezone]);
 
   const selectedPlatforms = Array.from(
     new Set<Platform>(
@@ -162,6 +164,14 @@ export function CreatePostPage() {
     ),
   );
 
+  const selectedAccounts = availableAccounts.filter((account) =>
+    selectedAccountIds.includes(account.id),
+  );
+  const hasOnlyProviderAccounts =
+    selectedAccounts.length > 0 &&
+    selectedAccounts.every((account) => account.connectionKind === 'provider');
+  const livePublishingAvailable = false;
+
   const currentContentObj = activePreviewTab === 'original'
     ? originalContent
     : platformContents[activePreviewTab]?.content || originalContent;
@@ -169,11 +179,6 @@ export function CreatePostPage() {
   const currentContentText = currentContentObj.caption;
   const currentMediaIds = currentContentObj.mediaIds;
 
-  const primaryPlatform = activePreviewTab !== 'original'
-    ? activePreviewTab
-    : selectedPlatforms[0];
-  const recommendedTime = getPrimaryRecommendedTime(primaryPlatform);
-  const bestTimes = getRecommendedPostingTimes(activeWorkspace?.id, primaryPlatform);
 
   const toggleAccount = (id: string) => {
     setSelectedAccountIds((previous) =>
@@ -378,6 +383,11 @@ export function CreatePostPage() {
   };
 
   const handleScheduleOrPublish = (status: 'scheduled' | 'published') => {
+    if (status === 'published' && !livePublishingAvailable) {
+      toast.error('Live publishing is not enabled yet. Save a draft or add a local planning schedule instead.');
+      return;
+    }
+
     if (selectedAccountIds.length === 0) {
       toast.error('Select at least one destination account');
       return;
@@ -430,7 +440,11 @@ export function CreatePostPage() {
       dispatch({ type: 'ADD_POST', payload: post });
     }
 
-    toast.success(status === 'scheduled' ? 'Post scheduled successfully!' : 'Post published!');
+    toast.success(
+      status === 'scheduled'
+        ? 'Scheduled in Creator Lab. No provider publishing job has been created yet.'
+        : 'Published successfully',
+    );
     navigate('/calendar');
   };
 
@@ -496,9 +510,16 @@ export function CreatePostPage() {
 
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Destination Accounts ({selectedAccountIds.length})
-              </label>
+              <div>
+                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Destination Accounts ({selectedAccountIds.length})
+                </label>
+                {selectedAccounts.length > 0 && !hasOnlyProviderAccounts && (
+                  <div className="text-[10px] text-amber-700 mt-0.5">
+                    Demo/local destinations are planning references, not authenticated provider connections.
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => setSelectedAccountIds(availableAccounts.map((account) => account.id))}
                 className="text-[11px] text-brand-600 hover:underline font-medium"
@@ -522,13 +543,28 @@ export function CreatePostPage() {
                   >
                     <PlatformIcon platform={account.platform} className="w-3.5 h-3.5 mr-2" />
                     <span className="mr-1.5">{account.displayName}</span>
+                    <span
+                      className={`text-[9px] uppercase tracking-wide px-1 py-0.5 rounded ${
+                        account.connectionKind === 'provider'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : account.connectionKind === 'demo'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-zinc-100 text-zinc-500'
+                      }`}
+                    >
+                      {account.connectionKind === 'provider'
+                        ? 'Live'
+                        : account.connectionKind === 'demo'
+                          ? 'Demo'
+                          : 'Local'}
+                    </span>
                     {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-brand-600 ml-1" />}
                   </button>
                 );
               })}
               {availableAccounts.length === 0 && (
                 <div className="text-[12px] text-zinc-500 italic bg-[#FAFAF9] p-3 rounded-lg border border-[#EBEBE9] w-full">
-                  No social accounts connected in this workspace. Visit Settings to connect channels.
+                  No destination accounts in this workspace. Add a local placeholder in Social Accounts.
                 </div>
               )}
             </div>
@@ -743,15 +779,11 @@ export function CreatePostPage() {
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-[12px] font-semibold text-zinc-700 flex items-center">
                       <Clock className="w-3.5 h-3.5 mr-1.5 text-zinc-400" />
-                      Schedule Posting Time
+                      Local planning time
                     </h4>
-                    <button
-                      onClick={() => setScheduleTime(recommendedTime)}
-                      className="text-[11px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded flex items-center transition-colors"
-                      title={`Best time derived from historical performance: ${recommendedTime}`}
-                    >
-                      <Sparkles className="w-3 h-3 mr-1" /> Best: {recommendedTime}
-                    </button>
+                    <span className="text-[10px] text-zinc-400">
+                      {activeWorkspace?.timezone || 'UTC'}
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -767,11 +799,9 @@ export function CreatePostPage() {
                       className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </div>
-                  {bestTimes.length > 0 && (
-                    <div className="text-[10px] text-zinc-400 mt-1.5">
-                      Recommended: {bestTimes[0].dayName} at {bestTimes[0].time} ({bestTimes[0].reason})
-                    </div>
-                  )}
+<div className="text-[10px] text-amber-700 mt-1.5">
+                    Planning only — no external publishing job is created in the current phase.
+                  </div>
                 </div>
               )}
 
@@ -799,10 +829,19 @@ export function CreatePostPage() {
 
               <button
                 onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
-                className="flex items-center px-4 py-2 bg-brand-600 text-white font-medium text-[12px] rounded-lg hover:bg-brand-700 transition-colors shadow-xs"
+                title={
+                  isScheduling
+                    ? 'Save a local planning schedule'
+                    : 'Live publishing becomes available after a verified provider integration'
+                }
+                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs ${
+                  isScheduling
+                    ? 'bg-brand-600 text-white hover:bg-brand-700'
+                    : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300'
+                }`}
               >
                 <Send className="w-3.5 h-3.5 mr-1.5" />
-                {isScheduling ? 'Schedule Post' : 'Publish Now'}
+                {isScheduling ? 'Schedule locally' : 'Publish unavailable'}
               </button>
             </div>
           </div>
