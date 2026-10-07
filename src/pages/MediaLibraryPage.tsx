@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWorkspaceMedia, getWorkspaceMediaFolders } from '../utils/selectors';
-import { saveMediaBlob, deleteMediaBlob } from '../utils/mediaStorage';
+import { deleteMediaBlob, saveMediaBlob } from '../utils/mediaStorage';
 import { MediaAsset, MediaFolder } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -47,40 +47,63 @@ export function MediaLibraryPage() {
       const files: File[] = Array.from(e.target.files);
       const loadingToast = toast.loading(`Uploading ${files.length} asset(s)...`);
 
+      let uploadedCount = 0;
+      let failedCount = 0;
+
       for (const file of files) {
         const id = uuidv4();
-        // Persist to IndexedDB
-        await saveMediaBlob(id, file);
 
-        const url = URL.createObjectURL(file);
-        const newAsset: MediaAsset = {
-          id,
-          workspaceId: state.activeWorkspaceId,
-          folderId: selectedFolderId || undefined,
-          url,
-          type: file.type.startsWith('video/') ? 'video' : 'image',
-          name: file.name,
-          size: file.size,
-          createdAt: new Date().toISOString()
-        };
+        try {
+          const url = await saveMediaBlob(id, file);
+          const newAsset: MediaAsset = {
+            id,
+            workspaceId: state.activeWorkspaceId,
+            folderId: selectedFolderId || undefined,
+            url,
+            storageKind: 'indexeddb',
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            name: file.name,
+            size: file.size,
+            createdAt: new Date().toISOString(),
+          };
 
-        dispatch({
-          type: 'ADD_MEDIA_ASSET',
-          payload: newAsset
-        });
+          dispatch({
+            type: 'ADD_MEDIA_ASSET',
+            payload: newAsset,
+          });
+          uploadedCount += 1;
+        } catch (error) {
+          console.error(`Failed to upload ${file.name}`, error);
+          failedCount += 1;
+        }
       }
 
-      toast.success(`Successfully uploaded ${files.length} asset(s)`, { id: loadingToast });
+      if (uploadedCount > 0) {
+        toast.success(`Uploaded ${uploadedCount} asset(s)`, { id: loadingToast });
+      } else {
+        toast.error('No media could be stored in this browser', { id: loadingToast });
+      }
+
+      if (failedCount > 0 && uploadedCount > 0) {
+        toast.error(`${failedCount} asset(s) could not be stored`);
+      }
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleDeleteAsset = async (asset: MediaAsset, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(`Delete "${asset.name}"?`)) {
-      await deleteMediaBlob(asset.id);
+    if (!window.confirm(`Delete "${asset.name}"?`)) return;
+
+    try {
+      if (asset.storageKind === 'indexeddb') {
+        await deleteMediaBlob(asset.id);
+      }
       dispatch({ type: 'REMOVE_MEDIA_ASSET', payload: asset.id });
       toast.success('Asset removed');
+    } catch (error) {
+      console.error(`Failed to delete media asset ${asset.id}`, error);
+      toast.error('Asset could not be deleted from browser storage');
     }
   };
 
