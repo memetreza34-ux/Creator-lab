@@ -117,13 +117,14 @@ function createLegacyState() {
   };
 }
 
-test('migrates an unversioned legacy state into schema version 1', () => {
+test('migrates an unversioned legacy state into the current schema', () => {
   const migrated = migratePersistedState(createLegacyState(), options);
 
   assert.ok(migrated);
   assert.equal(migrated.schemaVersion, PERSISTED_STATE_SCHEMA_VERSION);
   assert.equal(migrated.state.activeWorkspaceId, 'workspace-a');
   assert.equal(migrated.state.workspaces[0].timezone, 'Europe/Berlin');
+  assert.equal(migrated.state.workspaces[0].dataMode, 'standard');
   assert.equal(
     migrated.state.workspaces[0].createdAt,
     '2026-10-07T12:00:00.000Z',
@@ -143,6 +144,12 @@ test('normalizes workspace ownership for every legacy workspace-owned collection
   assert.equal(state.experiments[0].workspaceId, 'workspace-a');
   assert.equal(state.analytics[0].workspaceId, 'workspace-a');
   assert.equal(state.postPerformances[0].workspaceId, 'workspace-a');
+  assert.equal(state.socialAccounts[0].connectionKind, 'placeholder');
+  assert.equal(state.socialAccounts[0].status, 'disconnected');
+  assert.equal(state.mediaAssets[0].storageKind, 'indexeddb');
+  assert.equal(state.mediaAssets[0].url, '');
+  assert.equal(state.analytics[0].source, 'local');
+  assert.equal(state.postPerformances[0].source, 'local');
 });
 
 test('normalizes legacy platform content and pipeline defaults without replacing user data', () => {
@@ -154,6 +161,17 @@ test('normalizes legacy platform content and pipeline defaults without replacing
   assert.deepEqual(migrated.state.pipelineItems[0].tags, []);
   assert.equal(migrated.state.pipelineItems[0].notes, '');
   assert.equal(migrated.state.pipelineItems[0].order, 0);
+});
+
+test('migrates a version 1 envelope into the current schema', () => {
+  const migrated = migratePersistedState(
+    { schemaVersion: 1, state: createLegacyState() },
+    options,
+  );
+  assert.ok(migrated);
+  assert.equal(migrated.schemaVersion, PERSISTED_STATE_SCHEMA_VERSION);
+  assert.equal(migrated.state.socialAccounts[0].connectionKind, 'placeholder');
+  assert.equal(migrated.state.mediaAssets[0].storageKind, 'indexeddb');
 });
 
 test('serializes a versioned envelope and round-trips current state', () => {
