@@ -25,6 +25,10 @@ import {
   deserializePersistedState,
   serializePersistedState,
 } from '../state/persistence';
+import {
+  removeMediaReferenceFromPost,
+  syncPipelineStageFromPost,
+} from '../utils/contentOperations';
 
 export type { AppState };
 
@@ -150,13 +154,24 @@ export function appReducer(state: AppState, action: Action): AppState {
     }
 
     case 'ADD_POST':
-      return { ...state, posts: [...state.posts, action.payload] };
+      return {
+        ...state,
+        posts: [...state.posts, action.payload],
+        pipelineItems: syncPipelineStageFromPost(
+          state.pipelineItems,
+          action.payload,
+        ),
+      };
 
     case 'UPDATE_POST':
       return {
         ...state,
         posts: state.posts.map((post) =>
           post.id === action.payload.id ? action.payload : post,
+        ),
+        pipelineItems: syncPipelineStageFromPost(
+          state.pipelineItems,
+          action.payload,
         ),
       };
 
@@ -166,6 +181,11 @@ export function appReducer(state: AppState, action: Action): AppState {
         posts: state.posts.filter((post) => post.id !== action.payload),
         postPerformances: state.postPerformances.filter(
           (performance) => performance.postId !== action.payload,
+        ),
+        experiments: state.experiments.map((experiment) =>
+          experiment.sourcePostId === action.payload
+            ? { ...experiment, sourcePostId: undefined }
+            : experiment,
         ),
       };
 
@@ -180,13 +200,61 @@ export function appReducer(state: AppState, action: Action): AppState {
         ),
       };
 
-    case 'REMOVE_SOCIAL_ACCOUNT':
+    case 'REMOVE_SOCIAL_ACCOUNT': {
+      const removedAccount = state.socialAccounts.find(
+        (account) => account.id === action.payload,
+      );
+      const socialAccounts = state.socialAccounts.filter(
+        (account) => account.id !== action.payload,
+      );
+      const remainingAccountsById = new Map(
+        socialAccounts.map((account) => [account.id, account]),
+      );
+
+      const posts = state.posts.map((post) => {
+        if (!post.destinationAccountIds.includes(action.payload)) {
+          return post;
+        }
+
+        const destinationAccountIds = post.destinationAccountIds.filter(
+          (accountId) => accountId !== action.payload,
+        );
+
+        const hasSamePlatformDestination =
+          removedAccount &&
+          destinationAccountIds.some(
+            (accountId) =>
+              remainingAccountsById.get(accountId)?.platform ===
+              removedAccount.platform,
+          );
+
+        const platformContent =
+          removedAccount && !hasSamePlatformDestination
+            ? post.platformContent.filter(
+                (entry) => entry.platform !== removedAccount.platform,
+              )
+            : post.platformContent;
+
+        const losesAllDestinations = destinationAccountIds.length === 0;
+        const shouldRequireReview =
+          losesAllDestinations &&
+          (post.status === 'scheduled' || post.status === 'needs_review');
+
+        return {
+          ...post,
+          destinationAccountIds,
+          platformContent,
+          status: shouldRequireReview ? 'needs_review' : post.status,
+          scheduledAt: shouldRequireReview ? undefined : post.scheduledAt,
+        };
+      });
+
       return {
         ...state,
-        socialAccounts: state.socialAccounts.filter(
-          (account) => account.id !== action.payload,
-        ),
+        socialAccounts,
+        posts,
       };
+    }
 
     case 'ADD_MEDIA_ASSET':
       return { ...state, mediaAssets: [...state.mediaAssets, action.payload] };
@@ -202,7 +270,12 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'REMOVE_MEDIA_ASSET':
       return {
         ...state,
-        mediaAssets: state.mediaAssets.filter((asset) => asset.id !== action.payload),
+        mediaAssets: state.mediaAssets.filter(
+          (asset) => asset.id !== action.payload,
+        ),
+        posts: state.posts.map((post) =>
+          removeMediaReferenceFromPost(post, action.payload),
+        ),
       };
 
     case 'ADD_MEDIA_FOLDER':
@@ -253,7 +326,19 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'DELETE_PIPELINE_ITEM':
       return {
         ...state,
-        pipelineItems: state.pipelineItems.filter((item) => item.id !== action.payload),
+        pipelineItems: state.pipelineItems.filter(
+          (item) => item.id !== action.payload,
+        ),
+        posts: state.posts.map((post) =>
+          post.sourceContentItemId === action.payload
+            ? { ...post, sourceContentItemId: undefined }
+            : post,
+        ),
+        experiments: state.experiments.map((experiment) =>
+          experiment.sourceContentItemId === action.payload
+            ? { ...experiment, sourceContentItemId: undefined }
+            : experiment,
+        ),
       };
 
     case 'ADD_EXPERIMENT':
