@@ -117,7 +117,7 @@ function createLegacyState() {
   };
 }
 
-test('migrates an unversioned legacy state into schema version 1', () => {
+test('migrates an unversioned legacy state into the current schema', () => {
   const migrated = migratePersistedState(createLegacyState(), options);
 
   assert.ok(migrated);
@@ -136,13 +136,18 @@ test('normalizes workspace ownership for every legacy workspace-owned collection
 
   const state = migrated.state;
   assert.equal(state.socialAccounts[0].workspaceId, 'workspace-a');
+  assert.equal(state.socialAccounts[0].connectionMode, 'demo');
   assert.equal(state.posts[0].workspaceId, 'workspace-a');
   assert.equal(state.mediaAssets[0].workspaceId, 'workspace-a');
+  assert.equal(state.mediaAssets[0].storageType, 'indexeddb');
+  assert.equal(state.mediaAssets[0].url, '');
   assert.equal(state.mediaFolders[0].workspaceId, 'workspace-a');
   assert.equal(state.pipelineItems[0].workspaceId, 'workspace-a');
   assert.equal(state.experiments[0].workspaceId, 'workspace-a');
   assert.equal(state.analytics[0].workspaceId, 'workspace-a');
+  assert.equal(state.analytics[0].source, 'demo');
   assert.equal(state.postPerformances[0].workspaceId, 'workspace-a');
+  assert.equal(state.postPerformances[0].source, 'demo');
 });
 
 test('normalizes legacy platform content and pipeline defaults without replacing user data', () => {
