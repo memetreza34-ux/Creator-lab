@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AppState } from '../types';
 import {
+  getPostsForContentItem,
+  getPostsUsingAccount,
+  getPostsUsingMedia,
+  getSourceContentItemForPost,
   getWorkspaceAccounts,
   getWorkspaceAnalytics,
   getWorkspaceMedia,
@@ -46,4 +50,100 @@ test('workspace selectors never return records owned by another workspace', () =
   assert.deepEqual(getWorkspaceMedia(state).map((item) => item.id), ['media-a']);
   assert.deepEqual(getWorkspaceAnalytics(state).map((item) => item.id), ['metric-a']);
   assert.deepEqual(getWorkspacePerformance(state).map((item) => item.postId), ['post-a']);
+});
+
+
+test('content traceability selectors remain workspace-scoped', () => {
+  const scopedState: AppState = {
+    ...state,
+    posts: [
+      {
+        ...state.posts[0],
+        sourceContentItemId: 'item-a',
+        destinationAccountIds: ['account-a'],
+        originalContent: { caption: '', mediaIds: ['media-a'] },
+      },
+      {
+        ...state.posts[1],
+        sourceContentItemId: 'item-b',
+        destinationAccountIds: ['account-b'],
+        originalContent: { caption: '', mediaIds: ['media-b'] },
+      },
+    ],
+    pipelineItems: [
+      {
+        id: 'item-a',
+        workspaceId: 'a',
+        title: 'Idea A',
+        stage: 'ready',
+        platforms: ['youtube'],
+        format: 'long',
+        owner: 'Creator',
+        tags: [],
+        order: 0,
+      },
+      {
+        id: 'item-b',
+        workspaceId: 'b',
+        title: 'Idea B',
+        stage: 'ready',
+        platforms: ['youtube'],
+        format: 'long',
+        owner: 'Creator',
+        tags: [],
+        order: 0,
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    getPostsForContentItem(scopedState, 'item-a').map((post) => post.id),
+    ['post-a'],
+  );
+  assert.equal(
+    getSourceContentItemForPost(scopedState, scopedState.posts[0])?.id,
+    'item-a',
+  );
+  assert.deepEqual(
+    getPostsUsingMedia(scopedState, 'media-a').map((post) => post.id),
+    ['post-a'],
+  );
+  assert.deepEqual(
+    getPostsUsingAccount(scopedState, 'account-a').map((post) => post.id),
+    ['post-a'],
+  );
+
+  assert.deepEqual(getPostsForContentItem(scopedState, 'item-b'), []);
+  assert.deepEqual(getPostsUsingMedia(scopedState, 'media-b'), []);
+  assert.deepEqual(getPostsUsingAccount(scopedState, 'account-b'), []);
+});
+
+test('media usage detects platform-specific references without duplicating a post', () => {
+  const scopedState: AppState = {
+    ...state,
+    posts: [
+      {
+        ...state.posts[0],
+        originalContent: {
+          caption: '',
+          mediaIds: ['media-a'],
+        },
+        platformContent: [
+          {
+            platform: 'youtube',
+            enabled: true,
+            content: {
+              caption: 'YouTube',
+              mediaIds: ['media-a'],
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    getPostsUsingMedia(scopedState, 'media-a').map((post) => post.id),
+    ['post-a'],
+  );
 });
