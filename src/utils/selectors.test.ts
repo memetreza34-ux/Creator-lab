@@ -16,27 +16,27 @@ const state: AppState = {
   ],
   activeWorkspaceId: 'a',
   socialAccounts: [
-    { id: 'account-a', workspaceId: 'a', platform: 'youtube', username: 'a', displayName: 'A', status: 'connected', lastSync: '' },
-    { id: 'account-b', workspaceId: 'b', platform: 'youtube', username: 'b', displayName: 'B', status: 'connected', lastSync: '' },
+    { id: 'account-a', workspaceId: 'a', platform: 'youtube', username: 'a', displayName: 'A', status: 'connected', connectionMode: 'demo', lastSync: '' },
+    { id: 'account-b', workspaceId: 'b', platform: 'youtube', username: 'b', displayName: 'B', status: 'connected', connectionMode: 'demo', lastSync: '' },
   ],
   posts: [
     { id: 'post-a', workspaceId: 'a', title: 'A', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '' },
     { id: 'post-b', workspaceId: 'b', title: 'B', destinationAccountIds: [], originalContent: { caption: '', mediaIds: [] }, platformContent: [], status: 'draft', createdAt: '' },
   ],
   mediaAssets: [
-    { id: 'media-a', workspaceId: 'a', url: '', type: 'image', name: 'A', size: 1, createdAt: '' },
-    { id: 'media-b', workspaceId: 'b', url: '', type: 'image', name: 'B', size: 1, createdAt: '' },
+    { id: 'media-a', workspaceId: 'a', url: '', type: 'image', name: 'A', size: 1, createdAt: '', storageType: 'indexeddb' },
+    { id: 'media-b', workspaceId: 'b', url: '', type: 'image', name: 'B', size: 1, createdAt: '', storageType: 'indexeddb' },
   ],
   mediaFolders: [],
   pipelineItems: [],
   experiments: [],
   analytics: [
-    { id: 'metric-a', workspaceId: 'a', label: 'Reach', value: 1, change: 0, trend: 'neutral' },
-    { id: 'metric-b', workspaceId: 'b', label: 'Reach', value: 2, change: 0, trend: 'neutral' },
+    { id: 'metric-a', workspaceId: 'a', label: 'Reach', value: 1, change: 0, trend: 'neutral', source: 'demo' },
+    { id: 'metric-b', workspaceId: 'b', label: 'Reach', value: 2, change: 0, trend: 'neutral', source: 'demo' },
   ],
   postPerformances: [
-    { postId: 'post-a', workspaceId: 'a', platform: 'youtube', views: 1, reach: 1, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, ctr: 0, engagementRate: 0, followersGained: 0, publishedAt: '' },
-    { postId: 'post-b', workspaceId: 'b', platform: 'youtube', views: 2, reach: 2, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, ctr: 0, engagementRate: 0, followersGained: 0, publishedAt: '' },
+    { postId: 'post-a', workspaceId: 'a', platform: 'youtube', views: 1, reach: 1, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, ctr: 0, engagementRate: 0, followersGained: 0, publishedAt: '', source: 'demo' },
+    { postId: 'post-b', workspaceId: 'b', platform: 'youtube', views: 2, reach: 2, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, ctr: 0, engagementRate: 0, followersGained: 0, publishedAt: '', source: 'demo' },
   ],
 };
 
