@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, Calendar, Sparkles } from 'lucide-react';
+import { AlertTriangle, Calendar, Database } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
@@ -8,18 +8,9 @@ import {
   getPostPlatforms,
   getWorkspaceAccounts,
   getWorkspaceAnalytics,
+  getWorkspacePerformance,
   getWorkspacePosts,
 } from '../utils/selectors';
-
-const data = [
-  { name: 'Mon', reach: 14000, engagement: 240 },
-  { name: 'Tue', reach: 23000, engagement: 139 },
-  { name: 'Wed', reach: 20000, engagement: 980 },
-  { name: 'Thu', reach: 27800, engagement: 390 },
-  { name: 'Fri', reach: 18900, engagement: 480 },
-  { name: 'Sat', reach: 23900, engagement: 380 },
-  { name: 'Sun', reach: 34900, engagement: 430 },
-];
 
 export function DashboardPage() {
   const { state } = useApp();
@@ -28,6 +19,33 @@ export function DashboardPage() {
   const workspacePosts = getWorkspacePosts(state);
   const workspaceAccounts = getWorkspaceAccounts(state);
   const analytics = getWorkspaceAnalytics(state);
+  const performances = getWorkspacePerformance(state);
+
+  const chartData = useMemo(
+    () =>
+      [...performances]
+        .sort(
+          (a, b) =>
+            new Date(a.publishedAt).getTime() -
+            new Date(b.publishedAt).getTime(),
+        )
+        .slice(-8)
+        .map((performance) => ({
+          name: new Date(performance.publishedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          }),
+          reach: performance.reach,
+        })),
+    [performances],
+  );
+
+  const hasDemoData =
+    analytics.some((metric) => metric.source === 'demo') ||
+    performances.some((performance) => performance.source === 'demo');
+  const hasProviderData = performances.some(
+    (performance) => performance.source === 'provider',
+  );
 
   const scheduledPosts = workspacePosts
     .filter((post) => post.status === 'scheduled')
@@ -63,52 +81,71 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {analytics.map((metric) => (
-          <div key={metric.id} className="p-6 bg-white border border-[#EBEBE9] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between h-[120px]">
-            <h3 className="text-[12px] font-sans font-medium text-[#666661] tracking-wide">{metric.label}</h3>
-            <div className="flex items-baseline justify-between mt-auto">
+          <div key={metric.id} className="p-6 bg-white border border-[#EBEBE9] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[120px]">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-[12px] font-sans font-medium text-[#666661] tracking-wide">{metric.label}</h3>
+              <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                metric.source === 'provider'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : metric.source === 'demo'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                    : 'border-zinc-200 bg-zinc-50 text-zinc-500'
+              }`}>
+                {metric.source}
+              </span>
+            </div>
+            <div className="mt-auto">
               <span className="text-[28px] font-serif text-[#0A0A0A] leading-none">
                 {metric.label.includes('Rate') ? `${metric.value}%` : metric.value.toLocaleString()}
               </span>
-              <span className={`flex items-center text-[12px] font-medium font-sans ${
-                metric.trend === 'up'
-                  ? 'text-green-600'
-                  : metric.trend === 'down'
-                    ? 'text-red-600'
-                    : 'text-[#999996]'
-              }`}>
-                {metric.trend === 'up' && <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" />}
-                {metric.trend === 'down' && <ArrowDownRight className="w-3.5 h-3.5 mr-0.5" />}
-                {Math.abs(metric.change)}%
-              </span>
+              <p className="text-[10px] text-zinc-400 mt-2">
+                {metric.change === 0 ? 'No comparison period calculated' : `${metric.change > 0 ? '+' : ''}${metric.change}% vs comparison`}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
+      {hasDemoData && !hasProviderData && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-700 shrink-0" />
+          <div>
+            <p className="text-[12px] font-semibold text-amber-900">Demo workspace data</p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
+              Accounts and performance values are sample data, not live provider sync.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
           <div className="bg-[#F8F8F7] border border-[#EBEBE9] p-6 flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-5">
             <div className="w-10 h-10 bg-white border border-[#D1D1CE] flex flex-col items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
-              <Sparkles className="w-4 h-4 text-[#0A0A0A]" />
+              <Database className="w-4 h-4 text-[#0A0A0A]" />
             </div>
             <div className="flex-1 pt-0.5">
               <h3 className="text-[12px] font-sans font-semibold text-[#0A0A0A] tracking-[0.1em] uppercase mb-2">
-                Studio Intelligence
+                Data Readiness
               </h3>
               <p className="text-[#666661] text-[14px] font-sans leading-relaxed max-w-2xl">
-                Your educational tutorials are outperforming lifestyle content by <strong className="text-[#0A0A0A] font-semibold">34%</strong> this month. Consider prioritizing the "Lighting Setup" script currently in your pipeline to capitalize on this momentum.
+                {hasProviderData
+                  ? `Creator Lab has ${performances.filter((item) => item.source === 'provider').length} provider-synced performance record(s) in this workspace.`
+                  : hasDemoData
+                    ? 'This workspace currently uses demo performance records. Creator insights must not be treated as real evidence until provider data is synced.'
+                    : 'No performance data is available yet. Creator insights stay in an insufficient-data state until real metrics exist.'}
               </p>
             </div>
             <div className="shrink-0 pt-0.5">
-              <button onClick={() => navigate('/pipeline')} className="px-4 py-2 border border-[#0A0A0A] text-[#0A0A0A] bg-white text-[12px] font-sans font-medium hover:bg-[#0A0A0A] hover:text-white transition-colors">
-                View Pipeline
+              <button onClick={() => navigate('/analytics')} className="px-4 py-2 border border-[#0A0A0A] text-[#0A0A0A] bg-white text-[12px] font-sans font-medium hover:bg-[#0A0A0A] hover:text-white transition-colors">
+                Open Analytics
               </button>
             </div>
           </div>
 
           <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Performance Trajectory</h3>
+              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Stored Performance</h3>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center text-[12px] text-[#666661] font-sans font-medium">
                   <span className="w-2.5 h-2.5 bg-[#0A0A0A] mr-2" /> Reach
@@ -117,7 +154,7 @@ export function DashboardPage() {
             </div>
             <div className="h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EBEBE9" />
                   <XAxis
                     dataKey="name"
