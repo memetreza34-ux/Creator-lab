@@ -1,4 +1,8 @@
 export type Platform = 'youtube' | 'instagram' | 'tiktok' | 'twitter' | 'linkedin' | 'facebook' | 'pinterest' | 'threads';
+export type WorkspaceDataMode = 'demo' | 'standard';
+export type SocialConnectionKind = 'demo' | 'placeholder' | 'provider';
+export type DataSource = 'demo' | 'local' | 'provider' | 'derived';
+export type MediaStorageKind = 'demo-remote' | 'remote' | 'indexeddb';
 
 export interface Workspace {
   id: string;
@@ -7,6 +11,7 @@ export interface Workspace {
   timezone: string;
   createdAt: string;
   color?: string;
+  dataMode: WorkspaceDataMode;
 }
 
 export interface SocialAccountMetrics {
@@ -23,6 +28,7 @@ export interface SocialAccount {
   status: 'connected' | 'disconnected' | 'error';
   lastSync: string;
   metrics?: SocialAccountMetrics;
+  connectionKind: SocialConnectionKind;
 }
 
 export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed' | 'needs_review';
@@ -69,6 +75,7 @@ export interface MediaAsset {
   size: number;
   createdAt: string;
   folderId?: string;
+  storageKind: MediaStorageKind;
 }
 
 export type PipelineStage = 'ideas' | 'research' | 'script' | 'recording' | 'editing' | 'ready' | 'scheduled' | 'published';
@@ -95,6 +102,7 @@ export interface AnalyticsMetric {
   value: number;
   change: number;
   trend: 'up' | 'down' | 'neutral';
+  source: DataSource;
 }
 
 export interface PostPerformance {
@@ -113,6 +121,7 @@ export interface PostPerformance {
   followersGained: number;
   watchTime?: number;
   publishedAt: string;
+  source: DataSource;
 }
 
 export type ExperimentType = 'hook' | 'title' | 'caption' | 'thumbnail' | 'cta' | 'posting_time';
