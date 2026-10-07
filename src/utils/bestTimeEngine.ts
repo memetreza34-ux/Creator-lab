@@ -2,73 +2,44 @@ import { Platform } from '../types';
 
 export interface BestTimeRecommendation {
   platform: Platform;
-  dayName: string; // e.g. 'Tuesday'
-  dayIndex: number; // 0 (Sun) - 6 (Sat)
-  time: string; // HH:mm format e.g. '18:30'
-  confidence: 'High' | 'Medium' | 'Optimal';
+  dayName: string;
+  dayIndex: number;
+  time: string;
+  confidence: 'Prototype';
   reason: string;
-  expectedEngagementBoost: string;
+  expectedEngagementBoost: 'Not estimated';
 }
 
-// Seeded platform engagement windows based on empirical creator data
-const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
+/**
+ * Generic prototype planning slots.
+ *
+ * These are NOT derived from the active creator's analytics and must never be
+ * presented as measured best times or expected performance. Phase 6 replaces
+ * this placeholder layer with evidence-based recommendations when sufficient
+ * provider-synced history exists.
+ */
+const PROTOTYPE_PLANNING_SLOTS: Record<Platform, BestTimeRecommendation[]> = {
   instagram: [
     {
       platform: 'instagram',
       dayName: 'Tuesday',
       dayIndex: 2,
       time: '18:30',
-      confidence: 'High',
-      reason: 'Peak evening leisure browsing window for your demographic',
-      expectedEngagementBoost: '+24%'
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
     },
-    {
-      platform: 'instagram',
-      dayName: 'Thursday',
-      dayIndex: 4,
-      time: '12:15',
-      confidence: 'Medium',
-      reason: 'Lunch break story & feed check-in',
-      expectedEngagementBoost: '+16%'
-    },
-    {
-      platform: 'instagram',
-      dayName: 'Sunday',
-      dayIndex: 0,
-      time: '19:00',
-      confidence: 'Optimal',
-      reason: 'High Sunday evening scroll retention before the work week',
-      expectedEngagementBoost: '+28%'
-    }
   ],
   tiktok: [
     {
       platform: 'tiktok',
       dayName: 'Friday',
       dayIndex: 5,
-      time: '20:15',
-      confidence: 'High',
-      reason: 'Weekend kick-off algorithm acceleration & high watch duration',
-      expectedEngagementBoost: '+31%'
+      time: '20:00',
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
     },
-    {
-      platform: 'tiktok',
-      dayName: 'Tuesday',
-      dayIndex: 2,
-      time: '16:45',
-      confidence: 'Medium',
-      reason: 'After-work / student commute session',
-      expectedEngagementBoost: '+19%'
-    },
-    {
-      platform: 'tiktok',
-      dayName: 'Saturday',
-      dayIndex: 6,
-      time: '11:30',
-      confidence: 'Optimal',
-      reason: 'Weekend morning leisure scroll with high completion rate',
-      expectedEngagementBoost: '+26%'
-    }
   ],
   youtube: [
     {
@@ -76,19 +47,10 @@ const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
       dayName: 'Thursday',
       dayIndex: 4,
       time: '17:00',
-      confidence: 'Optimal',
-      reason: 'Allows YouTube indexer 2-3 hours to index before evening prime time',
-      expectedEngagementBoost: '+22%'
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
     },
-    {
-      platform: 'youtube',
-      dayName: 'Saturday',
-      dayIndex: 6,
-      time: '09:30',
-      confidence: 'High',
-      reason: 'Weekend morning long-form viewing session',
-      expectedEngagementBoost: '+27%'
-    }
   ],
   linkedin: [
     {
@@ -96,19 +58,10 @@ const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
       dayName: 'Tuesday',
       dayIndex: 2,
       time: '08:30',
-      confidence: 'Optimal',
-      reason: 'Morning professional feed check before daily meetings commence',
-      expectedEngagementBoost: '+35%'
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
     },
-    {
-      platform: 'linkedin',
-      dayName: 'Wednesday',
-      dayIndex: 3,
-      time: '12:00',
-      confidence: 'High',
-      reason: 'Midday executive discussion break',
-      expectedEngagementBoost: '+21%'
-    }
   ],
   twitter: [
     {
@@ -116,19 +69,10 @@ const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
       dayName: 'Wednesday',
       dayIndex: 3,
       time: '10:15',
-      confidence: 'High',
-      reason: 'Industry news & trending conversation peak',
-      expectedEngagementBoost: '+20%'
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
     },
-    {
-      platform: 'twitter',
-      dayName: 'Monday',
-      dayIndex: 1,
-      time: '13:00',
-      confidence: 'Medium',
-      reason: 'Midday commentary and breaking developments',
-      expectedEngagementBoost: '+15%'
-    }
   ],
   facebook: [
     {
@@ -136,21 +80,21 @@ const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
       dayName: 'Thursday',
       dayIndex: 4,
       time: '14:00',
-      confidence: 'Medium',
-      reason: 'Community group active discussions period',
-      expectedEngagementBoost: '+14%'
-    }
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
+    },
   ],
   pinterest: [
     {
       platform: 'pinterest',
       dayName: 'Saturday',
       dayIndex: 6,
-      time: '21:00',
-      confidence: 'High',
-      reason: 'Late evening planning and inspiration bookmarking',
-      expectedEngagementBoost: '+29%'
-    }
+      time: '20:00',
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
+    },
   ],
   threads: [
     {
@@ -158,45 +102,45 @@ const PLATFORM_PATTERNS: Record<Platform, BestTimeRecommendation[]> = {
       dayName: 'Tuesday',
       dayIndex: 2,
       time: '19:30',
-      confidence: 'High',
-      reason: 'Evening banter & conversational threads peak',
-      expectedEngagementBoost: '+23%'
-    }
-  ]
+      confidence: 'Prototype',
+      reason: 'Generic planning placeholder — not based on workspace analytics.',
+      expectedEngagementBoost: 'Not estimated',
+    },
+  ],
 };
 
-/**
- * Get recommended posting times for a given workspace and platform
- */
 export function getRecommendedPostingTimes(
   _workspaceId?: string,
   platform?: Platform,
-  targetDayIndex?: number
+  targetDayIndex?: number,
 ): BestTimeRecommendation[] {
-  if (platform && PLATFORM_PATTERNS[platform]) {
-    const list = PLATFORM_PATTERNS[platform];
+  if (platform) {
+    const list = PROTOTYPE_PLANNING_SLOTS[platform];
     if (typeof targetDayIndex === 'number') {
-      const match = list.filter(r => r.dayIndex === targetDayIndex);
-      if (match.length > 0) return match;
+      const matchingDay = list.filter(
+        (recommendation) => recommendation.dayIndex === targetDayIndex,
+      );
+      if (matchingDay.length > 0) return matchingDay;
     }
     return list;
   }
 
-  // Cross-platform recommendations
-  const all: BestTimeRecommendation[] = [];
-  Object.values(PLATFORM_PATTERNS).forEach(recs => {
-    if (recs[0]) all.push(recs[0]);
-  });
-  return all;
+  return Object.values(PROTOTYPE_PLANNING_SLOTS)
+    .map((recommendations) => recommendations[0])
+    .filter(
+      (recommendation): recommendation is BestTimeRecommendation =>
+        Boolean(recommendation),
+    );
 }
 
-/**
- * Get the single best recommended time string (e.g. '18:30') for scheduling
- */
-export function getPrimaryRecommendedTime(platform?: Platform, targetDayIndex?: number): string {
-  const recs = getRecommendedPostingTimes(undefined, platform, targetDayIndex);
-  if (recs.length > 0) {
-    return recs[0].time;
-  }
-  return '18:00';
+export function getPrimaryRecommendedTime(
+  platform?: Platform,
+  targetDayIndex?: number,
+): string {
+  const recommendations = getRecommendedPostingTimes(
+    undefined,
+    platform,
+    targetDayIndex,
+  );
+  return recommendations[0]?.time || '18:00';
 }
