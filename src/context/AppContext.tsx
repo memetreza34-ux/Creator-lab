@@ -25,6 +25,7 @@ import {
   deserializePersistedState,
   serializePersistedState,
 } from '../state/persistence';
+import { resolveMediaUrl } from '../utils/mediaStorage';
 
 export type { AppState };
 
@@ -305,6 +306,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to persist Creator Lab state', error);
     }
   }, [state]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateLocalMedia = async () => {
+      const unresolvedAssets = state.mediaAssets.filter(
+        (asset) => asset.storageKind === 'indexeddb' && !asset.url,
+      );
+
+      for (const asset of unresolvedAssets) {
+        try {
+          const url = await resolveMediaUrl(asset.id);
+          if (!url || cancelled) continue;
+
+          dispatch({
+            type: 'UPDATE_MEDIA_ASSET',
+            payload: { ...asset, url },
+          });
+        } catch (error) {
+          console.error(`Failed to hydrate local media asset ${asset.id}`, error);
+        }
+      }
+    };
+
+    void hydrateLocalMedia();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.mediaAssets]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
