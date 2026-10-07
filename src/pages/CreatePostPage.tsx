@@ -31,6 +31,7 @@ import { PlatformOptimizationModal } from '../components/composer/PlatformOptimi
 import { PlatformPreviewRenderer } from '../components/composer/previews/PlatformPreviews';
 import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
 import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
+import { zonedDateTimeToUtc } from '../utils/time';
 
 const REWRITE_TONES = [
   'Professional',
@@ -392,12 +393,21 @@ export function CreatePostPage() {
 
     let scheduledAt: string | undefined;
     if (status === 'scheduled') {
-      const date = new Date(`${scheduleDate}T${scheduleTime}`);
-      if (Number.isNaN(date.getTime())) {
-        toast.error('Select a valid scheduling date and time');
+      if (!activeWorkspace?.timezone) {
+        toast.error('Workspace timezone is not configured');
         return;
       }
-      scheduledAt = date.toISOString();
+
+      try {
+        scheduledAt = zonedDateTimeToUtc(
+          scheduleDate,
+          scheduleTime,
+          activeWorkspace.timezone,
+        );
+      } catch {
+        toast.error('Select a valid scheduling date and time for this workspace');
+        return;
+      }
     }
 
     const post: Post = {

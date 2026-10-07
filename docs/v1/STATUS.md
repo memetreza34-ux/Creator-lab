@@ -23,17 +23,27 @@ Planning baseline established. Existing frontend is substantial, but production 
 ## Phase 0 remaining
 
 - [ ] Introduce an explicit persisted-state schema version and migration pipeline.
-- [ ] Define/test workspace timezone -> UTC schedule conversion helpers.
-- [ ] Add automated test framework and critical tests for reducer/selectors/time conversion.
+- [x] Define/test workspace timezone -> UTC schedule conversion helpers.
+- [x] Add automated test framework and critical tests for reducer/selectors/time conversion.
 - [ ] Audit demo/mock truth labels so fake accounts/analytics cannot be mistaken for live provider data.
 - [ ] Re-audit media persistence/storage behavior and document production migration needs.
-- [ ] Run lint/build and fix regressions.
+- [x] Run tests/lint/build for the completed Phase 0 block.
 - [ ] Update this file with evidence and move to Phase 1 only when Phase 0 exit criteria pass.
+
+## Completed in current Phase 0 block
+
+- Added `tsx --test` using Node's built-in test runner; no new test dependency required.
+- Added tests for date/time validation, IANA timezone conversion, DST gaps, workspace selectors, and destructive workspace cascade behavior.
+- Composer scheduling now interprets date/time in the active workspace timezone and stores canonical UTC instead of silently using the browser timezone.
+- CI now runs automated tests before TypeScript validation and production build.
 
 ## Next exact task
 
-Add a minimal automated test setup plus deterministic scheduling time utilities. Cover timezone conversion, date/time validation, workspace selectors, and destructive workspace cascade behavior. Do not start Composer feature expansion yet.
+Introduce an explicit persisted-state schema version and deterministic migration pipeline for `creator_lab_state`, with tests for legacy state normalization. Do not start Composer feature expansion yet.
 
-## Validation baseline
+## Validation evidence
 
-At commit 8e49147e174e15c8655f41f956879c98ec752613, the existing CI had previously passed TypeScript validation and production build. Re-run validation after the next code change.
+GitHub Actions run 37633539261 on PR #2 completed successfully:
+- Automated tests: success
+- TypeScript check: success
+- Production build: success

@@ -153,7 +153,7 @@ function createSeedState(): AppState {
   };
 }
 
-function appReducer(state: AppState, action: Action): AppState {
+export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_ACTIVE_WORKSPACE':
       if (!state.workspaces.some((workspace) => workspace.id === action.payload)) {
