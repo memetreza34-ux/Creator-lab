@@ -6,7 +6,7 @@ import {
 } from 'date-fns';
 import { 
   ChevronLeft, ChevronRight, Plus, Filter, Clock, X, 
-  Calendar as CalendarIcon, Search, Sparkles, Check, 
+  Calendar as CalendarIcon, Search, Check, 
   Image as ImageIcon, FileText, Copy, Trash2, Edit3 
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -15,7 +15,6 @@ import { Post, PostStatus, Platform } from '../types';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import { DndContext, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
 import { getWorkspacePosts, getPostPlatforms, getWorkspaceMedia, getWorkspaceAccounts } from '../utils/selectors';
-import { getRecommendedPostingTimes } from '../utils/bestTimeEngine';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -133,7 +132,6 @@ export function CalendarPage() {
   const workspacePosts = getWorkspacePosts(state);
   const mediaAssets = getWorkspaceMedia(state);
   const socialAccounts = getWorkspaceAccounts(state);
-  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 
   // Compact Filter Popover State
   const [showFilterPopover, setShowFilterPopover] = useState(false);
@@ -298,9 +296,6 @@ export function CalendarPage() {
       setSelectedPost(null);
     }
   };
-
-  // Best Time Engine recommendations for active workspace
-  const recommendations = getRecommendedPostingTimes(activeWorkspace?.id);
 
   return (
     <div className="h-full flex flex-col bg-[#FAFAF9] overflow-hidden relative">
