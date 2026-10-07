@@ -169,14 +169,25 @@ test('serializes a versioned envelope and round-trips current state', () => {
 
 test('preserves an explicit valid workspace owner during migration', () => {
   const legacy = createLegacyState();
-  legacy.workspaces.push({
-    id: 'workspace-b',
-    name: 'Second Workspace',
-    plan: 'pro',
-  });
-  legacy.mediaAssets[0].workspaceId = 'workspace-b';
+  const legacyWithExplicitOwner = {
+    ...legacy,
+    workspaces: [
+      ...legacy.workspaces,
+      {
+        id: 'workspace-b',
+        name: 'Second Workspace',
+        plan: 'pro',
+      },
+    ],
+    mediaAssets: [
+      {
+        ...legacy.mediaAssets[0],
+        workspaceId: 'workspace-b',
+      },
+    ],
+  };
 
-  const migrated = migratePersistedState(legacy, options);
+  const migrated = migratePersistedState(legacyWithExplicitOwner, options);
   assert.ok(migrated);
   assert.equal(migrated.state.mediaAssets[0].workspaceId, 'workspace-b');
 });
