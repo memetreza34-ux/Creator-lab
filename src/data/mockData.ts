@@ -20,16 +20,16 @@ export const mockMediaFolders: MediaFolder[] = [
 ];
 
 export const mockSocialAccounts: SocialAccount[] = [
-  { id: 'acc-1', workspaceId: 'ws-1', platform: 'instagram', username: '@creatorlab', displayName: 'Creator Lab IG', status: 'connected', lastSync: '10 mins ago' },
-  { id: 'acc-2', workspaceId: 'ws-1', platform: 'tiktok', username: '@creatorlab', displayName: 'Creator Lab TikTok', status: 'connected', lastSync: '12 mins ago' },
-  { id: 'acc-3', workspaceId: 'ws-1', platform: 'youtube', username: 'Creator Lab', displayName: 'Creator Lab YT', status: 'connected', lastSync: '1 hour ago' },
-  { id: 'acc-4', workspaceId: 'ws-1', platform: 'linkedin', username: 'Creator Lab', displayName: 'Creator Lab LinkedIn', status: 'connected', lastSync: '2 hours ago' },
+  { id: 'acc-1', workspaceId: 'ws-1', platform: 'instagram', username: '@creatorlab', displayName: 'Creator Lab IG', status: 'connected', connectionMode: 'demo', lastSync: '10 mins ago' },
+  { id: 'acc-2', workspaceId: 'ws-1', platform: 'tiktok', username: '@creatorlab', displayName: 'Creator Lab TikTok', status: 'connected', connectionMode: 'demo', lastSync: '12 mins ago' },
+  { id: 'acc-3', workspaceId: 'ws-1', platform: 'youtube', username: 'Creator Lab', displayName: 'Creator Lab YT', status: 'connected', connectionMode: 'demo', lastSync: '1 hour ago' },
+  { id: 'acc-4', workspaceId: 'ws-1', platform: 'linkedin', username: 'Creator Lab', displayName: 'Creator Lab LinkedIn', status: 'connected', connectionMode: 'demo', lastSync: '2 hours ago' },
 ];
 
 export const mockMediaAssets: MediaAsset[] = [
-  { id: 'm-1', workspaceId: 'ws-1', folderId: 'f-1', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80', type: 'image', name: 'studio_setup.jpg', size: 1024000, createdAt: '2026-09-15T10:00:00Z' },
-  { id: 'm-2', workspaceId: 'ws-1', folderId: 'f-2', url: 'https://images.unsplash.com/photo-1516280440502-a270f20ceb68?w=800&q=80', type: 'image', name: 'thumbnail_draft.png', size: 2048000, createdAt: '2026-09-14T15:30:00Z' },
-  { id: 'm-3', workspaceId: 'ws-1', folderId: 'f-1', url: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800&q=80', type: 'image', name: 'camera_gear.jpg', size: 1536000, createdAt: '2026-09-10T09:15:00Z' },
+  { id: 'm-1', workspaceId: 'ws-1', folderId: 'f-1', url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80', type: 'image', name: 'studio_setup.jpg', size: 1024000, createdAt: '2026-09-15T10:00:00Z', storageType: 'demo_remote' },
+  { id: 'm-2', workspaceId: 'ws-1', folderId: 'f-2', url: 'https://images.unsplash.com/photo-1516280440502-a270f20ceb68?w=800&q=80', type: 'image', name: 'thumbnail_draft.png', size: 2048000, createdAt: '2026-09-14T15:30:00Z', storageType: 'demo_remote' },
+  { id: 'm-3', workspaceId: 'ws-1', folderId: 'f-1', url: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800&q=80', type: 'image', name: 'camera_gear.jpg', size: 1536000, createdAt: '2026-09-10T09:15:00Z', storageType: 'demo_remote' },
 ];
 
 export const mockPosts: Post[] = [
@@ -146,10 +146,10 @@ export const mockPipelineItems: ContentItem[] = [
 ];
 
 export const mockAnalytics: AnalyticsMetric[] = [
-  { id: 'am-1', workspaceId: 'ws-1', label: 'Total Reach', value: 145000, change: 12.5, trend: 'up' },
-  { id: 'am-2', workspaceId: 'ws-1', label: 'Engagement Rate', value: 4.2, change: 0.4, trend: 'up' },
-  { id: 'am-3', workspaceId: 'ws-1', label: 'Follower Growth', value: 3200, change: 8.1, trend: 'up' },
-  { id: 'am-4', workspaceId: 'ws-1', label: 'Published Posts', value: 24, change: 4.0, trend: 'up' },
+  { id: 'am-1', workspaceId: 'ws-1', label: 'Total Reach', value: 145000, change: 12.5, trend: 'up', source: 'demo' },
+  { id: 'am-2', workspaceId: 'ws-1', label: 'Engagement Rate', value: 4.2, change: 0.4, trend: 'up', source: 'demo' },
+  { id: 'am-3', workspaceId: 'ws-1', label: 'Follower Growth', value: 3200, change: 8.1, trend: 'up', source: 'demo' },
+  { id: 'am-4', workspaceId: 'ws-1', label: 'Published Posts', value: 24, change: 4.0, trend: 'up', source: 'demo' },
 ];
 
 export const mockExperiments: Experiment[] = [
@@ -203,7 +203,8 @@ export const mockPostPerformance: PostPerformance[] = [
     engagementRate: 9.2,
     followersGained: 680,
     watchTime: 12.4,
-    publishedAt: '2026-09-12T10:00:00Z'
+    publishedAt: '2026-09-12T10:00:00Z',
+    source: 'demo'
   },
   {
     postId: 'p-3',
@@ -219,7 +220,8 @@ export const mockPostPerformance: PostPerformance[] = [
     ctr: 4.1,
     engagementRate: 4.8,
     followersGained: 210,
-    publishedAt: '2026-09-14T08:30:00Z'
+    publishedAt: '2026-09-14T08:30:00Z',
+    source: 'demo'
   },
   {
     postId: 'p-1',
@@ -235,6 +237,7 @@ export const mockPostPerformance: PostPerformance[] = [
     ctr: 3.2,
     engagementRate: 6.8,
     followersGained: 140,
-    publishedAt: '2026-09-16T18:30:00Z'
+    publishedAt: '2026-09-16T18:30:00Z',
+    source: 'demo'
   }
 ];
