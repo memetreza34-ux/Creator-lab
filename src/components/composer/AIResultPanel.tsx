@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
-import { 
-  Sparkles, Check, Copy, RotateCcw, X, Plus, 
-  ArrowRight, Hash, History, Lightbulb 
+import React, { useEffect, useState } from 'react';
+import {
+  Sparkles,
+  Check,
+  Copy,
+  RotateCcw,
+  X,
+  Plus,
+  Hash,
+  History,
 } from 'lucide-react';
 
 export interface AIHistoryItem {
@@ -47,10 +53,19 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
   );
   const [activeTab, setActiveTab] = useState<'result' | 'history'>('result');
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  useEffect(() => {
+    setSelectedHashtags(new Set(hashtags || []));
+    setActiveTab('result');
+  }, [hashtags, resultText]);
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const toggleHashtag = (tag: string) => {
@@ -88,6 +103,8 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
 
         <div className="flex items-center space-x-2">
           <button
+            type="button"
+            aria-pressed={activeTab === 'history'}
             onClick={() => setActiveTab(activeTab === 'result' ? 'history' : 'result')}
             className={`px-2.5 py-1 text-[11px] font-medium rounded-md flex items-center space-x-1 transition-colors ${
               activeTab === 'history' 
@@ -100,6 +117,8 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
           </button>
 
           <button
+            type="button"
+            aria-label="Discard AI suggestion"
             onClick={onDiscard}
             className="text-zinc-400 hover:text-zinc-700 p-1 rounded-md hover:bg-zinc-100"
             title="Discard Suggestion"
@@ -122,22 +141,23 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
             </div>
           ) : (
             history.map((item) => (
-              <div 
-                key={item.id} 
-                className="border border-[#EBEBE9] rounded-lg p-3 hover:border-brand-300 hover:bg-brand-50/20 transition-all cursor-pointer"
+              <button
+                type="button"
+                key={item.id}
+                className="w-full text-left border border-[#EBEBE9] rounded-lg p-3 hover:border-brand-300 hover:bg-brand-50/20 focus:outline-none focus:ring-2 focus:ring-brand-400 transition-all"
                 onClick={() => {
                   onRestoreFromHistory(item);
                   setActiveTab('result');
                 }}
               >
-                <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5">
+                <span className="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5">
                   <span className="font-semibold text-zinc-700 capitalize">{item.tool}</span>
                   <span>{item.timestamp}</span>
-                </div>
-                <p className="text-[12px] text-zinc-800 line-clamp-2 leading-relaxed">
+                </span>
+                <span className="block text-[12px] text-zinc-800 line-clamp-2 leading-relaxed">
                   {item.resultText}
-                </p>
-              </div>
+                </span>
+              </button>
             ))
           )}
         </div>
@@ -216,7 +236,9 @@ export const AIResultPanel: React.FC<AIResultPanelProps> = ({
                   const isSelected = selectedHashtags.has(tag);
                   return (
                     <button
+                      type="button"
                       key={tag}
+                      aria-pressed={isSelected}
                       onClick={() => toggleHashtag(tag)}
                       className={`px-2.5 py-1 rounded-full text-[12px] font-medium flex items-center space-x-1 transition-all ${
                         isSelected 
