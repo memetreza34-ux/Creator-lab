@@ -2,22 +2,26 @@ import {
   AnalyticsMetric,
   AppState,
   ContentItem,
+  DataSource,
   Experiment,
   MediaAsset,
   MediaFolder,
+  MediaStorageKind,
   Platform,
   PlatformSpecificContent,
   Post,
   PostContent,
   PostPerformance,
   SocialAccount,
+  SocialConnectionKind,
   Workspace,
+  WorkspaceDataMode,
 } from '../types';
 
 export const PERSISTED_STATE_KEY = 'creator_lab_state';
-export const PERSISTED_STATE_SCHEMA_VERSION = 1 as const;
+export const PERSISTED_STATE_SCHEMA_VERSION = 2 as const;
 
-export interface PersistedStateEnvelopeV1 {
+export interface PersistedStateEnvelopeCurrent {
   schemaVersion: typeof PERSISTED_STATE_SCHEMA_VERSION;
   state: AppState;
 }
@@ -106,11 +110,56 @@ export function normalizeAppState(
         typeof workspace.createdAt === 'string' && workspace.createdAt
           ? workspace.createdAt
           : now,
+      dataMode:
+        workspace.dataMode === 'demo' || workspace.dataMode === 'standard'
+          ? workspace.dataMode
+          : workspace.id === 'ws-1'
+            ? 'demo'
+            : 'standard',
     }));
 
   if (workspaces.length === 0) return null;
 
   const fallbackWorkspaceId = workspaces[0].id;
+  const getWorkspaceDataMode = (workspaceId: string): WorkspaceDataMode =>
+    workspaces.find((workspace) => workspace.id === workspaceId)?.dataMode || 'standard';
+
+  const normalizeDataSource = (
+    value: DataSource | undefined,
+    workspaceId: string,
+  ): DataSource => {
+    if (
+      value === 'demo' ||
+      value === 'local' ||
+      value === 'provider' ||
+      value === 'derived'
+    ) {
+      return value;
+    }
+    return getWorkspaceDataMode(workspaceId) === 'demo' ? 'demo' : 'local';
+  };
+
+  const normalizeConnectionKind = (
+    value: SocialConnectionKind | undefined,
+    workspaceId: string,
+  ): SocialConnectionKind => {
+    if (value === 'demo' || value === 'placeholder' || value === 'provider') {
+      return value;
+    }
+    return getWorkspaceDataMode(workspaceId) === 'demo' ? 'demo' : 'placeholder';
+  };
+
+  const normalizeMediaStorageKind = (
+    value: MediaStorageKind | undefined,
+    url: string,
+    workspaceId: string,
+  ): MediaStorageKind => {
+    if (value === 'demo-remote' || value === 'remote' || value === 'indexeddb') {
+      return value;
+    }
+    if (!url || url.startsWith('blob:')) return 'indexeddb';
+    return getWorkspaceDataMode(workspaceId) === 'demo' ? 'demo-remote' : 'remote';
+  };
   const activeWorkspaceId =
     typeof parsed.activeWorkspaceId === 'string' &&
     workspaces.some((workspace) => workspace.id === parsed.activeWorkspaceId)
@@ -119,11 +168,31 @@ export function normalizeAppState(
 
   const socialAccounts: SocialAccount[] = asArray<SocialAccount>(
     parsed.socialAccounts,
-  ).map((account) => ({
-    ...account,
-    workspaceId: account.workspaceId || activeWorkspaceId,
-    lastSync: typeof account.lastSync === 'string' ? account.lastSync : '',
-  }));
+  ).map((account) => {
+    const workspaceId = account.workspaceId || activeWorkspaceId;
+    const connectionKind = normalizeConnectionKind(
+      account.connectionKind,
+      workspaceId,
+    );
+
+    return {
+      ...account,
+      workspaceId,
+      connectionKind,
+      status:
+        connectionKind === 'provider'
+          ? account.status
+          : connectionKind === 'demo'
+            ? 'connected'
+            : 'disconnected',
+      lastSync:
+        connectionKind === 'placeholder'
+          ? ''
+          : typeof account.lastSync === 'string'
+            ? account.lastSync
+            : '',
+    };
+  });
 
   const posts: Post[] = asArray<Post>(parsed.posts).map((post) => ({
     ...post,
@@ -145,14 +214,26 @@ export function normalizeAppState(
   }));
 
   const mediaAssets: MediaAsset[] = asArray<MediaAsset>(parsed.mediaAssets).map(
-    (asset) => ({
-      ...asset,
-      workspaceId: asset.workspaceId || activeWorkspaceId,
-      createdAt:
-        typeof asset.createdAt === 'string' && asset.createdAt
-          ? asset.createdAt
-          : now,
-    }),
+    (asset) => {
+      const workspaceId = asset.workspaceId || activeWorkspaceId;
+      const rawUrl = typeof asset.url === 'string' ? asset.url : '';
+      const storageKind = normalizeMediaStorageKind(
+        asset.storageKind,
+        rawUrl,
+        workspaceId,
+      );
+
+      return {
+        ...asset,
+        workspaceId,
+        storageKind,
+        url: storageKind === 'indexeddb' ? '' : rawUrl,
+        createdAt:
+          typeof asset.createdAt === 'string' && asset.createdAt
+            ? asset.createdAt
+            : now,
+      };
+    },
   );
 
   const mediaFolders: MediaFolder[] = asArray<MediaFolder>(
@@ -187,17 +268,25 @@ export function normalizeAppState(
 
   const analytics: AnalyticsMetric[] = asArray<AnalyticsMetric>(
     parsed.analytics,
-  ).map((metric) => ({
-    ...metric,
-    workspaceId: metric.workspaceId || activeWorkspaceId,
-  }));
+  ).map((metric) => {
+    const workspaceId = metric.workspaceId || activeWorkspaceId;
+    return {
+      ...metric,
+      workspaceId,
+      source: normalizeDataSource(metric.source, workspaceId),
+    };
+  });
 
   const postPerformances: PostPerformance[] = asArray<PostPerformance>(
     parsed.postPerformances,
-  ).map((performance) => ({
-    ...performance,
-    workspaceId: performance.workspaceId || activeWorkspaceId,
-  }));
+  ).map((performance) => {
+    const workspaceId = performance.workspaceId || activeWorkspaceId;
+    return {
+      ...performance,
+      workspaceId,
+      source: normalizeDataSource(performance.source, workspaceId),
+    };
+  });
 
   return {
     workspaces,
@@ -240,12 +329,16 @@ function toVersionedEnvelope(raw: unknown): PersistedStateEnvelope | null {
 }
 
 const migrations: Record<number, Migration> = {
-  0: (envelope, options) => {
+  0: (envelope) => ({
+    schemaVersion: 1,
+    state: envelope.state,
+  }),
+  1: (envelope, options) => {
     const state = normalizeAppState(envelope.state, options);
     if (!state) return null;
 
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       state,
     };
   },
@@ -254,7 +347,7 @@ const migrations: Record<number, Migration> = {
 export function migratePersistedState(
   raw: unknown,
   options: PersistenceNormalizationOptions = {},
-): PersistedStateEnvelopeV1 | null {
+): PersistedStateEnvelopeCurrent | null {
   let envelope = toVersionedEnvelope(raw);
   if (!envelope) return null;
 
@@ -292,7 +385,7 @@ export function deserializePersistedState(
 }
 
 export function serializePersistedState(state: AppState): string {
-  const envelope: PersistedStateEnvelopeV1 = {
+  const envelope: PersistedStateEnvelopeCurrent = {
     schemaVersion: PERSISTED_STATE_SCHEMA_VERSION,
     state,
   };
