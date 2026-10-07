@@ -114,3 +114,45 @@ export const getContentForPlatform = (
   );
   return platformContent?.content || post.originalContent;
 };
+
+
+export const getPostsForContentItem = (
+  state: AppState,
+  contentItemId: string,
+): Post[] =>
+  getWorkspacePosts(state).filter(
+    (post) => post.sourceContentItemId === contentItemId,
+  );
+
+export const getSourceContentItemForPost = (
+  state: AppState,
+  post: Post,
+): ContentItem | undefined => {
+  if (!post.sourceContentItemId) return undefined;
+
+  return state.pipelineItems.find(
+    (item) =>
+      item.workspaceId === state.activeWorkspaceId &&
+      item.id === post.sourceContentItemId,
+  );
+};
+
+export const getPostsUsingMedia = (
+  state: AppState,
+  mediaAssetId: string,
+): Post[] =>
+  getWorkspacePosts(state).filter((post) => {
+    if (post.originalContent.mediaIds.includes(mediaAssetId)) return true;
+
+    return post.platformContent.some((entry) =>
+      entry.content.mediaIds.includes(mediaAssetId),
+    );
+  });
+
+export const getPostsUsingAccount = (
+  state: AppState,
+  socialAccountId: string,
+): Post[] =>
+  getWorkspacePosts(state).filter((post) =>
+    post.destinationAccountIds.includes(socialAccountId),
+  );
