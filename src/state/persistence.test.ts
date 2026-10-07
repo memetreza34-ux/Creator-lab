@@ -185,6 +185,25 @@ test('serializes a versioned envelope and round-trips current state', () => {
   assert.deepEqual(deserializePersistedState(serialized, options), migrated.state);
 });
 
+test('does not persist runtime blob URLs for IndexedDB media', () => {
+  const migrated = migratePersistedState(createLegacyState(), options);
+  assert.ok(migrated);
+
+  const stateWithRuntimeUrl = {
+    ...migrated.state,
+    mediaAssets: migrated.state.mediaAssets.map((asset) => ({
+      ...asset,
+      url: asset.storageKind === 'indexeddb' ? 'blob:runtime-only' : asset.url,
+    })),
+  };
+
+  const serialized = serializePersistedState(stateWithRuntimeUrl);
+  const envelope = JSON.parse(serialized);
+
+  assert.equal(envelope.state.mediaAssets[0].storageKind, 'indexeddb');
+  assert.equal(envelope.state.mediaAssets[0].url, '');
+});
+
 test('preserves an explicit valid workspace owner during migration', () => {
   const legacy = createLegacyState();
   const legacyWithExplicitOwner = {
