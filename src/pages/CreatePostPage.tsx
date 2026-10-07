@@ -720,7 +720,9 @@ export function CreatePostPage() {
     navigate('/experiments');
   };
 
-  const uniqueCurrentMediaIds: string[] = Array.from(\n    new Set<string>(currentMediaIds),\n  );
+  const uniqueCurrentMediaIds: string[] = Array.from(
+    new Set<string>(currentMediaIds),
+  );
   const activeMediaAssets: MediaAsset[] = uniqueCurrentMediaIds
     .map((id) => workspaceMedia.find((asset) => asset.id === id))
     .filter((asset): asset is MediaAsset => Boolean(asset));
