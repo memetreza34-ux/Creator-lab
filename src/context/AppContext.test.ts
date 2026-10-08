@@ -200,3 +200,51 @@ test('removing the last destination from a scheduled post moves it to needs revi
   assert.equal(next.posts[0].status, 'needs_review');
   assert.equal(next.posts[0].scheduledAt, undefined);
 });
+
+test('the reducer keeps the published destination snapshot after account removal', () => {
+  const publishedPost = {
+    ...baseState.posts[0],
+    destinationAccountIds: ['account-a'],
+    status: 'published' as const,
+    publishedAt: '2026-10-08T12:00:00.000Z',
+  };
+  const prepared = appReducer(
+    { ...baseState, posts: [] },
+    { type: 'ADD_POST', payload: publishedPost },
+  );
+  assert.equal(prepared.postDestinations.length, 1);
+
+  const next = appReducer(prepared, {
+    type: 'REMOVE_SOCIAL_ACCOUNT',
+    payload: 'account-a',
+  });
+
+  assert.deepEqual(next.posts[0].destinationAccountIds, []);
+  assert.equal(next.postDestinations.length, 1);
+  assert.equal(next.postDestinations[0].accountLabel, 'A');
+  assert.equal(next.postDestinations[0].platform, 'youtube');
+  assert.equal(next.postDestinations[0].socialAccountId, undefined);
+  assert.equal(next.postDestinations[0].status, 'published');
+});
+
+test('deleting a post removes its destinations without touching the other workspace', () => {
+  const postA = { ...baseState.posts[0], destinationAccountIds: ['account-a'] };
+  const postB = { ...baseState.posts[1], destinationAccountIds: ['account-b'] };
+  let state = appReducer({ ...baseState, posts: [] }, { type: 'ADD_POST', payload: postA });
+  state = appReducer(state, { type: 'ADD_POST', payload: postB });
+  assert.equal(state.postDestinations.length, 2);
+
+  const next = appReducer(state, { type: 'DELETE_POST', payload: 'post-a' });
+
+  assert.deepEqual(next.postDestinations.map(d => d.postId), ['post-b']);
+});
+
+test('deleting a workspace removes owned destination snapshots only', () => {
+  const postA = { ...baseState.posts[0], destinationAccountIds: ['account-a'] };
+  const postB = { ...baseState.posts[1], destinationAccountIds: ['account-b'] };
+  let state = appReducer({ ...baseState, posts: [] }, { type: 'ADD_POST', payload: postA });
+  state = appReducer(state, { type: 'ADD_POST', payload: postB });
+  const next = appReducer(state, { type: 'DELETE_WORKSPACE', payload: 'a' });
+
+  assert.deepEqual(next.postDestinations.map(d => d.workspaceId), ['b']);
+});
