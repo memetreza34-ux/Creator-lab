@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
-import { 
-  format, addMonths, subMonths, startOfWeek, endOfWeek, eachDayOfInterval, 
-  startOfMonth, endOfMonth, isSameDay, parseISO,
-  addWeeks, subWeeks, addDays, subDays, setHours, startOfDay, addHours
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  format,
+  addMonths,
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  startOfMonth,
+  endOfMonth,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
 } from 'date-fns';
 import { 
   ChevronLeft, ChevronRight, Plus, Filter, Clock, X, 
@@ -11,12 +20,21 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Post, PostStatus, Platform } from '../types';
+import { MediaAsset, Platform, Post, PostStatus, SocialAccount } from '../types';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import { DndContext, useDraggable, useDroppable, DragEndEvent } from '@dnd-kit/core';
 import { getWorkspacePosts, getPostPlatforms, getWorkspaceMedia, getWorkspaceAccounts } from '../utils/selectors';
-import { getRecommendedPostingTimes } from '../utils/bestTimeEngine';
 import toast from 'react-hot-toast';
+import { resolveMediaUrl } from '../utils/mediaStorage';
+import {
+  getScheduledLocalDateTime,
+  getStatusAfterCalendarReschedule,
+  getWorkspaceTodayDate,
+  isCalendarDraggableStatus,
+  isScheduledInLocalHour,
+  isScheduledOnLocalDate,
+  rescheduleUtcForCalendarSlot,
+} from '../utils/scheduling';
 import { v4 as uuidv4 } from 'uuid';
 
 const getStatusBadge = (status: PostStatus) => {
@@ -39,18 +57,25 @@ const getStatusBadge = (status: PostStatus) => {
 interface DraggablePostProps {
   post: Post;
   onClick: () => void;
-  mediaAssets: any[];
-  socialAccounts: any[];
+  mediaAssets: MediaAsset[];
+  socialAccounts: SocialAccount[];
+  timeZone: string;
+  resolvedMediaUrls: Record<string, string>;
 }
 
-const DraggablePost: React.FC<DraggablePostProps> = ({ 
-  post, onClick, mediaAssets, socialAccounts 
+const DraggablePost: React.FC<DraggablePostProps> = ({
+  post,
+  onClick,
+  mediaAssets,
+  socialAccounts,
+  timeZone,
+  resolvedMediaUrls,
 }) => {
-  const isPublished = post.status === 'published';
+  const isDraggable = isCalendarDraggableStatus(post.status);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: post.id,
     data: { post },
-    disabled: isPublished
+    disabled: !isDraggable,
   });
 
   const mediaAsset = post.originalContent.mediaIds[0] 
@@ -72,17 +97,17 @@ const DraggablePost: React.FC<DraggablePostProps> = ({
       }}
       className={`p-2 border border-[#EBEBE9] rounded-lg bg-white shadow-2xs hover:border-brand-400 hover:shadow-xs transition-all cursor-pointer group/card flex flex-col gap-1.5 select-none ${
         isDragging ? 'opacity-40 ring-2 ring-brand-500 scale-98' : 'opacity-100'
-      } ${isPublished ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+      } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center text-[10px] font-semibold text-zinc-600">
           <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${badge.bg}`} />
-          {post.scheduledAt 
-            ? format(parseISO(post.scheduledAt), 'HH:mm')
+          {post.scheduledAt
+            ? getScheduledLocalDateTime(post.scheduledAt, timeZone).time
             : 'Draft'}
         </div>
         <div className="flex -space-x-1">
-          {platforms.map((platform: any) => (
+          {platforms.map((platform) => (
             <div key={platform} className="w-4 h-4 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center p-0.5">
               <PlatformIcon platform={platform} className="w-2.5 h-2.5" />
             </div>
@@ -94,7 +119,11 @@ const DraggablePost: React.FC<DraggablePostProps> = ({
         {mediaAsset && (
           <div className="w-6 h-6 rounded bg-zinc-100 shrink-0 overflow-hidden border border-[#EBEBE9] pointer-events-none">
             {mediaAsset.type === 'image' ? (
-              <img src={mediaAsset.url} className="w-full h-full object-cover" alt="" />
+              <img
+                src={resolvedMediaUrls[mediaAsset.id] || mediaAsset.url}
+                className="w-full h-full object-cover"
+                alt=""
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-[8px] text-white">Vid</div>
             )}
@@ -108,10 +137,27 @@ const DraggablePost: React.FC<DraggablePostProps> = ({
   );
 };
 
-const DroppableCell: React.FC<{ id: string; className: string; children: React.ReactNode; onClick?: () => void }> = ({ 
-  id, className, children, onClick 
+interface DroppableCellProps {
+  id: string;
+  date: string;
+  time?: string;
+  className: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
+
+const DroppableCell: React.FC<DroppableCellProps> = ({
+  id,
+  date,
+  time,
+  className,
+  children,
+  onClick,
 }) => {
-  const { isOver, setNodeRef } = useDroppable({ id });
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: { date, time },
+  });
   return (
     <div 
       ref={setNodeRef} 
@@ -126,14 +172,25 @@ const DroppableCell: React.FC<{ id: string; className: string; children: React.R
 export function CalendarPage() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const activeWorkspace = state.workspaces.find(
+    (workspace) => workspace.id === state.activeWorkspaceId,
+  );
+  const workspaceTimeZone = activeWorkspace?.timezone || 'UTC';
+  const workspaceTodayDate = getWorkspaceTodayDate(workspaceTimeZone);
+  const [currentDate, setCurrentDate] = useState(
+    () => new Date(`${workspaceTodayDate}T12:00:00`),
+  );
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [viewMode, setViewMode] = useState<'Month' | 'Week' | 'Day'>('Month');
-  
+  const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
+
   const workspacePosts = getWorkspacePosts(state);
-  const mediaAssets = getWorkspaceMedia(state);
+  // Selector returns a new array; memoize to avoid repeated async URL resolution.
+  const mediaAssets = useMemo(
+    () => getWorkspaceMedia(state),
+    [state.mediaAssets, state.activeWorkspaceId],
+  );
   const socialAccounts = getWorkspaceAccounts(state);
-  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 
   // Compact Filter Popover State
   const [showFilterPopover, setShowFilterPopover] = useState(false);
@@ -142,6 +199,29 @@ export function CalendarPage() {
   const [accountFilter, setAccountFilter] = useState<string>('all');
   const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'media' | 'text'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    setCurrentDate(new Date(`${workspaceTodayDate}T12:00:00`));
+  }, [state.activeWorkspaceId, workspaceTodayDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveUrls = async () => {
+      const entries = await Promise.all(
+        mediaAssets.map(async (asset) => {
+          const url = await resolveMediaUrl(asset.id, asset.url);
+          return [asset.id, url] as const;
+        }),
+      );
+      if (!cancelled) setResolvedMediaUrls(Object.fromEntries(entries));
+    };
+
+    void resolveUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaAssets]);
 
   const next = () => {
     if (viewMode === 'Month') setCurrentDate(addMonths(currentDate, 1));
@@ -155,7 +235,7 @@ export function CalendarPage() {
     else setCurrentDate(subDays(currentDate, 1));
   };
 
-  const goToToday = () => setCurrentDate(new Date());
+  const goToToday = () => setCurrentDate(new Date(`${workspaceTodayDate}T12:00:00`));
 
   const getCalendarDays = () => {
     if (viewMode === 'Month') {
@@ -170,65 +250,61 @@ export function CalendarPage() {
 
   const calendarDays = getCalendarDays();
 
-  // Normalized Date Navigation to Composer:
-  // Month: /create?date=YYYY-MM-DD
-  // Week/Day: /create?date=YYYY-MM-DD&time=HH:mm
-  const handleCreateOnSlot = (targetDate: Date, hasTimeSlot = false) => {
-    const yyyyMmDd = format(targetDate, 'yyyy-MM-dd');
-    if (hasTimeSlot) {
-      const hhMm = format(targetDate, 'HH:mm');
-      navigate(`/create?date=${yyyyMmDd}&time=${hhMm}`);
-    } else {
-      navigate(`/create?date=${yyyyMmDd}`);
-    }
+  const handleCreateOnSlot = (date: string, time?: string) => {
+    navigate(time ? `/create?date=${date}&time=${time}` : `/create?date=${date}`);
   };
 
-  // DnD Logic
+  // DnD uses civil workspace date/time from the drop target.
+  // scheduledAt remains the single canonical UTC value.
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
-    const post = active.data.current?.post as Post;
+    const post = active.data.current?.post as Post | undefined;
     if (!post) return;
 
-    if (post.status === 'published') {
-      toast.error('Published posts cannot be rescheduled.');
+    if (!isCalendarDraggableStatus(post.status)) {
+      toast.error(
+        post.status === 'published'
+          ? 'Published posts cannot be rescheduled.'
+          : 'Fix this post in Composer before rescheduling it.',
+      );
       return;
     }
 
-    const dropId = over.id as string; // ISO string representing slot
-    const targetDate = new Date(dropId);
-    if (isNaN(targetDate.getTime())) return;
+    const targetDate = over.data.current?.date;
+    const targetTime = over.data.current?.time;
+    if (typeof targetDate !== 'string') return;
 
-    let finalDate = new Date(targetDate);
+    try {
+      const scheduledAt = rescheduleUtcForCalendarSlot({
+        scheduledAt: post.scheduledAt,
+        targetDate,
+        targetTime: typeof targetTime === 'string' ? targetTime : undefined,
+        viewMode,
+        timeZone: workspaceTimeZone,
+      });
 
-    if (viewMode === 'Month') {
-      // Month view drops onto a date: PRESERVE existing scheduled time or default to 18:00
-      if (post.scheduledAt) {
-        const prev = new Date(post.scheduledAt);
-        finalDate.setHours(prev.getHours());
-        finalDate.setMinutes(prev.getMinutes());
-      } else {
-        finalDate.setHours(18, 0, 0, 0);
-      }
+      dispatch({
+        type: 'UPDATE_POST',
+        payload: {
+          ...post,
+          scheduledAt,
+          status: getStatusAfterCalendarReschedule(post.status),
+        },
+      });
+
+      const local = getScheduledLocalDateTime(scheduledAt, workspaceTimeZone);
+      toast.success(
+        `"${post.title}" moved to ${local.date} at ${local.time} (${workspaceTimeZone})`,
+      );
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'This calendar slot cannot be scheduled.',
+      );
     }
-
-    // Update post status to scheduled if it was a draft
-    const updatedStatus: PostStatus = post.status === 'draft' ? 'scheduled' : post.status;
-
-    dispatch({
-      type: 'UPDATE_POST',
-      payload: { 
-        ...post, 
-        scheduledAt: finalDate.toISOString(),
-        status: updatedStatus
-      }
-    });
-    
-    toast.success(
-      `"${post.title}" moved to ${format(finalDate, 'MMM d, yyyy')} at ${format(finalDate, 'HH:mm')}`,
-      { icon: '📅' }
-    );
   };
 
   // Filter application
@@ -299,9 +375,6 @@ export function CalendarPage() {
     }
   };
 
-  // Best Time Engine recommendations for active workspace
-  const recommendations = getRecommendedPostingTimes(activeWorkspace?.id);
-
   return (
     <div className="h-full flex flex-col bg-[#FAFAF9] overflow-hidden relative">
       <div className="flex-none p-6 pb-2">
@@ -310,7 +383,7 @@ export function CalendarPage() {
           <div>
             <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Calendar</h1>
             <p className="text-[12px] text-zinc-500 mt-0.5">
-              Plan, drag-and-drop reschedule, and monitor cross-platform posts
+              Local planning in {workspaceTimeZone}. Social publishing is not connected yet.
             </p>
           </div>
 
@@ -427,7 +500,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={statusFilter}
-                      onChange={e => setStatusFilter(e.target.value as any)}
+                      onChange={e => setStatusFilter(e.target.value as PostStatus | 'all')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Statuses</option>
@@ -446,7 +519,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={platformFilter}
-                      onChange={e => setPlatformFilter(e.target.value as any)}
+                      onChange={e => setPlatformFilter(e.target.value as Platform | 'all')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Platforms</option>
@@ -485,7 +558,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={contentTypeFilter}
-                      onChange={e => setContentTypeFilter(e.target.value as any)}
+                      onChange={e => setContentTypeFilter(e.target.value as 'all' | 'media' | 'text')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Content Types</option>
@@ -578,14 +651,17 @@ export function CalendarPage() {
                 <div className="flex-1 grid grid-cols-7 grid-rows-5 overflow-y-auto">
                   {calendarDays.map((day) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
-                    const dayPosts = filteredPosts.filter((p: any) => p.scheduledAt && isSameDay(parseISO(p.scheduledAt), day));
+                    const dayPosts = filteredPosts.filter((post) =>
+                      isScheduledOnLocalDate(post.scheduledAt, dayStr, workspaceTimeZone),
+                    );
                     const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                    const isToday = isSameDay(day, new Date());
+                    const isToday = dayStr === workspaceTodayDate;
                     
                     return (
                       <DroppableCell 
                         key={dayStr} 
-                        id={day.toISOString()}
+                        id={`date:${dayStr}`}
+                        date={dayStr}
                         className={`border-r border-b border-[#EBEBE9] p-1.5 relative group transition-colors min-h-[110px] ${
                           !isCurrentMonth ? 'bg-zinc-50/50' : ''
                         } ${isToday ? 'bg-brand-50/20' : ''}`}
@@ -598,7 +674,7 @@ export function CalendarPage() {
                           </span>
 
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handleCreateOnSlot(day, false); }}
+                            onClick={(event) => { event.stopPropagation(); handleCreateOnSlot(dayStr); }}
                             className="w-5 h-5 rounded-md text-zinc-400 hover:text-brand-600 hover:bg-brand-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                             title="Create post on this date"
                           >
@@ -607,13 +683,15 @@ export function CalendarPage() {
                         </div>
                         
                         <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-28px)] scrollbar-hide pb-2">
-                          {dayPosts.map((post: any) => (
+                          {dayPosts.map((post) => (
                             <DraggablePost 
                               key={post.id} 
                               post={post} 
                               onClick={() => setSelectedPost(post)} 
                               mediaAssets={mediaAssets}
                               socialAccounts={socialAccounts}
+                            timeZone={workspaceTimeZone}
+                            resolvedMediaUrls={resolvedMediaUrls}
                             />
                           ))}
                         </div>
@@ -634,7 +712,7 @@ export function CalendarPage() {
                   {calendarDays.map(day => (
                     <div key={day.toISOString()} className="py-2 text-center bg-[#FAFAF9] border-r border-[#EBEBE9]">
                       <div className="text-[11px] font-semibold text-zinc-500 uppercase">{format(day, 'EEE')}</div>
-                      <div className={`text-[14px] font-bold mt-0.5 ${isSameDay(day, new Date()) ? 'text-brand-600' : 'text-zinc-900'}`}>
+                      <div className={`text-[14px] font-bold mt-0.5 ${format(day, 'yyyy-MM-dd') === workspaceTodayDate ? 'text-brand-600' : 'text-zinc-900'}`}>
                         {format(day, 'd')}
                       </div>
                     </div>
@@ -647,37 +725,38 @@ export function CalendarPage() {
                       <div className="p-2 text-[11px] font-medium text-zinc-400 text-right border-r border-[#EBEBE9] bg-[#FAFAF9]/40">
                         {`${hour.toString().padStart(2, '0')}:00`}
                       </div>
-                      {calendarDays.map(day => {
-                        const cellTime = setHours(startOfDay(day), hour);
-                        const cellEnd = addHours(cellTime, 1);
-                        const cellPosts = filteredPosts.filter((p: any) => {
-                          if (!p.scheduledAt) return false;
-                          const pTime = parseISO(p.scheduledAt);
-                          return pTime >= cellTime && pTime < cellEnd;
-                        });
-                        
+                      {calendarDays.map((day) => {
+                        const dayStr = format(day, 'yyyy-MM-dd');
+                        const slotTime = `${String(hour).padStart(2, '0')}:00`;
+                        const cellPosts = filteredPosts.filter((post) =>
+                          isScheduledInLocalHour(post.scheduledAt, dayStr, hour, workspaceTimeZone),
+                        );
                         return (
-                          <DroppableCell 
-                            key={cellTime.toISOString()}
-                            id={cellTime.toISOString()}
+                          <DroppableCell
+                            key={`${dayStr}-${slotTime}`}
+                            id={`slot:${dayStr}:${slotTime}`}
+                            date={dayStr}
+                            time={slotTime}
                             className="p-1 border-r border-[#EBEBE9] relative group"
                           >
                             <div className="space-y-1 h-full">
-                              {cellPosts.map((post: any) => (
+                              {cellPosts.map((post) => (
                                 <DraggablePost 
                                   key={post.id} 
                                   post={post} 
                                   onClick={() => setSelectedPost(post)} 
                                   mediaAssets={mediaAssets}
                                   socialAccounts={socialAccounts}
+                                timeZone={workspaceTimeZone}
+                                resolvedMediaUrls={resolvedMediaUrls}
                                 />
                               ))}
                             </div>
                             <div className="absolute inset-0 bg-brand-50/0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                               <button 
-                                onClick={(e) => { e.stopPropagation(); handleCreateOnSlot(cellTime, true); }}
+                                onClick={(event) => { event.stopPropagation(); handleCreateOnSlot(dayStr, slotTime); }}
                                 className="w-6 h-6 bg-white border border-[#EBEBE9] rounded-full shadow-xs flex items-center justify-center text-zinc-400 pointer-events-auto hover:text-brand-600 hover:border-brand-300 transition-colors"
-                                title={`Schedule post at ${format(cellTime, 'HH:mm')}`}
+                                title={`Schedule post at ${slotTime} (${workspaceTimeZone})`}
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
@@ -696,43 +775,44 @@ export function CalendarPage() {
               <div className="flex-1 flex flex-col overflow-auto max-w-4xl mx-auto w-full border-x border-[#EBEBE9]">
                 <div className="py-3 text-center bg-[#FAFAF9] border-b border-[#EBEBE9]">
                   <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-0.5">{format(currentDate, 'EEEE')}</div>
-                  <div className={`text-[18px] font-bold ${isSameDay(currentDate, new Date()) ? 'text-brand-600' : 'text-zinc-900'}`}>
+                  <div className={`text-[18px] font-bold ${format(currentDate, 'yyyy-MM-dd') === workspaceTodayDate ? 'text-brand-600' : 'text-zinc-900'}`}>
                     {format(currentDate, 'MMMM d, yyyy')}
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {Array.from({ length: 24 }).map((_, hour) => {
-                    const cellTime = setHours(startOfDay(currentDate), hour);
-                    const cellEnd = addHours(cellTime, 1);
-                    const cellPosts = filteredPosts.filter((p: any) => {
-                      if (!p.scheduledAt) return false;
-                      const pTime = parseISO(p.scheduledAt);
-                      return pTime >= cellTime && pTime < cellEnd;
-                    });
-                    
+                    const dayStr = format(currentDate, 'yyyy-MM-dd');
+                    const slotTime = `${String(hour).padStart(2, '0')}:00`;
+                    const cellPosts = filteredPosts.filter((post) =>
+                      isScheduledInLocalHour(post.scheduledAt, dayStr, hour, workspaceTimeZone),
+                    );
                     return (
                       <div key={hour} className="flex border-b border-[#EBEBE9] min-h-[85px]">
                         <div className="w-20 p-2 text-[11px] font-medium text-zinc-400 text-right border-r border-[#EBEBE9] bg-[#FAFAF9]/40 shrink-0">
                           {`${hour.toString().padStart(2, '0')}:00`}
                         </div>
                         <DroppableCell 
-                          id={cellTime.toISOString()}
+                          id={`slot:${dayStr}:${slotTime}`}
+                          date={dayStr}
+                          time={slotTime}
                           className="flex-1 p-2 relative group"
                         >
                           <div className="space-y-1.5 h-full">
-                            {cellPosts.map((post: any) => (
+                            {cellPosts.map((post) => (
                               <DraggablePost 
                                 key={post.id} 
                                 post={post} 
                                 onClick={() => setSelectedPost(post)} 
                                 mediaAssets={mediaAssets}
                                 socialAccounts={socialAccounts}
+                              timeZone={workspaceTimeZone}
+                              resolvedMediaUrls={resolvedMediaUrls}
                               />
                             ))}
                           </div>
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
-                              onClick={() => handleCreateOnSlot(cellTime, true)}
+                              onClick={() => handleCreateOnSlot(dayStr, slotTime)}
                               className="px-2.5 py-1 bg-white border border-[#DCDCD8] text-zinc-600 hover:text-brand-700 hover:border-brand-300 rounded-md text-[11px] font-medium flex items-center space-x-1 shadow-2xs"
                             >
                               <Plus className="w-3 h-3" />
@@ -760,7 +840,10 @@ export function CalendarPage() {
                   {selectedPost.status}
                 </span>
                 <span className="text-[12px] text-zinc-500">
-                  {selectedPost.scheduledAt ? format(parseISO(selectedPost.scheduledAt), 'PPP p') : 'Draft'}
+                  {selectedPost.scheduledAt ? (() => {
+                    const local = getScheduledLocalDateTime(selectedPost.scheduledAt, workspaceTimeZone);
+                    return `${local.date} ${local.time} (${workspaceTimeZone})`;
+                  })() : 'Draft'}
                 </span>
               </div>
               <button 
@@ -786,7 +869,7 @@ export function CalendarPage() {
                     if (!m) return null;
                     return (
                       <div key={mid} className="w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9]">
-                        <img src={m.url} alt="" className="w-full h-full object-cover" />
+                        <img src={resolvedMediaUrls[m.id] || m.url} alt="" className="w-full h-full object-cover" />
                       </div>
                     );
                   })}
