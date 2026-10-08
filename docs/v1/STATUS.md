@@ -122,22 +122,31 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Documented the current historical-destination limitation and the required future PostDestination snapshot model instead of hiding the limitation with duplicated fields.
 - Phase 2 acceptance criteria reviewed and satisfied.
 
+## Phase 3 completed — workspace-timezone Calendar block
+
+- Added central calendar scheduling helpers for workspace-local day/hour membership and UTC rescheduling.
+- Month/Week/Day views now display and locate scheduled posts using the active workspace IANA timezone rather than the browser timezone.
+- Drag-and-drop passes a civil date/time slot; Month preserves the original workspace-local wall-clock time across DST offset changes; Week/Day use the chosen workspace-local hour.
+- Published, failed, and needs-review posts cannot be dragged to create misleading status changes.
+- Invalid/nonexistent DST wall-clock slots fail visibly rather than silently moving a post.
+- Local media previews in Calendar use resolved IndexedDB URLs, with a memoized dependency to prevent repeated resolution loops.
+- Removed invented best-time performance boost percentages and confidence labels. Suggested times remain explicitly prototype planning slots, not analytics-driven forecasts.
+- Added regression tests for cross-timezone calendar membership, DST rescheduling, slot times, workspace today date, and drag eligibility.
+- Calendar states clearly that scheduling is local planning; no live provider publish job was created.
+
 ## Next exact task
 
-Start **PHASE 3 — CALENDAR & SCHEDULING ENGINE** with a scheduling-state audit before adding queue features:
+Continue **PHASE 3 — CALENDAR & SCHEDULING ENGINE** before treating the phase as complete:
 
-- audit Calendar month/week/day behavior against one canonical scheduledAt UTC value,
-- verify every rendered/editable time uses the active workspace IANA timezone,
-- identify any remaining browser-local Date conversions that can cause timezone drift,
-- verify drag/drop rescheduling preserves intended local time in Month view and updates date/time correctly in Week/Day views,
-- verify published posts cannot be moved and failed/needs-review states are represented consistently,
-- centralize deterministic schedule/reschedule helpers where page code currently owns business rules,
-- add regression tests for timezone/DST/reschedule invariants,
-- do not add durable backend workers or real provider scheduling yet; those belong to Phase 4/5.
+- Convert Posts and Dashboard scheduling timestamps to the same workspace-timezone presentation model; a write attempt to Posts was blocked by connector security checks, so it remains pending.
+- Audit remaining datetime formatting and filters beyond Calendar.
+- Verify the updated Calendar manually in Month, Week, and Day, including a timezone different from the browser and DST boundary dates; automated tests do not replace visual interaction testing.
+- Decide whether a simple queue-slot interface materially helps V1; otherwise defer it explicitly.
+- Validate all Phase 3 acceptance criteria and only then enter Phase 4. Do not claim live scheduling, OAuth, or durable publishing jobs exist.
 
 ## Validation evidence
 
-GitHub Actions run 37659570369 on PR #11 completed successfully:
+GitHub Actions run 37777542283 on PR #12 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
