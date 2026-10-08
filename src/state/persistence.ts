@@ -10,14 +10,16 @@ import {
   Post,
   PostContent,
   PostPerformance,
+  PostDestination,
   SocialAccount,
   Workspace,
 } from '../types';
+import { hydratePostDestinations } from '../domain/postDestinations';
 
 export const PERSISTED_STATE_KEY = 'creator_lab_state';
-export const PERSISTED_STATE_SCHEMA_VERSION = 2 as const;
+export const PERSISTED_STATE_SCHEMA_VERSION = 3 as const;
 
-export interface PersistedStateEnvelopeV2 {
+export interface PersistedStateEnvelopeV3 {
   schemaVersion: typeof PERSISTED_STATE_SCHEMA_VERSION;
   state: AppState;
 }
@@ -227,11 +229,18 @@ export function normalizeAppState(
         : 'demo',
   }));
 
+  const postDestinations: PostDestination[] = hydratePostDestinations(
+    posts,
+    socialAccounts,
+    parsed.postDestinations,
+  );
+
   return {
     workspaces,
     activeWorkspaceId,
     socialAccounts,
     posts,
+    postDestinations,
     mediaAssets,
     mediaFolders,
     pipelineItems,
@@ -286,12 +295,21 @@ const migrations: Record<number, Migration> = {
       state,
     };
   },
+  2: (envelope, options) => {
+    const state = normalizeAppState(envelope.state, options);
+    if (!state) return null;
+
+    return {
+      schemaVersion: 3,
+      state,
+    };
+  },
 };
 
 export function migratePersistedState(
   raw: unknown,
   options: PersistenceNormalizationOptions = {},
-): PersistedStateEnvelopeV2 | null {
+): PersistedStateEnvelopeV3 | null {
   let envelope = toVersionedEnvelope(raw);
   if (!envelope) return null;
 
@@ -329,7 +347,7 @@ export function deserializePersistedState(
 }
 
 export function serializePersistedState(state: AppState): string {
-  const envelope: PersistedStateEnvelopeV2 = {
+  const envelope: PersistedStateEnvelopeV3 = {
     schemaVersion: PERSISTED_STATE_SCHEMA_VERSION,
     state,
   };
