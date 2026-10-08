@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   getScheduledLocalDateTime,
+  getPostDisplayDateTime,
   getStatusAfterCalendarReschedule,
   getWorkspaceTodayDate,
   isCalendarDraggableStatus,
@@ -132,4 +133,59 @@ test('scheduled local date-time is stable and explicit', () => {
     ),
     { date: '2026-10-07', time: '18:30' },
   );
+});
+
+test('Posts display uses workspace-local schedule time and date', () => {
+  const post = {
+    status: 'scheduled' as const,
+    scheduledAt: '2026-10-08T00:30:00.000Z',
+    createdAt: '2026-10-07T12:00:00.000Z',
+  };
+  assert.deepEqual(getPostDisplayDateTime(post, 'America/New_York'), {
+    date: '2026-10-07',
+    time: '20:30',
+    kind: 'scheduled',
+  });
+  assert.deepEqual(getPostDisplayDateTime(post, 'Europe/Berlin'), {
+    date: '2026-10-08',
+    time: '02:30',
+    kind: 'scheduled',
+  });
+});
+
+test('published post shows real publication timestamp, not stale scheduling time', () => {
+  const post = {
+    status: 'published' as const,
+    scheduledAt: '2026-10-07T12:00:00.000Z',
+    publishedAt: '2026-10-08T16:00:00.000Z',
+    createdAt: '2026-10-06T12:00:00.000Z',
+  };
+  assert.deepEqual(getPostDisplayDateTime(post, 'Europe/Berlin'), {
+    date: '2026-10-08',
+    time: '18:00',
+    kind: 'published',
+  });
+});
+
+test('draft or review post cannot appear scheduled due to stale scheduledAt', () => {
+  const post = {
+    status: 'draft' as const,
+    scheduledAt: '2026-10-08T12:00:00.000Z',
+    createdAt: '2026-10-07T08:00:00.000Z',
+  };
+  assert.deepEqual(getPostDisplayDateTime(post, 'Europe/Berlin'), {
+    date: '2026-10-07',
+    time: '10:00',
+    kind: 'created',
+  });
+});
+
+test('missing or malformed timestamp degrades to a labeled created date', () => {
+  const post = {
+    status: 'scheduled' as const,
+    scheduledAt: 'invalid',
+    createdAt: '2026-10-07T08:00:00.000Z',
+  };
+  assert.equal(getPostDisplayDateTime(post, 'UTC')?.kind, 'created');
+  assert.equal(getPostDisplayDateTime({ ...post, createdAt: '' }, 'UTC'), null);
 });
