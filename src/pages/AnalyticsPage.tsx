@@ -23,14 +23,21 @@ import {
   getWorkspacePerformance,
   getWorkspacePosts,
 } from '../utils/selectors';
+import { getScheduledLocalDateTime } from '../utils/scheduling';
 
 export function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | 'all'>('all');
   const { state } = useApp();
 
-  const workspacePerformances = getWorkspacePerformance(state);
+  const workspacePerformances = useMemo(
+    () => getWorkspacePerformance(state),
+    [state.postPerformances, state.activeWorkspaceId],
+  );
   const workspacePosts = getWorkspacePosts(state);
+  const workspaceTimeZone = state.workspaces.find(
+    (workspace) => workspace.id === state.activeWorkspaceId,
+  )?.timezone || 'UTC';
 
   const filteredPerformances = useMemo(() => {
     const now = new Date();
@@ -88,7 +95,7 @@ export function AnalyticsPage() {
     for (const performance of filteredPerformances) {
       let dateKey: string;
       try {
-        dateKey = format(parseISO(performance.publishedAt), 'yyyy-MM-dd');
+        dateKey = getScheduledLocalDateTime(performance.publishedAt, workspaceTimeZone).date;
       } catch {
         continue;
       }
@@ -112,7 +119,7 @@ export function AnalyticsPage() {
         views: value.views,
         engagement: Number((value.engagementTotal / value.count).toFixed(1)),
       }));
-  }, [filteredPerformances]);
+  }, [filteredPerformances, workspaceTimeZone]);
 
   const platformBreakdown = useMemo(() => {
     const platforms: Platform[] = [
@@ -172,7 +179,7 @@ export function AnalyticsPage() {
             Performance Analytics
           </h1>
           <p className="text-[12px] text-zinc-500 mt-0.5">
-            Measured post performance with explicit source and freshness boundaries.
+            Measured post performance with explicit data source. Dates shown in {workspaceTimeZone}.
           </p>
         </div>
 
