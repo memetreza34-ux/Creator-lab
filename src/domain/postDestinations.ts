@@ -30,6 +30,8 @@ export function createPostDestination(
     status: post.status,
     scheduledAt: post.status === 'scheduled' ? post.scheduledAt : undefined,
     publishedAt: post.status === 'published' ? post.publishedAt : undefined,
+    providerPostId: undefined,
+    lastError: undefined,
   };
 }
 
