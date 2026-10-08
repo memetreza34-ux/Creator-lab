@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   format,
   addMonths,
@@ -185,7 +185,11 @@ export function CalendarPage() {
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
 
   const workspacePosts = getWorkspacePosts(state);
-  const mediaAssets = getWorkspaceMedia(state);
+  // Selector returns a new array; memoize to avoid repeated async URL resolution.
+  const mediaAssets = useMemo(
+    () => getWorkspaceMedia(state),
+    [state.mediaAssets, state.activeWorkspaceId],
+  );
   const socialAccounts = getWorkspaceAccounts(state);
 
   // Compact Filter Popover State
@@ -379,7 +383,7 @@ export function CalendarPage() {
           <div>
             <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Calendar</h1>
             <p className="text-[12px] text-zinc-500 mt-0.5">
-              Plan and reschedule in {workspaceTimeZone}. Stored schedule times use UTC.
+              Local planning in {workspaceTimeZone}. Social publishing is not connected yet.
             </p>
           </div>
 
