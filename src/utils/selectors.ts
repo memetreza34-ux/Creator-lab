@@ -8,6 +8,7 @@ import {
   Platform,
   Post,
   PostContent,
+  PostDestination,
   PostPerformance,
   SocialAccount,
 } from '../types';
@@ -100,10 +101,33 @@ export const getPostDestinationAccounts = (
 export const getPostPlatforms = (
   post: Post,
   socialAccounts: SocialAccount[],
+  destinationSnapshots: PostDestination[] = [],
 ): Platform[] => {
   const accounts = getPostDestinationAccounts(post, socialAccounts);
-  return Array.from(new Set<Platform>(accounts.map((account) => account.platform)));
+  const snapshots = destinationSnapshots.filter(
+    (destination) =>
+      destination.postId === post.id &&
+      destination.workspaceId === post.workspaceId,
+  );
+  return Array.from(new Set<Platform>([
+    ...accounts.map((account) => account.platform),
+    ...snapshots.map((destination) => destination.platform),
+  ]));
 };
+
+export const getPostDestinationHistory = (
+  state: AppState,
+  postId: string,
+): PostDestination[] => state.postDestinations.filter(
+  (destination) =>
+    destination.postId === postId &&
+    destination.workspaceId === state.activeWorkspaceId &&
+    state.posts.some(
+      (post) =>
+        post.id === postId &&
+        post.workspaceId === state.activeWorkspaceId,
+    ),
+);
 
 export const getContentForPlatform = (
   post: Post,
