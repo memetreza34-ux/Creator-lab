@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import { PlatformIcon } from '../components/ui/PlatformIcon';
 import {
+  getPostDestinationHistory,
   getPostPlatforms,
   getSourceContentItemForPost,
   getWorkspaceAccounts,
@@ -181,7 +182,17 @@ export function PostsPage() {
                   const previewMedia = workspaceMedia.find(
                     (asset) => asset.id === post.originalContent.mediaIds[0],
                   );
-                  const platforms = getPostPlatforms(post, workspaceAccounts);
+                  const history = getPostDestinationHistory(state, post.id);
+                  const platforms = getPostPlatforms(
+                    post,
+                    workspaceAccounts,
+                    history,
+                  );
+                  const removedHistoricalAccounts = history.filter(
+                    (destination) =>
+                      !destination.socialAccountId &&
+                      destination.status === 'published',
+                  );
                   const sourceItem = getSourceContentItemForPost(state, post);
                   const displayTimestamp = getPostDisplayDateTime(post, workspaceTimeZone);
 
@@ -203,6 +214,17 @@ export function PostsPage() {
                           <div className="min-w-0">
                             <p className="text-[13px] font-medium text-zinc-900 truncate mb-0.5">{post.title}</p>
                             <p className="text-[12px] text-zinc-500 line-clamp-1">{post.originalContent.caption || 'No caption'}</p>
+                            {removedHistoricalAccounts.length > 0 && (
+                              <p
+                                className="mt-1 text-[10px] text-amber-700"
+                                title="Historical local snapshot. Not proof of live publishing."
+                              >
+                                Archived channel: {removedHistoricalAccounts.map(
+                                  (destination) => destination.accountLabel,
+                                ).join(', ')}
+                                {' · local history'}
+                              </p>
+                            )}
                             {sourceItem && (
                               <div className="mt-1 flex items-center text-[10px] font-medium text-brand-700">
                                 <Link2 className="w-3 h-3 mr-1 shrink-0" />
