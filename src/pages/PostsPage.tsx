@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Post, PostStatus } from '../types';
 import { format } from 'date-fns';
@@ -24,6 +24,7 @@ import {
   getWorkspacePosts,
 } from '../utils/selectors';
 import { resolveMediaUrl } from '../utils/mediaStorage';
+import { getPostDisplayDateTime } from '../utils/scheduling';
 
 export function PostsPage() {
   const { state, dispatch } = useApp();
@@ -34,8 +35,14 @@ export function PostsPage() {
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
 
   const workspacePosts = getWorkspacePosts(state);
-  const workspaceMedia = getWorkspaceMedia(state);
+  const workspaceMedia = useMemo(
+    () => getWorkspaceMedia(state),
+    [state.mediaAssets, state.activeWorkspaceId],
+  );
   const workspaceAccounts = getWorkspaceAccounts(state);
+  const workspaceTimeZone = state.workspaces.find(
+    (workspace) => workspace.id === state.activeWorkspaceId,
+  )?.timezone || 'UTC';
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +114,7 @@ export function PostsPage() {
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
           <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Posts</h1>
-          <p className="text-[14px] text-zinc-500 mt-1">Manage and track your content.</p>
+          <p className="text-[14px] text-zinc-500 mt-1">Manage and track your content. Dates shown in {workspaceTimeZone}.</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -176,9 +183,7 @@ export function PostsPage() {
                   );
                   const platforms = getPostPlatforms(post, workspaceAccounts);
                   const sourceItem = getSourceContentItemForPost(state, post);
-                  const postDate = new Date(
-                    post.scheduledAt || post.publishedAt || post.createdAt,
-                  );
+                  const displayTimestamp = getPostDisplayDateTime(post, workspaceTimeZone);
 
                   return (
                     <tr key={post.id} className="hover:bg-zinc-50/60 transition-colors group">
@@ -229,10 +234,14 @@ export function PostsPage() {
                       </td>
                       <td className="px-5 py-3 align-middle whitespace-nowrap">
                         <p className="text-[13px] text-zinc-900 font-medium">
-                          {format(postDate, 'MMM d, yyyy')}
+                          {displayTimestamp
+                            ? format(new Date(`${displayTimestamp.date}T12:00:00`), 'MMM d, yyyy')
+                            : 'Date unavailable'}
                         </p>
                         <p className="text-[11px] text-zinc-500 mt-0.5">
-                          {format(postDate, 'HH:mm')}
+                          {displayTimestamp
+                            ? `${displayTimestamp.time} · ${displayTimestamp.kind}`
+                            : 'Check post details'}
                         </p>
                       </td>
                       <td className="px-5 py-3 align-middle text-right relative">
