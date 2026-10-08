@@ -29,6 +29,11 @@ import {
   removeMediaReferenceFromPost,
   syncPipelineStageFromPost,
 } from '../utils/contentOperations';
+import {
+  detachSocialAccount,
+  hydratePostDestinations,
+  syncPostDestinations,
+} from '../domain/postDestinations';
 
 export type { AppState };
 
@@ -62,6 +67,7 @@ const initialState: AppState = {
   activeWorkspaceId: '',
   socialAccounts: [],
   posts: [],
+  postDestinations: [],
   mediaAssets: [],
   mediaFolders: [],
   pipelineItems: [],
@@ -81,6 +87,7 @@ function createSeedState(): AppState {
     activeWorkspaceId: mockWorkspaces[0].id,
     socialAccounts: mockSocialAccounts,
     posts: mockPosts,
+    postDestinations: hydratePostDestinations(mockPosts, mockSocialAccounts, []),
     mediaAssets: mockMediaAssets,
     mediaFolders: mockMediaFolders,
     pipelineItems: mockPipelineItems,
@@ -129,6 +136,9 @@ export function appReducer(state: AppState, action: Action): AppState {
         workspaces,
         activeWorkspaceId,
         posts: state.posts.filter((post) => post.workspaceId !== targetWorkspaceId),
+        postDestinations: state.postDestinations.filter(
+          (destination) => destination.workspaceId !== targetWorkspaceId,
+        ),
         socialAccounts: state.socialAccounts.filter(
           (account) => account.workspaceId !== targetWorkspaceId,
         ),
@@ -156,6 +166,11 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'ADD_POST':
       return {
         ...state,
+        postDestinations: syncPostDestinations(
+          state.postDestinations,
+          action.payload,
+          state.socialAccounts,
+        ),
         posts: [...state.posts, action.payload],
         pipelineItems: syncPipelineStageFromPost(
           state.pipelineItems,
@@ -166,6 +181,11 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'UPDATE_POST':
       return {
         ...state,
+        postDestinations: syncPostDestinations(
+          state.postDestinations,
+          action.payload,
+          state.socialAccounts,
+        ),
         posts: state.posts.map((post) =>
           post.id === action.payload.id ? action.payload : post,
         ),
@@ -179,6 +199,9 @@ export function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         posts: state.posts.filter((post) => post.id !== action.payload),
+        postDestinations: state.postDestinations.filter(
+          (destination) => destination.postId !== action.payload,
+        ),
         postPerformances: state.postPerformances.filter(
           (performance) => performance.postId !== action.payload,
         ),
@@ -253,6 +276,10 @@ export function appReducer(state: AppState, action: Action): AppState {
         ...state,
         socialAccounts,
         posts,
+        postDestinations: detachSocialAccount(
+          state.postDestinations,
+          action.payload,
+        ),
       };
     }
 
