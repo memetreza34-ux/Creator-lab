@@ -1,6 +1,6 @@
 # V1 Status
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## Current phase
 
@@ -153,19 +153,28 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Formalized the scheduling truth contract and manual browser QA steps in `docs/v1/phases/PHASE_03_SCHEDULING.md`.
 - Decision: simple queue slots deferred until real per-destination publishing jobs exist; advanced queues stay post-V1.
 
+## Phase 4 preparation — destination domain contract
+
+- First-class `PostDestination` local snapshots now hold per-account platform, account identity label/handle, planning state, and timestamps.
+- Post creation/editing synchronizes per-destination rows; published historical snapshots remain after account removal and can still be shown in Posts.
+- Deletion cascades clear destinations when posts/workspaces are deleted; pending detached destinations require review.
+- Local persistence schema 3 migrates legacy v0-v2 states and guards against workspace-forged destination records.
+- Regression tests cover per-account lifecycle, snapshots after reload, ownership boundaries, and deletion cascades.
+- Phase 4 backend/auth requirements are specified in `docs/v1/phases/PHASE_04_BACKEND_AUTH.md`.
+- This work is **a local domain foundation only**, not a functioning server data layer or live publishing.
+
 ## Next exact task
 
-**Phase 3 implementation is complete; browser acceptance remains outstanding.**
-
-- Perform the manual test matrix in `docs/v1/phases/PHASE_03_SCHEDULING.md` on a runnable deployment or browser using two different timezones and DST boundary dates.
-- Fix any usability or calendar interaction failures found, then record acceptance evidence.
-- Only when the Phase 3 manual gate passes, transition to Phase 4's backend/auth/provider architecture work.
-- Continue treating all scheduled content as *local plans*, not actual provider publishing.
+- Obtain explicit hosting/backend choice (recommended Supabase Auth + Postgres + private Storage), then set up actual production tables, policies and API authentication.
+- Add tested ownership checks for two independent users and multiple workspaces; do not build privileged write APIs before auth.
+- Plan safe import of user-entered browser-local data; do not import or disguise demonstration content as real user data.
+- Keep Phase 3 browser acceptance test open; code/CI success does not demonstrate real interactive calendar QA.
+- Do not enable OAuth/social publishing or a billing/Pro entitlement until underlying provider and server enforcement work.
 
 ## Validation evidence
 
-PR for this block: pending CI verification when this status entry was written.
-Previous GitHub Actions run 37777990573 on PR #13: automated tests, TypeScript and production build succeeded.
+Phase 4 destination contract PR is currently under CI review; do not treat it as merged until tests, TypeScript and production build pass.
+PR #14 (Phase 3) previously passed tests, TypeScript and production build.
 
 ## Phase transition
 
