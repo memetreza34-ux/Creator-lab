@@ -379,7 +379,7 @@ export function CalendarPage() {
           <div>
             <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Calendar</h1>
             <p className="text-[12px] text-zinc-500 mt-0.5">
-              Plan, drag-and-drop reschedule, and monitor cross-platform posts
+              Plan and reschedule in {workspaceTimeZone}. Stored schedule times use UTC.
             </p>
           </div>
 
@@ -496,7 +496,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={statusFilter}
-                      onChange={e => setStatusFilter(e.target.value as any)}
+                      onChange={e => setStatusFilter(e.target.value as PostStatus | 'all')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Statuses</option>
@@ -515,7 +515,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={platformFilter}
-                      onChange={e => setPlatformFilter(e.target.value as any)}
+                      onChange={e => setPlatformFilter(e.target.value as Platform | 'all')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Platforms</option>
@@ -554,7 +554,7 @@ export function CalendarPage() {
                     </label>
                     <select
                       value={contentTypeFilter}
-                      onChange={e => setContentTypeFilter(e.target.value as any)}
+                      onChange={e => setContentTypeFilter(e.target.value as 'all' | 'media' | 'text')}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
                       <option value="all">All Content Types</option>
@@ -647,14 +647,17 @@ export function CalendarPage() {
                 <div className="flex-1 grid grid-cols-7 grid-rows-5 overflow-y-auto">
                   {calendarDays.map((day) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
-                    const dayPosts = filteredPosts.filter((p: any) => p.scheduledAt && isSameDay(parseISO(p.scheduledAt), day));
+                    const dayPosts = filteredPosts.filter((post) =>
+                      isScheduledOnLocalDate(post.scheduledAt, dayStr, workspaceTimeZone),
+                    );
                     const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                    const isToday = isSameDay(day, new Date());
+                    const isToday = dayStr === workspaceTodayDate;
                     
                     return (
                       <DroppableCell 
                         key={dayStr} 
-                        id={day.toISOString()}
+                        id={`date:${dayStr}`}
+                        date={dayStr}
                         className={`border-r border-b border-[#EBEBE9] p-1.5 relative group transition-colors min-h-[110px] ${
                           !isCurrentMonth ? 'bg-zinc-50/50' : ''
                         } ${isToday ? 'bg-brand-50/20' : ''}`}
@@ -667,7 +670,7 @@ export function CalendarPage() {
                           </span>
 
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handleCreateOnSlot(day, false); }}
+                            onClick={(event) => { event.stopPropagation(); handleCreateOnSlot(dayStr); }}
                             className="w-5 h-5 rounded-md text-zinc-400 hover:text-brand-600 hover:bg-brand-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                             title="Create post on this date"
                           >
@@ -676,13 +679,15 @@ export function CalendarPage() {
                         </div>
                         
                         <div className="space-y-1.5 overflow-y-auto max-h-[calc(100%-28px)] scrollbar-hide pb-2">
-                          {dayPosts.map((post: any) => (
+                          {dayPosts.map((post) => (
                             <DraggablePost 
                               key={post.id} 
                               post={post} 
                               onClick={() => setSelectedPost(post)} 
                               mediaAssets={mediaAssets}
                               socialAccounts={socialAccounts}
+                            timeZone={workspaceTimeZone}
+                            resolvedMediaUrls={resolvedMediaUrls}
                             />
                           ))}
                         </div>
@@ -703,7 +708,7 @@ export function CalendarPage() {
                   {calendarDays.map(day => (
                     <div key={day.toISOString()} className="py-2 text-center bg-[#FAFAF9] border-r border-[#EBEBE9]">
                       <div className="text-[11px] font-semibold text-zinc-500 uppercase">{format(day, 'EEE')}</div>
-                      <div className={`text-[14px] font-bold mt-0.5 ${isSameDay(day, new Date()) ? 'text-brand-600' : 'text-zinc-900'}`}>
+                      <div className={`text-[14px] font-bold mt-0.5 ${format(day, 'yyyy-MM-dd') === workspaceTodayDate ? 'text-brand-600' : 'text-zinc-900'}`}>
                         {format(day, 'd')}
                       </div>
                     </div>
@@ -716,37 +721,38 @@ export function CalendarPage() {
                       <div className="p-2 text-[11px] font-medium text-zinc-400 text-right border-r border-[#EBEBE9] bg-[#FAFAF9]/40">
                         {`${hour.toString().padStart(2, '0')}:00`}
                       </div>
-                      {calendarDays.map(day => {
-                        const cellTime = setHours(startOfDay(day), hour);
-                        const cellEnd = addHours(cellTime, 1);
-                        const cellPosts = filteredPosts.filter((p: any) => {
-                          if (!p.scheduledAt) return false;
-                          const pTime = parseISO(p.scheduledAt);
-                          return pTime >= cellTime && pTime < cellEnd;
-                        });
-                        
+                      {calendarDays.map((day) => {
+                        const dayStr = format(day, 'yyyy-MM-dd');
+                        const slotTime = `${String(hour).padStart(2, '0')}:00`;
+                        const cellPosts = filteredPosts.filter((post) =>
+                          isScheduledInLocalHour(post.scheduledAt, dayStr, hour, workspaceTimeZone),
+                        );
                         return (
-                          <DroppableCell 
-                            key={cellTime.toISOString()}
-                            id={cellTime.toISOString()}
+                          <DroppableCell
+                            key={`${dayStr}-${slotTime}`}
+                            id={`slot:${dayStr}:${slotTime}`}
+                            date={dayStr}
+                            time={slotTime}
                             className="p-1 border-r border-[#EBEBE9] relative group"
                           >
                             <div className="space-y-1 h-full">
-                              {cellPosts.map((post: any) => (
+                              {cellPosts.map((post) => (
                                 <DraggablePost 
                                   key={post.id} 
                                   post={post} 
                                   onClick={() => setSelectedPost(post)} 
                                   mediaAssets={mediaAssets}
                                   socialAccounts={socialAccounts}
+                                timeZone={workspaceTimeZone}
+                                resolvedMediaUrls={resolvedMediaUrls}
                                 />
                               ))}
                             </div>
                             <div className="absolute inset-0 bg-brand-50/0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                               <button 
-                                onClick={(e) => { e.stopPropagation(); handleCreateOnSlot(cellTime, true); }}
+                                onClick={(event) => { event.stopPropagation(); handleCreateOnSlot(dayStr, slotTime); }}
                                 className="w-6 h-6 bg-white border border-[#EBEBE9] rounded-full shadow-xs flex items-center justify-center text-zinc-400 pointer-events-auto hover:text-brand-600 hover:border-brand-300 transition-colors"
-                                title={`Schedule post at ${format(cellTime, 'HH:mm')}`}
+                                title={`Schedule post at ${slotTime} (${workspaceTimeZone})`}
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
@@ -765,43 +771,44 @@ export function CalendarPage() {
               <div className="flex-1 flex flex-col overflow-auto max-w-4xl mx-auto w-full border-x border-[#EBEBE9]">
                 <div className="py-3 text-center bg-[#FAFAF9] border-b border-[#EBEBE9]">
                   <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-0.5">{format(currentDate, 'EEEE')}</div>
-                  <div className={`text-[18px] font-bold ${isSameDay(currentDate, new Date()) ? 'text-brand-600' : 'text-zinc-900'}`}>
+                  <div className={`text-[18px] font-bold ${format(currentDate, 'yyyy-MM-dd') === workspaceTodayDate ? 'text-brand-600' : 'text-zinc-900'}`}>
                     {format(currentDate, 'MMMM d, yyyy')}
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {Array.from({ length: 24 }).map((_, hour) => {
-                    const cellTime = setHours(startOfDay(currentDate), hour);
-                    const cellEnd = addHours(cellTime, 1);
-                    const cellPosts = filteredPosts.filter((p: any) => {
-                      if (!p.scheduledAt) return false;
-                      const pTime = parseISO(p.scheduledAt);
-                      return pTime >= cellTime && pTime < cellEnd;
-                    });
-                    
+                    const dayStr = format(currentDate, 'yyyy-MM-dd');
+                    const slotTime = `${String(hour).padStart(2, '0')}:00`;
+                    const cellPosts = filteredPosts.filter((post) =>
+                      isScheduledInLocalHour(post.scheduledAt, dayStr, hour, workspaceTimeZone),
+                    );
                     return (
                       <div key={hour} className="flex border-b border-[#EBEBE9] min-h-[85px]">
                         <div className="w-20 p-2 text-[11px] font-medium text-zinc-400 text-right border-r border-[#EBEBE9] bg-[#FAFAF9]/40 shrink-0">
                           {`${hour.toString().padStart(2, '0')}:00`}
                         </div>
                         <DroppableCell 
-                          id={cellTime.toISOString()}
+                          id={`slot:${dayStr}:${slotTime}`}
+                          date={dayStr}
+                          time={slotTime}
                           className="flex-1 p-2 relative group"
                         >
                           <div className="space-y-1.5 h-full">
-                            {cellPosts.map((post: any) => (
+                            {cellPosts.map((post) => (
                               <DraggablePost 
                                 key={post.id} 
                                 post={post} 
                                 onClick={() => setSelectedPost(post)} 
                                 mediaAssets={mediaAssets}
                                 socialAccounts={socialAccounts}
+                              timeZone={workspaceTimeZone}
+                              resolvedMediaUrls={resolvedMediaUrls}
                               />
                             ))}
                           </div>
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
-                              onClick={() => handleCreateOnSlot(cellTime, true)}
+                              onClick={() => handleCreateOnSlot(dayStr, slotTime)}
                               className="px-2.5 py-1 bg-white border border-[#DCDCD8] text-zinc-600 hover:text-brand-700 hover:border-brand-300 rounded-md text-[11px] font-medium flex items-center space-x-1 shadow-2xs"
                             >
                               <Plus className="w-3 h-3" />
@@ -829,7 +836,10 @@ export function CalendarPage() {
                   {selectedPost.status}
                 </span>
                 <span className="text-[12px] text-zinc-500">
-                  {selectedPost.scheduledAt ? format(parseISO(selectedPost.scheduledAt), 'PPP p') : 'Draft'}
+                  {selectedPost.scheduledAt ? (() => {
+                    const local = getScheduledLocalDateTime(selectedPost.scheduledAt, workspaceTimeZone);
+                    return `${local.date} ${local.time} (${workspaceTimeZone})`;
+                  })() : 'Draft'}
                 </span>
               </div>
               <button 
@@ -855,7 +865,7 @@ export function CalendarPage() {
                     if (!m) return null;
                     return (
                       <div key={mid} className="w-20 h-20 rounded-lg overflow-hidden border border-[#EBEBE9]">
-                        <img src={m.url} alt="" className="w-full h-full object-cover" />
+                        <img src={resolvedMediaUrls[m.id] || m.url} alt="" className="w-full h-full object-cover" />
                       </div>
                     );
                   })}
