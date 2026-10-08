@@ -198,7 +198,8 @@ create table public.creator_media_assets (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.creator_workspaces(id) on delete cascade,
   folder_id uuid,
-  object_path text not null,
+  object_path text not null
+    check (split_part(object_path, '/', 1) = workspace_id::text),
   file_name text not null,
   mime_type text not null,
   size_bytes bigint not null check(size_bytes >= 0),
