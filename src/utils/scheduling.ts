@@ -1,4 +1,4 @@
-import { PostStatus } from '../types';
+import { Post, PostStatus } from '../types';
 import {
   utcToZonedDateTime,
   zonedDateTimeToUtc,
@@ -87,4 +87,40 @@ export function getStatusAfterCalendarReschedule(
   status: PostStatus,
 ): PostStatus {
   return status === 'draft' ? 'scheduled' : status;
+}
+
+export type PostTimestampKind = 'scheduled' | 'published' | 'created';
+
+export interface PostDisplayDateTime {
+  date: string;
+  time: string;
+  kind: PostTimestampKind;
+}
+
+/**
+ * Only show a publication or schedule timestamp if the post is in that state.
+ * A draft with an obsolete scheduledAt field must not look scheduled.
+ * Degraded legacy records fall back to "Created", never an invented publication.
+ */
+export function getPostDisplayDateTime(
+  post: Pick<Post, 'status' | 'scheduledAt' | 'publishedAt' | 'createdAt'>,
+  timeZone: string,
+): PostDisplayDateTime | null {
+  const candidates: Array<[PostTimestampKind, string | undefined]> =
+    post.status === 'published'
+      ? [['published', post.publishedAt], ['created', post.createdAt]]
+      : post.status === 'scheduled'
+        ? [['scheduled', post.scheduledAt], ['created', post.createdAt]]
+        : [['created', post.createdAt]];
+
+  for (const [kind, iso] of candidates) {
+    if (!iso) continue;
+    try {
+      const local = getScheduledLocalDateTime(iso, timeZone);
+      return { ...local, kind };
+    } catch {
+      // Legacy records can contain malformed timestamps. Try the fallback.
+    }
+  }
+  return null;
 }

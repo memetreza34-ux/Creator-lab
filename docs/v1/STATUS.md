@@ -142,22 +142,30 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Posts marked scheduled without an actual scheduledAt value are excluded from Upcoming Planned Posts instead of displaying a misleading createdAt fallback.
 - Wording clarifies that these are locally planned posts rather than live provider releases.
 
+## Phase 3 completed — cross-page date integrity block
+
+- Posts list now displays the correct workspace-local date and time with explicit source labels: scheduled, published or created. A published post is no longer mislabeled using stale `scheduledAt`.
+- Graceful fallback for legacy missing/invalid date fields; no fabricated publication timestamp.
+- Media URL resolution in Posts now uses a stable memoized workspace-media dependency rather than a fresh array per render.
+- Analytics performance trend date buckets are grouped in the workspace timezone, consistent with Calendar and Dashboard.
+- The time parser now rejects autumn DST's repeated local wall-clock hour as ambiguous instead of choosing an unacknowledged UTC instant.
+- Added regression tests for timestamp precedence, workspace date conversion, stale draft schedules, invalid timestamps and autumn DST.
+- Formalized the scheduling truth contract and manual browser QA steps in `docs/v1/phases/PHASE_03_SCHEDULING.md`.
+- Decision: simple queue slots deferred until real per-destination publishing jobs exist; advanced queues stay post-V1.
+
 ## Next exact task
 
-Continue **PHASE 3 — CALENDAR & SCHEDULING ENGINE** before treating the phase as complete:
+**Phase 3 implementation is complete; browser acceptance remains outstanding.**
 
-- Convert the Posts page's timestamp presentation to the same workspace-timezone model; a connector security check blocked its proposed file update, so this remains open.
-- Audit any other remaining browser-local date presentation and status filters outside Calendar and Dashboard.
-- Manually verify the updated Calendar in Month/Week/Day using a browser timezone different from the workspace and DST boundary dates; CI is not an end-to-end interaction test.
-- Explicitly decide if a simple queue-slot interface belongs in V1, or defer it.
-- Validate all Phase 3 acceptance criteria before moving to Phase 4. Do not imply local plans are live social publishing.
+- Perform the manual test matrix in `docs/v1/phases/PHASE_03_SCHEDULING.md` on a runnable deployment or browser using two different timezones and DST boundary dates.
+- Fix any usability or calendar interaction failures found, then record acceptance evidence.
+- Only when the Phase 3 manual gate passes, transition to Phase 4's backend/auth/provider architecture work.
+- Continue treating all scheduled content as *local plans*, not actual provider publishing.
 
 ## Validation evidence
 
-GitHub Actions run 37777990573 on PR #13 completed successfully:
-- Automated tests: success
-- TypeScript check: success
-- Production build: success
+PR for this block: pending CI verification when this status entry was written.
+Previous GitHub Actions run 37777990573 on PR #13: automated tests, TypeScript and production build succeeded.
 
 ## Phase transition
 

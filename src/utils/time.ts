@@ -145,6 +145,28 @@ export function zonedDateTimeToUtc(
     throw new RangeError('Local time does not exist in the workspace timezone');
   }
 
+  // At the autumn DST transition, two UTC instants can share one local
+  // wall-clock time. Do not silently choose one without user disambiguation.
+  const hourMs = 60 * 60 * 1000;
+  for (const probe of [candidate - 4 * hourMs, candidate + 4 * hourMs]) {
+    const alternateOffset = getTimeZoneOffsetMs(probe, timeZone);
+    const alternate = localWallClockAsUtc - alternateOffset;
+    if (alternate === candidate) continue;
+
+    const alt = getPartsInTimeZone(alternate, timeZone);
+    if (
+      alt.year === dateParts.year &&
+      alt.month === dateParts.month &&
+      alt.day === dateParts.day &&
+      alt.hour === timeParts.hour &&
+      alt.minute === timeParts.minute
+    ) {
+      throw new RangeError(
+        'Ambiguous local time during daylight-saving transition; choose a different time',
+      );
+    }
+  }
+
   return new Date(candidate).toISOString();
 }
 

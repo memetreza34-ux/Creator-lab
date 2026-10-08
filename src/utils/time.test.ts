@@ -44,3 +44,17 @@ test('rejects invalid IANA timezone names', () => {
     /Invalid IANA timezone/,
   );
 });
+
+test('rejects ambiguous autumn daylight-saving wall-clock times', () => {
+  assert.throws(
+    () => zonedDateTimeToUtc('2026-10-25', '02:30', 'Europe/Berlin'),
+    /ambiguous/i,
+  );
+});
+
+test('unambiguous times on autumn transition day still convert normally', () => {
+  assert.equal(
+    zonedDateTimeToUtc('2026-10-25', '04:30', 'Europe/Berlin'),
+    '2026-10-25T03:30:00.000Z',
+  );
+});
