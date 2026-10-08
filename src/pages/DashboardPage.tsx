@@ -11,6 +11,7 @@ import {
   getWorkspacePerformance,
   getWorkspacePosts,
 } from '../utils/selectors';
+import { getScheduledLocalDateTime, getWorkspaceTodayDate } from '../utils/scheduling';
 
 export function DashboardPage() {
   const { state } = useApp();
@@ -20,6 +21,11 @@ export function DashboardPage() {
   const workspaceAccounts = getWorkspaceAccounts(state);
   const analytics = getWorkspaceAnalytics(state);
   const performances = getWorkspacePerformance(state);
+  const activeWorkspace = state.workspaces.find(
+    (workspace) => workspace.id === state.activeWorkspaceId,
+  ) || state.workspaces[0];
+  const workspaceTimeZone = activeWorkspace?.timezone || 'UTC';
+  const todayDate = getWorkspaceTodayDate(workspaceTimeZone);
 
   const chartData = useMemo(
     () =>
@@ -31,13 +37,15 @@ export function DashboardPage() {
         )
         .slice(-8)
         .map((performance) => ({
-          name: new Date(performance.publishedAt).toLocaleDateString('en-US', {
+          name: new Date(
+            `${getScheduledLocalDateTime(performance.publishedAt, workspaceTimeZone).date}T12:00:00`,
+          ).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
           }),
           reach: performance.reach,
         })),
-    [performances],
+    [performances, workspaceTimeZone],
   );
 
   const hasDemoData =
@@ -48,15 +56,11 @@ export function DashboardPage() {
   );
 
   const scheduledPosts = workspacePosts
-    .filter((post) => post.status === 'scheduled')
+    .filter((post) => post.status === 'scheduled' && Boolean(post.scheduledAt))
     .sort(
       (a, b) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime(),
     )
     .slice(0, 4);
-
-  const activeWorkspace = state.workspaces.find(
-    (workspace) => workspace.id === state.activeWorkspaceId,
-  ) || state.workspaces[0];
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full space-y-12">
@@ -191,7 +195,7 @@ export function DashboardPage() {
         <div className="lg:col-span-4 space-y-8">
           <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Upcoming Releases</h3>
+              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Upcoming Planned Posts</h3>
               <button onClick={() => navigate('/calendar')} className="text-[#666661] hover:text-[#0A0A0A] transition-colors p-1">
                 <Calendar className="w-5 h-5" />
               </button>
@@ -200,23 +204,27 @@ export function DashboardPage() {
             {scheduledPosts.length > 0 ? (
               <div className="space-y-4">
                 {scheduledPosts.map((post) => {
-                  const date = new Date(post.scheduledAt || post.createdAt);
-                  const isToday = new Date().toDateString() === date.toDateString();
+                  const local = getScheduledLocalDateTime(
+                    post.scheduledAt || post.createdAt,
+                    workspaceTimeZone,
+                  );
+                  const localCivilDate = new Date(`${local.date}T12:00:00`);
+                  const isToday = todayDate === local.date;
                   const platforms = getPostPlatforms(post, workspaceAccounts);
 
                   return (
                     <div key={post.id} className="group relative flex items-start space-x-4 p-4 border border-[#EBEBE9] hover:border-[#D1D1CE] transition-colors cursor-pointer bg-[#F8F8F7]" onClick={() => navigate(`/create?edit=${post.id}`)}>
                       <div className="flex flex-col items-center justify-center min-w-[48px]">
-                        <span className="text-[11px] font-sans font-bold text-[#999996] uppercase mb-0.5">{date.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                        <span className="text-[11px] font-sans font-bold text-[#999996] uppercase mb-0.5">{localCivilDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                         <span className={`text-[20px] font-serif leading-none ${isToday ? 'text-brand-600 font-bold' : 'text-[#0A0A0A]'}`}>
-                          {date.getDate()}
+                          {localCivilDate.getDate()}
                         </span>
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center mb-1 space-x-2">
                           <span className="text-[11px] font-sans font-medium text-[#666661] bg-white border border-[#EBEBE9] px-2 py-0.5 rounded">
-                            {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {local.time} ({workspaceTimeZone})
                           </span>
                           <div className="flex -space-x-1">
                             {platforms.map((platform) => (

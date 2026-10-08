@@ -134,19 +134,27 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Added regression tests for cross-timezone calendar membership, DST rescheduling, slot times, workspace today date, and drag eligibility.
 - Calendar states clearly that scheduling is local planning; no live provider publish job was created.
 
+## Phase 3 completed — Dashboard timezone presentation block
+
+- Dashboard's Upcoming Planned Posts now shows the same workspace-local dates and times as Calendar.
+- The Today indicator uses the workspace date rather than the browser date.
+- Performance chart date labels use workspace-local publication dates.
+- Posts marked scheduled without an actual scheduledAt value are excluded from Upcoming Planned Posts instead of displaying a misleading createdAt fallback.
+- Wording clarifies that these are locally planned posts rather than live provider releases.
+
 ## Next exact task
 
 Continue **PHASE 3 — CALENDAR & SCHEDULING ENGINE** before treating the phase as complete:
 
-- Convert Posts and Dashboard scheduling timestamps to the same workspace-timezone presentation model; a write attempt to Posts was blocked by connector security checks, so it remains pending.
-- Audit remaining datetime formatting and filters beyond Calendar.
-- Verify the updated Calendar manually in Month, Week, and Day, including a timezone different from the browser and DST boundary dates; automated tests do not replace visual interaction testing.
-- Decide whether a simple queue-slot interface materially helps V1; otherwise defer it explicitly.
-- Validate all Phase 3 acceptance criteria and only then enter Phase 4. Do not claim live scheduling, OAuth, or durable publishing jobs exist.
+- Convert the Posts page's timestamp presentation to the same workspace-timezone model; a connector security check blocked its proposed file update, so this remains open.
+- Audit any other remaining browser-local date presentation and status filters outside Calendar and Dashboard.
+- Manually verify the updated Calendar in Month/Week/Day using a browser timezone different from the workspace and DST boundary dates; CI is not an end-to-end interaction test.
+- Explicitly decide if a simple queue-slot interface belongs in V1, or defer it.
+- Validate all Phase 3 acceptance criteria before moving to Phase 4. Do not imply local plans are live social publishing.
 
 ## Validation evidence
 
-GitHub Actions run 37777542283 on PR #12 completed successfully:
+GitHub Actions run 37777990573 on PR #13 completed successfully:
 - Automated tests: success
 - TypeScript check: success
 - Production build: success
