@@ -163,13 +163,26 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Phase 4 backend/auth requirements are specified in `docs/v1/phases/PHASE_04_BACKEND_AUTH.md`.
 - This work is **a local domain foundation only**, not a functioning server data layer or live publishing.
 
+## Phase 4 progress — Supabase infrastructure preparation
+
+- Supabase has been approved as Creator Lab's backend.
+- Account inspection found two existing INACTIVE projects, KlarKI Staging and memetreza34-ux's Project, but **no identified Creator Lab project**.
+- Existing projects were deliberately left untouched.
+- Added `supabase/migrations/20261008180000_creator_core.sql`: database schema for workspaces, memberships, content, posts, social account demo records, per-account destinations, media, and private storage.
+- Added authenticated Row Level Security policies, ownership helper RPCs, a workspace-creation RPC, and cross-workspace foreign key constraints.
+- Added `supabase/verify/001_security_preflight.sql` for post-deployment catalog assertions.
+- Added `src/backend/schemaContract.test.ts` to catch removal of key RLS/ownership constraints in CI. This static test does not execute SQL or replace real user-session RLS verification.
+- Added `docs/v1/SUPABASE_SETUP.md` with deployment checklist, two-user authorization test matrix and credential safety boundaries.
+- Added publishable-only Supabase environment configuration placeholders to `.env.example`.
+- **Migration is NOT deployed and no Supabase project has been created.** Project organization and actual creation cost must be confirmed first.
+
 ## Next exact task
 
-- Obtain explicit hosting/backend choice (recommended Supabase Auth + Postgres + private Storage), then set up actual production tables, policies and API authentication.
-- Add tested ownership checks for two independent users and multiple workspaces; do not build privileged write APIs before auth.
-- Plan safe import of user-entered browser-local data; do not import or disguise demonstration content as real user data.
-- Keep Phase 3 browser acceptance test open; code/CI success does not demonstrate real interactive calendar QA.
-- Do not enable OAuth/social publishing or a billing/Pro entitlement until underlying provider and server enforcement work.
+1. Get explicit organization selection and cost confirmation for a new **Creator Lab** Supabase project (Frankfurt region proposed).
+2. Create the dedicated project; apply migration only there, inspect RLS security advisors, and test with two separately authenticated users.
+3. Integrate `@supabase/supabase-js` Auth, authenticated workspace CRUD, relational Post/PostDestination persistence and private media storage; keep local demo mode separate and do not auto-import mock content.
+4. Finish the pending Phase 3 manual calendar browser test before marking Phase 3 accepted.
+5. Do not enable real OAuth, publishing, AI access control, or monetization before production server authorization is proven.
 
 ## Validation evidence
 
