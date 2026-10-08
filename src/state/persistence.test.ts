@@ -161,6 +161,42 @@ test('normalizes legacy platform content and pipeline defaults without replacing
   assert.equal(migrated.state.pipelineItems[0].order, 0);
 });
 
+test('migrates v2 state to v3 with destination snapshots', () => {
+  const v2 = {
+    schemaVersion: 2,
+    state: createLegacyState(),
+  };
+  const migrated = migratePersistedState(v2, options);
+  assert.ok(migrated);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.state.postDestinations.length, 1);
+  const [destination] = migrated.state.postDestinations;
+  assert.equal(destination.workspaceId, 'workspace-a');
+  assert.equal(destination.postId, 'post-a');
+  assert.equal(destination.platform, 'youtube');
+  assert.equal(destination.accountLabel, 'Legacy YouTube');
+  assert.equal(destination.connectionMode, 'demo');
+});
+
+test('persists detached historical destination snapshots across reload', () => {
+  const migrated = migratePersistedState(createLegacyState(), options);
+  assert.ok(migrated);
+  migrated.state.posts[0].destinationAccountIds = [];
+  migrated.state.socialAccounts = [];
+  migrated.state.postDestinations[0] = {
+    ...migrated.state.postDestinations[0],
+    socialAccountId: undefined,
+    status: 'published',
+    publishedAt: '2026-10-07T12:00:00Z',
+  };
+  const restored = deserializePersistedState(
+    serializePersistedState(migrated.state),
+    options,
+  );
+  assert.ok(restored);
+  assert.deepEqual(restored.postDestinations, migrated.state.postDestinations);
+});
+
 test('serializes a versioned envelope and round-trips current state', () => {
   const migrated = migratePersistedState(createLegacyState(), options);
   assert.ok(migrated);

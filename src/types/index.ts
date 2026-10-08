@@ -57,6 +57,27 @@ export interface Post {
   sourceContentItemId?: string;
 }
 
+/**
+ * A per-account delivery record. This is a local planning/history snapshot
+ * until real providers and server-side publishing are implemented.
+ * No provider outcome is inferred from local status alone.
+ */
+export interface PostDestination {
+  id: string;
+  workspaceId: string;
+  postId: string;
+  socialAccountId?: string;
+  platform: Platform;
+  accountLabel: string;
+  accountHandle: string;
+  connectionMode: SocialConnectionMode;
+  status: PostStatus;
+  scheduledAt?: string;
+  publishedAt?: string;
+  providerPostId?: string;
+  lastError?: string;
+}
+
 export interface MediaFolder {
   id: string;
   workspaceId: string;
@@ -179,6 +200,7 @@ export interface AppState {
   activeWorkspaceId: string;
   socialAccounts: SocialAccount[];
   posts: Post[];
+  postDestinations: PostDestination[];
   mediaAssets: MediaAsset[];
   mediaFolders: MediaFolder[];
   pipelineItems: ContentItem[];
