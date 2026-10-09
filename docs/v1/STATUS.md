@@ -28,7 +28,7 @@ The existing frontend and local business logic are substantial but are **not yet
 ### Immediate external and validation blockers (checked 2026-10-09)
 
 - **[PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) OPEN, not merged:** Supabase schema/RLS proposal. GitHub Actions failed before exposing usable execution steps/logs, and the rerun also failed. Do not call this CI green or merge without a credible rerun/validation.
-- **Supabase not created:** two connected inactive projects were seen, neither identifiable as Creator Lab. Supabase was selected as technology, but the dedicated project **organization and actual creation cost must be confirmed by the user** before creation. No DB migration has been applied.
+- **Supabase provisioning DONE, cloud wiring PENDING:** Separate **Creator Lab** project `aoyrijspyygqoyeajxpf` ACTIVE_HEALTHY in Frankfurt, cost confirmation €0/month. Eight RLS tables/private bucket installed and three migrations applied. SQL catalog preflight and transactional synthetic A/B RLS/guard tests passed; actual Supabase Auth JWT/browser and private Storage HTTP tests still needed. Existing two projects unchanged.
 - **Phase 3 browser acceptance:** automated date tests passed earlier, but genuine cross-timezone Month/Week/Day + mobile interaction QA remains open.
 - **Production trust:** user identity and workspace authorization, cross-device durable media, real provider publishing and metrics still unverified.
 
@@ -37,9 +37,17 @@ The existing frontend and local business logic are substantial but are **not yet
 1. **G-01:** merge execution docs/master design, competition and tests after credible CI.
 2. **G-02 / R-01:** diagnose and resolve PR #16 CI runner/build gate, review migration SQL without deploying it.
 3. **G-04 / D-03:** execute documented calendar browser/responsive manual acceptance.
-4. **B-01:** ask for Supabase organization and verify real project creation cost; only then create a **dedicated** project.
-5. **B-02 → B-03:** apply migrations, test actual A/B user RLS and Storage boundary.
-6. **B-04 onward:** authenticated state, media, YouTube OAuth/publish/jobs, analytics, experiments, final design/release gates. Task IDs and dependencies are in the master plan.
+4. **B-01 DONE; B-02/B-03 partial:** dedicated Supabase project initialized; SQL and generated types verified, genuine issued-JWT + private Storage authorization still outstanding.
+5. **B-04 onward:** build authenticated client and actual A/B user tests; only then migrate AppContext to cloud persistence, followed by YouTube OAuth/publish/jobs, analytics, experiments and release gates.
+6. **AI-02 interim:** PR #20 rejects arbitrary Gemini custom prompts and disables unauthenticated AI in production until full Auth/usage budgets exist.
+
+## Supabase actual project execution evidence (2026-10-09)
+
+- **B-01 DONE:** created dedicated `Creator Lab` project `aoyrijspyygqoyeajxpf` in `memetreza34-ux's Org`, `eu-central-1`, after €0/month quote and cost confirmation.
+- **B-02 partial:** SQL versions `20261009163035` / `20261009163313` / `20261009163442` installed; eight RLS-enabled public tables and private `creator-media` bucket, catalog preflight PASS, DB-generated TypeScript models prepared in PR #16.
+- **B-03 partial:** rollback-only two-identity SQL probe PASSED on actual dedicated Postgres, including workspace isolation and rejected cross-tenant inserts/mismatched platform. All eight tables had zero rows afterward. The identities were **simulated database claims, not Supabase Auth-issued real JWTs**; browser/Storage/role matrix unverified.
+- **Security remediation:** invalid IANA workspace timezone and mismatched OAuth/demo destination guards added; anon EXECUTE grants revoked explicitly, trigger functions hidden from authenticated RPC, missing composite FK indexes added. Supabase reports four intentionally callable authenticated `SECURITY DEFINER` helpers: review via [advisor guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable), not a finished penetration test.
+- **GitHub blockers:** [PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) still open due blocked GitHub runner; [PR #20](https://github.com/memetreza34-ux/Creator-lab/pull/20) contains pre-auth AI validation/fail-closed production gate; neither represents a merged production UI. See [Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19).
 
 ## Completed before this plan
 
@@ -198,7 +206,7 @@ The existing frontend and local business logic are substantial but are **not yet
 
 **G-02 / R-01 — resolve GitHub Actions jobs failing before their first step** for PR #16, #17 and #18 (tracked in [Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19)). Obtain the actual runner error from GitHub, restore credible automated tests/TypeScript/build, then review/merge documentation PR #17 and navigation PR #18 separately. Review SQL and actual RLS validation before merging or deploying PR #16.
 
-**Then B-01 → B-03:** confirm the dedicated Supabase project organization and creation cost with the user, set up the isolated project, apply/test migrations, and prove tenant isolation with two authenticated users. Safe design/AI evaluation/QA tasks can proceed while external approvals are pending. Commercial payment activation remains blocked until actual prices, billing provider, cost model and DE/EU legal/tax requirements are approved.
+**Then B-03 → B-04:** dedicated Supabase project and three versioned SQL migrations exist; SQL catalog and simulated A/B role probes passed. Complete actual Auth JWT/Storage multi-user isolation, then integrate login, authenticated repository CRUD and private media into React. Safe design/AI evaluation/QA tasks can proceed while GitHub Actions is blocked. Commercial payment activation still requires pricing, payment provider and DE/EU legal/tax approval.
 
 ## Validation evidence
 
