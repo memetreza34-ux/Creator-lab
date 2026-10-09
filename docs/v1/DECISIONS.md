@@ -29,3 +29,19 @@ Before implementation, verify the task belongs to the current phase in STATUS.md
 
 ## D-010 — V1 Content DNA
 Full Content DNA is post-V1. V1 should collect the clean real data and evidence links needed to support it later.
+
+
+## D-011 — One executable delivery source of truth (2026-10-09)
+`docs/DELIVERY_MASTER_PLAN.md` is the task/dependency/review index; `docs/v1/STATUS.md` remains the progress record. Detailed existing V1 docs and phase specs are requirements, not competing roadmaps. New work must carry a task ID and acceptance proof.
+
+## D-012 — Product quality before competitor feature parity (2026-10-09)
+Differentiation is the idea→content→publish→evidence→experiment learning loop. Official competitor capabilities are tracked in `docs/v1/COMPETITIVE_GAP_MATRIX.md`. Recycle, bulk scheduling, agency approvals, inbox, listening and full Content DNA stay post-V1 unless an explicit scope change is documented.
+
+## D-013 — Visual identity and UX gates (2026-10-09)
+Keep the existing warm-neutral/violet/near-black design baseline but unify it under **Creator Lab** branding. Responsive mobile use, keyboard/accessibility, empty/error/permissions states and truthful publishing labels are part of feature completion, not optional launch polish. Detailed design rubric: `docs/v1/DESIGN_SYSTEM_UX.md`.
+
+## D-014 — Supabase and external approvals (2026-10-09)
+Supabase is the selected backend technology. No existing inactive Supabase project may be repurposed without explicit confirmation; a new dedicated Creator Lab project requires selected organization and actual cost approval. SQL in open PR #16 is not applied and its GitHub Actions failure still blocks merging/rollout.
+
+## D-015 — Evidence-based releases (2026-10-09)
+Release gates are tracked by test level (static/unit, browser, authenticated DB, real provider and production) in `docs/v1/RELEASE_TEST_MATRIX.md`. Runner failures with missing steps/logs are not accepted as code validation. Manual browser and provider proofs cannot be replaced by successful TypeScript compilation.
