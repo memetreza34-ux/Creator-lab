@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync(
-  new URL('../../supabase/migrations/20261008180000_creator_core.sql', import.meta.url),
+  new URL('../../supabase/migrations/20261009163035_creator_core_initial.sql', import.meta.url),
   'utf8',
 );
 
