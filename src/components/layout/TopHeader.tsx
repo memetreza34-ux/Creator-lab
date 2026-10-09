@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Search, ChevronDown, Check, Command, X, Home, Calendar, Image as ImageIcon, BarChart3, Settings, PenTool, LayoutTemplate, Layers } from 'lucide-react';
+import { Search, ChevronDown, Check, Command, X, Home, Calendar, Image as ImageIcon, BarChart3, Settings, PenTool, LayoutTemplate, Layers, Users } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 
@@ -24,6 +24,9 @@ const searchOptions = [
   { label: 'Content Pipeline', path: '/pipeline', icon: <LayoutTemplate className="w-4 h-4 text-[#666661]" /> },
   { label: 'Media Library', path: '/media', icon: <ImageIcon className="w-4 h-4 text-[#666661]" /> },
   { label: 'Performance Analytics', path: '/analytics', icon: <BarChart3 className="w-4 h-4 text-[#666661]" /> },
+  { label: 'Experiment Lab', path: '/experiments', icon: <Layers className="w-4 h-4 text-[#666661]" /> },
+  { label: 'Social Accounts', path: '/accounts', icon: <Users className="w-4 h-4 text-[#666661]" /> },
+  { label: 'Workspace Settings', path: '/settings', icon: <Settings className="w-4 h-4 text-[#666661]" /> },
 ];
 
 export function TopHeader() {
@@ -33,11 +36,12 @@ export function TopHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   
   const { state, dispatch } = useApp();
   
   const currentPath = location.pathname;
-  let title = 'Creator OS';
+  let title = 'Creator Lab';
   for (const [key, value] of Object.entries(pageTitles)) {
     if (currentPath === key || (key !== '/' && currentPath.startsWith(key))) {
       title = value;
@@ -75,6 +79,11 @@ export function TopHeader() {
     opt.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const closeSearch = () => {
+    setIsSearchOpen(false);
+    requestAnimationFrame(() => searchTriggerRef.current?.focus());
+  };
+
   return (
     <header className="h-[68px] bg-white border-b border-[#EBEBE9] px-6 flex items-center justify-between shrink-0 sticky top-0 z-10">
       <div className="flex items-center">
@@ -85,26 +94,34 @@ export function TopHeader() {
         
         {/* Search */}
         <div className="relative hidden sm:block w-[280px]">
-          <div 
+          <button
+            type="button"
+            ref={searchTriggerRef}
+            aria-label="Open page navigation"
+            aria-haspopup="dialog"
+            aria-expanded={isSearchOpen}
             onClick={() => setIsSearchOpen(true)}
-            className="flex items-center justify-between px-3 py-1.5 bg-[#F8F8F7] border border-[#EBEBE9] rounded-lg cursor-text hover:border-[#D1D1CE] transition-all group"
+            className="w-full flex items-center justify-between px-3 py-1.5 bg-[#F8F8F7] border border-[#EBEBE9] rounded-lg text-left cursor-pointer hover:border-[#D1D1CE] focus:outline-none focus:ring-2 focus:ring-brand-400 transition-all group"
           >
             <div className="flex items-center text-[#999996]">
               <Search className="w-4 h-4 mr-2" />
-              <span className="text-[13px] font-sans">Search...</span>
+              <span className="text-[13px] font-sans">Go to page...</span>
             </div>
             <div className="flex items-center space-x-1 text-[#999996]">
               <Command className="w-3 h-3" />
               <span className="text-[11px] font-medium font-sans">K</span>
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="w-px h-5 bg-[#EBEBE9] hidden sm:block"></div>
 
         {/* Workspace Selector */}
         <div className="relative">
-          <button 
+          <button
+            type="button"
+            aria-label="Select workspace"
+            aria-expanded={isWorkspaceOpen}
             onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
             className="px-3 py-1.5 flex items-center bg-white border border-[#EBEBE9] rounded-lg hover:border-[#D1D1CE] hover:bg-[#F8F8F7] transition-all"
           >
@@ -143,7 +160,7 @@ export function TopHeader() {
                 ))}
               </div>
               <div className="p-1 border-t border-[#EBEBE9]">
-                <Link to="/settings" className="w-full text-left px-3 py-2 flex items-center rounded-lg hover:bg-[#F8F8F7] transition-colors text-[13px] font-medium text-[#666661]">
+                <Link to="/settings" onClick={() => setIsWorkspaceOpen(false)} className="w-full text-left px-3 py-2 flex items-center rounded-lg hover:bg-[#F8F8F7] transition-colors text-[13px] font-medium text-[#666661]">
                   <Settings className="w-4 h-4 mr-2" />
                   Manage Workspaces
                 </Link>
@@ -152,20 +169,21 @@ export function TopHeader() {
           )}
         </div>
 
-        <button className="relative p-2 text-[#666661] hover:text-[#0A0A0A] transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full border border-white"></span>
-        </button>
-
-        <button className="w-8 h-8 rounded-full bg-[#EBEBE9] overflow-hidden border border-[#D1D1CE] hover:border-[#0A0A0A] transition-all">
-          <img src="https://ui-avatars.com/api/?name=Creator+User&background=6236FF&color=fff" alt="User Avatar" className="w-full h-full object-cover" />
-        </button>
+        <span
+          className="hidden sm:inline-flex px-2.5 py-1.5 rounded-md bg-zinc-100 text-[11px] font-medium text-zinc-600"
+          title="Prototype environment — no authenticated account or provider connection is active"
+        >
+          Local prototype
+        </span>
       </div>
 
       {/* Command Palette Modal */}
       {isSearchOpen && (
-        <div className="fixed inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4" onClick={() => setIsSearchOpen(false)}>
+        <div className="fixed inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh] px-4" onClick={closeSearch}>
           <div 
+            role="dialog"
+            aria-modal="true"
+            aria-label="Go to page"
             className="w-full max-w-lg bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-[#EBEBE9] overflow-hidden flex flex-col"
             onClick={e => e.stopPropagation()}
           >
@@ -173,14 +191,23 @@ export function TopHeader() {
               <Search className="w-5 h-5 text-[#999996] mr-3 shrink-0" />
               <input 
                 ref={searchInputRef}
+                aria-label="Filter page commands"
                 type="text" 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search commands, pages, or content..." 
+                placeholder="Search pages or navigation commands..."
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && filteredOptions.length > 0) {
+                    navigate(filteredOptions[0].path);
+                    closeSearch();
+                  }
+                }} 
                 className="flex-1 bg-transparent border-none focus:outline-none text-[15px] font-sans text-[#0A0A0A] placeholder:text-[#999996]"
               />
               <button 
-                onClick={() => setIsSearchOpen(false)}
+                type="button"
+                aria-label="Close page navigation"
+                onClick={closeSearch}
                 className="p-1 rounded-md text-[#999996] hover:bg-[#F8F8F7] hover:text-[#0A0A0A]"
               >
                 <X className="w-4 h-4" />
@@ -195,7 +222,7 @@ export function TopHeader() {
                       key={i}
                       onClick={() => {
                         navigate(opt.path);
-                        setIsSearchOpen(false);
+                        closeSearch();
                       }}
                       className="w-full flex items-center px-3 py-2.5 rounded-lg hover:bg-[#F8F8F7] transition-colors group text-left"
                     >
@@ -210,7 +237,7 @@ export function TopHeader() {
                 <div className="py-12 flex flex-col items-center justify-center text-center">
                   <Search className="w-8 h-8 text-[#EBEBE9] mb-3" />
                   <p className="text-[14px] font-medium text-[#0A0A0A]">No results found</p>
-                  <p className="text-[13px] text-[#999996] mt-1">Try a different search term</p>
+                  <p className="text-[13px] text-[#999996] mt-1">Try a different page or command</p>
                 </div>
               )}
             </div>
