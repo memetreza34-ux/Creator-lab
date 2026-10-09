@@ -25,7 +25,14 @@ Read the detailed requirements by topic:
 6. [DESIGN_SYSTEM_UX.md](DESIGN_SYSTEM_UX.md) — visual system, screens, responsive/a11y acceptance.
 7. [COMPETITIVE_GAP_MATRIX.md](COMPETITIVE_GAP_MATRIX.md) and [03_COMPETITOR_RESEARCH.md](03_COMPETITOR_RESEARCH.md) — competitor lessons and scope decisions.
 8. [RELEASE_TEST_MATRIX.md](RELEASE_TEST_MATRIX.md), [09_QUALITY_STANDARD.md](09_QUALITY_STANDARD.md), [10_RELEASE_CRITERIA.md](10_RELEASE_CRITERIA.md) — quality and launch proof.
-9. [DECISIONS.md](DECISIONS.md) — explicit architectural/product choices; [../POST_V1_BACKLOG.md](../POST_V1_BACKLOG.md) — deferred features.
+9. [PRODUCT_EXPERIENCE_BLUEPRINT.md](PRODUCT_EXPERIENCE_BLUEPRINT.md) — first-use customer journey, information architecture and screen-by-screen product usability.
+10. [SUBSCRIPTIONS_AND_BILLING.md](SUBSCRIPTIONS_AND_BILLING.md) — Free/Pro/Studio packaging hypotheses, entitlements, payments, invoices, cancellation and EU commerce rules.
+11. [AI_GOVERNANCE_AND_PRODUCT.md](AI_GOVERNANCE_AND_PRODUCT.md) — AI value, security, AI Act applicability, model metering, trust and review UX.
+12. [SECURITY_PRIVACY_COMPLIANCE.md](SECURITY_PRIVACY_COMPLIANCE.md) — data protection, provider/tenant threat model, regulatory obligations and actual security acceptance.
+13. [SAAS_OPERATIONS_AND_GROWTH.md](SAAS_OPERATIONS_AND_GROWTH.md) — marketing site, customer lifecycle, support, reliability, backups and launch economics.
+14. [DECISIONS.md](DECISIONS.md) — explicit architectural/product choices; [../POST_V1_BACKLOG.md](../POST_V1_BACKLOG.md) — deferred features.
+
+**Note:** These documents are requirements and implementation plans. Pricing, AI Act interpretation, data security and billing are not yet implemented or legally certified. New live features require tests and launch approvals.
 
 The current source-code audit baseline in 02_CURRENT_STATE_AUDIT.md is historical (2026-09 era), not a claim that no later engineering has occurred. Prefer the actual code and latest merged PRs to stale prose.
 
