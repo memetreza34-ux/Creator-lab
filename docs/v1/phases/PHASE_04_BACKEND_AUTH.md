@@ -48,8 +48,18 @@ A request must authenticate first, then prove membership in the resource's works
 
 ### Deployment decision needed
 
-Select one managed production provider for Auth + relational Postgres + private object storage. Recommended initial choice: Supabase, using server-enforced workspace authorization/RLS and secure token handling. Do not commit API keys, service-role secrets, or OAuth tokens. The existing `localStorage` and IndexedDB demo state must be migrated explicitly; do **not** synchronize the mock dataset as if it were real user data.
+**Supabase is selected for Creator Lab.** The dedicated project has not been created yet; obtain explicit organization and actual price approval before provisioning. Plan server-enforced workspace authorization/RLS and secure token handling. Do not commit API keys, service-role secrets, or OAuth tokens. The existing `localStorage` and IndexedDB demo state must be migrated explicitly; do **not** synchronize the mock dataset as if it were real user data.
 
 ### Acceptance not yet satisfied
 
 Phase 4 is **not complete** until two separately authenticated users are demonstrably isolated, server-side authorization is tested for all workspace data, media survives device/session changes, and the browser is no longer the authority for production state.
+
+## Cross-cutting Phase 4 obligations for a future paid product
+
+- Design `workspace_entitlements`, usage meters, private billing state and owner permissions **after** two-user RLS validation; never trust `Workspace.plan` from current local browser state as paid entitlement.
+- Protect the current Gemini API with authenticated workspace-checked requests and cost/rate budgets before making it public; treat user `prompt` and model output as untrusted input/data.
+- Document controller/processor relationships, GDPR retention/export/deletion and relevant AI Act role/use-case checks.
+- Design Auth onboarding/first-workspace empty state, payment portal routing, usage/plan settings and transactional email dependencies.
+- Implement no real billing, provider token write API or elevated AI tool before the database/security/organization gates pass.
+
+Detailed acceptance/task ownership: `../SUBSCRIPTIONS_AND_BILLING.md`, `../AI_GOVERNANCE_AND_PRODUCT.md` and `../SECURITY_PRIVACY_COMPLIANCE.md`.
