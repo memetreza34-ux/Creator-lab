@@ -20,6 +20,11 @@ const rlsProbe = readFileSync(
   'utf8',
 );
 
+const roleMatrix = readFileSync(
+  new URL('../../supabase/verify/003_role_matrix_rollback.sql', import.meta.url),
+  'utf8',
+);
+
 const workspaceTables = [
   'creator_workspaces',
   'creator_workspace_members',
@@ -144,4 +149,13 @@ test('transactional tenant probe is rollback-only and uses authenticated role', 
   assert.match(rlsProbe, /exception when insufficient_privilege/i);
   assert.match(rlsProbe, /exception when check_violation/i);
   assert.match(rlsProbe.trimEnd(), /rollback;$/i);
+});
+
+test('role matrix covers owner/editor/viewer access and leaves no test data', () => {
+  assert.match(roleMatrix, /set local role authenticated/i);
+  assert.match(roleMatrix, /viewer.*owner|owner.*viewer/is);
+  assert.match(roleMatrix, /'editor'\)/i);
+  assert.match(roleMatrix, /'viewer'\)/i);
+  assert.match(roleMatrix, /exception when insufficient_privilege/i);
+  assert.match(roleMatrix.trimEnd(), /rollback;$/i);
 });
