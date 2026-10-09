@@ -1,10 +1,12 @@
 # Creator Lab — Supabase Deployment Runbook (Phase 4)
 
-## Current state (2026-10-08)
+## Current state (2026-10-09)
 
-The connected Supabase account contains two **inactive** projects, `KlarKI Staging` and `memetreza34-ux's Project`. Neither was identifiable as Creator Lab. **Do not deploy this migration to either existing project.** It is committed as code, but has **not** been executed against a database.
+**Dedicated Creator Lab project exists and is ACTIVE_HEALTHY:** ref `aoyrijspyygqoyeajxpf`, region `eu-central-1` (Frankfurt), organization `memetreza34-ux's Org`. Project creation was confirmed at **€0/month**. The two older projects `KlarKI Staging` and `memetreza34-ux's Project` remain untouched.
 
-User decision: use Supabase for Creator Lab. A dedicated project still requires choosing the organization and confirming the actual project cost before creation. Proposed project: `Creator Lab`, region `eu-central-1` (Frankfurt).
+Three SQL migrations are **applied to Creator Lab**; the 8 database tables have RLS enabled, and the private `creator-media` bucket exists. Automated SQL catalog preflight and a **rollback-only simulated A/B-identity SQL probe** have passed. The probe is not real signed JWT login/OAuth proof, and no production Auth client or user data has been imported. See the recorded migration lineage below.
+
+**Next critical gate:** implement/test Supabase Auth and two separately authenticated, real client identities; then connect browser state, private Storage and production AI permissions. Do not call Phase 4 complete before these pass.
 
 ## New project initialization
 
@@ -83,6 +85,7 @@ Tests must use actual authenticated JWT sessions and check both successful and d
 - Supabase security advisor still reports four intentionally callable authenticated SECURITY DEFINER functions: three workspace membership predicates and the workspace-creation RPC. These must be tested against genuine authenticated users and are not a claim of completed security acceptance. The direct-authenticated trigger function warning was removed.
 - Performance advisor now reports only unused indexes expected on empty tables. Missing foreign-key index warnings were addressed.
 - Generated database TypeScript definitions are committed as `src/backend/database.types.ts`.
+- **SQL-level A/B role probe executed:** `supabase/verify/002_transactional_rls_probe.sql` uses temporary test Auth rows plus simulated JWT claims under PostgreSQL `authenticated` role; it passed, and every table remained empty after `ROLLBACK`. This checks RLS semantics but does **not** prove actual Supabase-issued JWTs, account lifecycle or storage HTTP permissions.
 - **NEXT: real two-user Supabase Auth RLS/storage tests and authenticated client integration.** Do not describe Phase 4 as complete until they pass.
 
 ## Deployment stages
