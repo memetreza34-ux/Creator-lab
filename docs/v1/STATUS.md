@@ -168,13 +168,22 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Supabase has been approved as Creator Lab's backend.
 - Account inspection found two existing INACTIVE projects, KlarKI Staging and memetreza34-ux's Project, but **no identified Creator Lab project**.
 - Existing projects were deliberately left untouched.
-- Added `supabase/migrations/20261008180000_creator_core.sql`: database schema for workspaces, memberships, content, posts, social account demo records, per-account destinations, media, and private storage.
+- Added `supabase/migrations/20261009163035_creator_core_initial.sql`: database schema for workspaces, memberships, content, posts, social account demo records, per-account destinations, media, and private storage.
 - Added authenticated Row Level Security policies, ownership helper RPCs, a workspace-creation RPC, and cross-workspace foreign key constraints.
 - Added `supabase/verify/001_security_preflight.sql` for post-deployment catalog assertions.
 - Added `src/backend/schemaContract.test.ts` to catch removal of key RLS/ownership constraints in CI. This static test does not execute SQL or replace real user-session RLS verification.
 - Added `docs/v1/SUPABASE_SETUP.md` with deployment checklist, two-user authorization test matrix and credential safety boundaries.
 - Added publishable-only Supabase environment configuration placeholders to `.env.example`.
 - **Migration is NOT deployed and no Supabase project has been created.** Project organization and actual creation cost must be confirmed first.
+
+## Phase 4 Supabase provisioning and SQL verification update — 2026-10-09
+
+- A separate Creator Lab Supabase project (Frankfurt; ref `aoyrijspyygqoyeajxpf`) was created after a cost quote/confirmation of €0 per month. Existing Supabase projects were not modified.
+- Initial eight-table, RLS-enabled schema and private Storage bucket installed on the dedicated project. Applied migration versions: `20261009163035` (core), `20261009163313` (function ACL), `20261009163442` (guard-function permissions and composite FK indexes). Source filenames aligned to these versions.
+- Database SQL catalog preflight completed successfully after correcting two function delimiter errors and revoking explicit `anon` EXECUTE grants that Supabase provided to public schema functions by default.
+- Corrected two additional integrity weaknesses: owner timezone edits now require real timezone names, and destination accounts must match platform and connection mode.
+- Supabase database types generated and committed; missing FK indexes fixed. Four authenticated SECURITY DEFINER functions still trigger an advisor warning **by design**, and need live two-user authorization proof.
+- **NOT DONE:** real Supabase Auth users/JWT testing, browser cloud data integration, actual media upload tests, OAuth secrets/publishing, checkout/entitlements. GitHub Actions still fails before runner steps; PR #16 must not be called CI green.
 
 ## Next exact task
 
