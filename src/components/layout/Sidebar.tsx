@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   CalendarDays, 
@@ -12,7 +12,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  PenLine,
+  Users
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -26,10 +28,12 @@ const navGroups = [
   {
     label: 'Studio',
     items: [
+      { id: 'create', label: 'Create Post', icon: PenLine, path: '/create' },
       { id: 'calendar', label: 'Calendar', icon: CalendarDays, path: '/calendar' },
       { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare, path: '/pipeline' },
       { id: 'posts', label: 'Posts', icon: Files, path: '/posts' },
       { id: 'media', label: 'Media Library', icon: ImageIcon, path: '/media' },
+      { id: 'accounts', label: 'Social Accounts', icon: Users, path: '/accounts' },
     ]
   },
   {
@@ -60,7 +64,7 @@ export function Sidebar() {
             <div className="w-7 h-7 bg-white rounded flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.15)]">
               <Sparkles className="w-4 h-4 text-black" />
             </div>
-            <span className="text-[14px] font-serif font-bold tracking-wide text-white uppercase mt-0.5">Creator OS</span>
+            <span className="text-[14px] font-serif font-bold tracking-wide text-white uppercase mt-0.5">Creator Lab</span>
           </div>
         )}
         {isCollapsed && (
@@ -69,7 +73,9 @@ export function Sidebar() {
           </div>
         )}
         {!isCollapsed && (
-          <button 
+          <button
+            type="button"
+            aria-label="Collapse navigation"
             onClick={() => setIsCollapsed(true)}
             className="p-1.5 text-zinc-500 hover:text-white transition-colors"
           >
@@ -80,7 +86,9 @@ export function Sidebar() {
 
       {isCollapsed && (
         <div className="flex justify-center mt-4">
-          <button 
+          <button
+            type="button"
+            aria-label="Expand navigation"
             onClick={() => setIsCollapsed(false)}
             className="p-1.5 text-zinc-500 hover:text-white transition-colors bg-zinc-900/50 rounded-md"
           >
@@ -90,7 +98,7 @@ export function Sidebar() {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-6 space-y-8 no-scrollbar">
+      <nav aria-label="Primary navigation" className="flex-1 overflow-y-auto py-6 space-y-8 no-scrollbar">
         {navGroups.map((group, idx) => (
           <div key={idx} className={cn("px-3", isCollapsed && "px-2")}>
             {!isCollapsed && (
@@ -108,6 +116,8 @@ export function Sidebar() {
                     key={item.id}
                     to={item.path}
                     title={isCollapsed ? item.label : undefined}
+                    aria-label={isCollapsed ? item.label : undefined}
+                    aria-current={isActive ? 'page' : undefined}
                     className={cn(
                       'flex items-center rounded-lg text-[13px] font-medium transition-all group',
                       isCollapsed ? 'justify-center p-2.5 mx-auto w-10 h-10' : 'w-full px-3 py-2',
@@ -135,6 +145,7 @@ export function Sidebar() {
         <NavLink 
           to="/settings"
           title={isCollapsed ? 'Settings' : undefined}
+          aria-label={isCollapsed ? 'Settings' : undefined}
           className={cn(
             'flex items-center rounded-lg text-[13px] font-medium transition-all group',
             isCollapsed ? 'justify-center p-2.5 w-10 h-10' : 'w-full px-3 py-2',
