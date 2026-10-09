@@ -12,6 +12,11 @@
 4. **[Design and UX rules](docs/v1/DESIGN_SYSTEM_UX.md)** — coherent premium visual language, responsive layouts, accessibility, screen-by-screen acceptance.
 5. **[Competitor research and decisions](docs/v1/COMPETITIVE_GAP_MATRIX.md)** — Buffer, Metricool, Later, Planable, Publer, Sprout: which lessons are V1 vs later.
 6. **[Release QA matrix](docs/v1/RELEASE_TEST_MATRIX.md)** — exact security, browser, provider and production tests.
+7. **[Customer experience](docs/v1/PRODUCT_EXPERIENCE_BLUEPRINT.md)** — paying-user journey, every screen's job, onboarding and usable design.
+8. **[Subscriptions & plans](docs/v1/SUBSCRIPTIONS_AND_BILLING.md)** — sample Free/Pro/Studio concepts, usage limits, payments, invoices, cancellation. **No live tariffs yet.**
+9. **[AI product & governance](docs/v1/AI_GOVERNANCE_AND_PRODUCT.md)** — safe AI UX, model costs, usage caps, AI Act and human editorial control.
+10. **[Security, privacy & compliance](docs/v1/SECURITY_PRIVACY_COMPLIANCE.md)** — cross-user protections, GDPR/legal notices, cookie controls, rights and security tests.
+11. **[SaaS operations & business](docs/v1/SAAS_OPERATIONS_AND_GROWTH.md)** — landing, customer support, email, costs, localization, monitoring and commercial launch.
 
 **Rule:** no new feature without a master-plan task, functional user value, correct ownership/truth semantics, tests and STATUS update. The V1 must be reliable before expansion into other networks, social inbox, competitor listening or full Content DNA.
 
