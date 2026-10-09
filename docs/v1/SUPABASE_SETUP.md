@@ -10,7 +10,7 @@ User decision: use Supabase for Creator Lab. A dedicated project still requires 
 
 1. Obtain user's explicit organization selection and cost confirmation before creating a project.
 2. Create the separate project with Supabase tools in the chosen organization and region; wait until the project is healthy.
-3. Review `supabase/migrations/20261008180000_creator_core.sql`. This is an initial schema, not a migration for an existing Creator Lab database.
+3. Review `supabase/migrations/20261009163035_creator_core_initial.sql`. This is an initial schema, not a migration for an existing Creator Lab database.
 4. Apply the migration to that **new Creator Lab project only** and run `supabase/verify/001_security_preflight.sql`.
 5. Inspect Supabase security/performance advisors and generated database types.
 6. Verify Auth allowed redirect URLs, email confirmation behavior, registration abuse protections, and account deletion policies before opening registration.
@@ -72,6 +72,18 @@ The SQL catalog preflight is **not** a proof of true authorization. Run on a sep
 10. Verify workspace deletion cascades and signed URL expiration.
 
 Tests must use actual authenticated JWT sessions and check both successful and denied operations; SQL catalog introspection alone is insufficient. Do not announce Phase 4 acceptance before these pass.
+
+## Recorded project and exact migration lineage (2026-10-09)
+
+- Supabase project **Creator Lab** in Frankfurt, project ref `aoyrijspyygqoyeajxpf`, active and dedicated to this application. Creation quote was **€0/month** for the selected organization.
+- Initial schema applied successfully as migration `20261009163035_creator_core_initial`, followed by `20261009163313_creator_function_acl` and `20261009163442_creator_security_indexes`.
+- The source filenames now match the **actual version IDs recorded in the database**, preventing a future migration runner from replaying a version under an unrelated filename.
+- Initial SQL syntax errors were corrected before deployment; the failed attempt left no tables. A subsequent Supabase catalog preflight passed after anonymous execute grants were revoked.
+- All **eight workspace-facing tables have RLS enabled**. Dedicated private media bucket `creator-media` exists. No customer accounts, imported content or provider credentials are present.
+- Supabase security advisor still reports four intentionally callable authenticated SECURITY DEFINER functions: three workspace membership predicates and the workspace-creation RPC. These must be tested against genuine authenticated users and are not a claim of completed security acceptance. The direct-authenticated trigger function warning was removed.
+- Performance advisor now reports only unused indexes expected on empty tables. Missing foreign-key index warnings were addressed.
+- Generated database TypeScript definitions are committed as `src/backend/database.types.ts`.
+- **NEXT: real two-user Supabase Auth RLS/storage tests and authenticated client integration.** Do not describe Phase 4 as complete until they pass.
 
 ## Deployment stages
 
