@@ -31,6 +31,23 @@ User decision: use Supabase for Creator Lab. A dedicated project still requires 
 
 The database *deliberately* has no client-exposed OAuth tokens, provider secrets, publish jobs, payment entitlements, or provider-verified metrics yet.
 
+### Reviewed integrity safeguards
+
+- A BEFORE INSERT/UPDATE trigger on `creator_workspaces.timezone` rejects names outside PostgreSQL's known timezone list, even when a workspace owner edits the row directly. Validating only the workspace creation RPC was insufficient.
+- A BEFORE INSERT/UPDATE trigger on `creator_post_destinations` checks that any referenced account belongs to the same workspace **and** matches the destination's platform and connection mode. This prevents client-written demo destinations from disguising a real OAuth account reference.
+- `supabase/verify/001_security_preflight.sql` now checks these triggers are enabled and that anonymous sessions cannot run the workspace creation RPC.
+- Static SQL tests cover these contracts, but **do not replace actual Postgres migration execution and two-user/role-level checks**.
+
+**Additional negative cases before release:**
+
+1. Authenticated workspace owner updates their `timezone` to `Mars/Nowhere`: database rejects; `Europe/Berlin` is accepted.
+2. Owner inserts a demo destination with the UUID of a server-created OAuth account: rejected by account-mode guard.
+3. Owner inserts destination with a platform different from its referenced account: rejected.
+4. Owner inserts a genuine demo destination for their own workspace/account: accepted.
+5. Owner attempts a referenced account outside workspace: rejected by workspace-scoped FK/RLS.
+6. After deleting an account, existing published snapshot with `social_account_id = null` retains platform/account label, and no forged published status can be inserted by a browser.
+
+
 ## Trust boundaries
 
 **Authenticated browser**: may read workspace data if a member; owner/editor may edit content; viewer is read-only. Auth users may create a workspace via the vetted SECURITY DEFINER RPC. No direct membership privilege escalation. Demo social-account writes cannot turn into verified OAuth connections. Clients cannot mark posts/destinations `published` through normal policies.
