@@ -59,3 +59,21 @@ test('ownership helper never takes a caller-supplied user ID', () => {
   }
   assert.match(migration, /m\.user_id = \(select auth\.uid\(\)\)/);
 });
+
+test('workspaces reject invalid IANA timezone updates outside the RPC', () => {
+  assert.match(migration, /create function public\.creator_guard_workspace_timezone\(\)/i);
+  assert.match(migration, /before insert or update of timezone on public\.creator_workspaces/i);
+  assert.match(migration, /from pg_catalog\.pg_timezone_names[\s\S]*?name = new\.timezone/i);
+});
+
+test('a destination cannot disguise a real account as demo or change platform', () => {
+  assert.match(migration, /create function public\.creator_guard_destination_identity\(\)/i);
+  assert.match(
+    migration,
+    /a\.workspace_id = new\.workspace_id[\s\S]*?a\.platform = new\.platform[\s\S]*?a\.connection_mode = new\.connection_mode/i,
+  );
+  assert.match(
+    migration,
+    /before insert or update of social_account_id, workspace_id, platform, connection_mode\s+on public\.creator_post_destinations/i,
+  );
+});
