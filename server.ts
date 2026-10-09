@@ -212,7 +212,7 @@ Return a valid JSON object mapping each platform key to its adapted text:
   }
 }`;
         responseSchemaFormat = true;
-
+      }
 
       // Execute with timeout protection
       const timeoutPromise = new Promise((_, reject) => 
