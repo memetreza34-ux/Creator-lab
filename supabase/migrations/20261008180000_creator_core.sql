@@ -259,6 +259,11 @@ create table public.creator_media_assets (
     on delete set null (folder_id)
 );
 
+-- Composite foreign key lookup indexes used by content/account/folder updates.
+create index creator_posts_source_item on public.creator_posts(workspace_id, source_content_item_id);
+create index creator_destinations_social_account on public.creator_post_destinations(workspace_id, social_account_id);
+create index creator_assets_folder on public.creator_media_assets(workspace_id, folder_id);
+
 create index creator_content_items_workflow on public.creator_content_items(workspace_id, stage, sort_order);
 create index creator_posts_schedule on public.creator_posts(workspace_id, scheduled_at) where status = 'scheduled';
 create index creator_post_destinations_post on public.creator_post_destinations(workspace_id, post_id);
@@ -451,5 +456,5 @@ revoke execute on function public.creator_create_workspace(text,text) from anon;
 revoke execute on function public.creator_storage_workspace(text) from anon;
 
 -- Trigger-only guards are never public RPC endpoints.
-revoke execute on function public.creator_guard_workspace_timezone() from public, anon;
-revoke execute on function public.creator_guard_destination_identity() from public, anon;
+revoke execute on function public.creator_guard_workspace_timezone() from public, anon, authenticated;
+revoke execute on function public.creator_guard_destination_identity() from public, anon, authenticated;
