@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { validateAiRequest } from "./src/server/aiRequest";
 
 dotenv.config();
 
@@ -24,38 +25,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-const VALID_TOOLS = [
-  'improve',
-  'hook',
-  'rewrite',
-  'shorten',
-  'hashtags',
-  'analyze',
-  'optimize_platform',
-  'weak_points',
-  'variations'
-];
-
-const VALID_PLATFORMS = [
-  'youtube',
-  'instagram',
-  'tiktok',
-  'twitter',
-  'linkedin',
-  'facebook',
-  'pinterest',
-  'threads'
-];
-
-const VALID_TONES = [
-  'Professional',
-  'Casual',
-  'Educational',
-  'Energetic',
-  'Concise',
-  'Storytelling'
-];
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -69,6 +38,14 @@ async function startServer() {
 
   // AI Suggest & Creator Intelligence Endpoint
   app.post("/api/ai/suggest", async (req, res) => {
+    // Public AI access without JWT/usage entitlements can exhaust paid model
+    // credits. Keep production fail-closed until Phase 4 Auth + metering exists.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({
+        error: 'AI assistance is unavailable until secure account access is enabled.',
+      });
+    }
+
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 
     if (!checkRateLimit(clientIp)) {
@@ -83,31 +60,11 @@ async function startServer() {
         return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not configured." });
       }
 
-      const { content, tool: rawTool, platform, platforms, tone, weaknesses, prompt } = req.body;
-      const tool = (rawTool || '').toLowerCase();
-
-      // Input validation
-      if (typeof content !== 'string' || !content.trim()) {
-        return res.status(400).json({ error: "Content must be a non-empty string." });
+      const validated = validateAiRequest(req.body);
+      if (!validated.ok) {
+        return res.status(400).json({ error: validated.error });
       }
-
-      if (content.length > 6000) {
-        return res.status(400).json({ error: "Content exceeds maximum length of 6000 characters." });
-      }
-
-      if (!VALID_TOOLS.includes(tool) && !prompt) {
-        return res.status(400).json({ 
-          error: `Unsupported tool '${tool}'. Supported tools are: ${VALID_TOOLS.join(', ')}` 
-        });
-      }
-
-      if (platform && !VALID_PLATFORMS.includes(platform)) {
-        return res.status(400).json({ error: `Invalid platform '${platform}'.` });
-      }
-
-      if (tone && !VALID_TONES.includes(tone)) {
-        return res.status(400).json({ error: `Invalid tone '${tone}'.` });
-      }
+      const { content, tool, platform, platforms, tone, weaknesses } = validated.value;
 
       const ai = new GoogleGenAI({ apiKey });
 
@@ -255,13 +212,7 @@ Return a valid JSON object mapping each platform key to its adapted text:
   }
 }`;
         responseSchemaFormat = true;
-      } else if (prompt) {
-        userPrompt = `Follow this custom instruction: "${prompt}".
-Current Content:
-"""${content}"""
-${platform ? `Platform: ${platform}` : ''}
-Return ONLY the final requested text.`;
-      }
+
 
       // Execute with timeout protection
       const timeoutPromise = new Promise((_, reject) => 
@@ -273,7 +224,8 @@ Return ONLY the final requested text.`;
         contents: userPrompt,
         config: {
           systemInstruction,
-          temperature: tool === 'analyze' ? 0.2 : 0.7
+          temperature: tool === 'analyze' ? 0.2 : 0.7,
+          maxOutputTokens: 2048
         }
       });
 
@@ -299,8 +251,8 @@ Return ONLY the final requested text.`;
       res.json({ result: rawText.trim() });
     } catch (error: any) {
       console.error("AI Assistant Error:", error);
-      res.status(500).json({ 
-        error: error.message || "Failed to generate AI response. Please try again." 
+      res.status(502).json({
+        error: "AI assistance is temporarily unavailable. Your draft has not been changed.",
       });
     }
   });
