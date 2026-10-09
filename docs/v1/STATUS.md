@@ -12,6 +12,19 @@ Last updated: 2026-10-09
 
 The existing frontend and local business logic are substantial but are **not yet production-connected**. A first-class PostDestination local model was merged in PR #15. Real Auth, server-controlled data, provider connections/jobs and authentic analytics are still missing. Product, competition, UX and release scope are now organized under one integrated delivery index in a documentation PR; this does **not** imply any feature was tested or shipped by documentation alone.
 
+### Product, monetization and compliance deep review (plan only — 2026-10-09)
+
+- Reviewed the real frontend/server code and master execution plan through four additional lenses: customer paying for the app, product designer, application/security engineer, and EU commercial-service operator.
+- Found that **pricing/entitlements/consumer cancellation, AI model governance and AI Act scope, privacy/security compliance, and paid SaaS operations/marketing were under-specified** in the original plan; they have now been added as separate, testable implementation streams.
+- Added `docs/v1/PRODUCT_EXPERIENCE_BLUEPRINT.md` for new/returning paying-user flows, premium UI hierarchy and usability research.
+- Added `docs/v1/SUBSCRIPTIONS_AND_BILLING.md` with **provisional only** Free / Creator Pro / Studio packaging, server-only entitlements, usage metering, upgrade/downgrade, payment webhook, VAT/consumer cancellation and commercial approval gates.
+- Added `docs/v1/AI_GOVERNANCE_AND_PRODUCT.md` for useful in-workflow AI, authentication, model cost caps, prompt-injection resilience, human approvals, vendor processing, role-specific EU AI Act transparency/marking and literacy assessment.
+- Added `docs/v1/SECURITY_PRIVACY_COMPLIANCE.md` for threat model, RLS/storage, GDPR mapping, privacy notices, cookie consent assessment, legal/cancel/delete/incident handling and negative tests.
+- Added `docs/v1/SAAS_OPERATIONS_AND_GROWTH.md` for landing/pricing/integrations website, email, support, i18n, backups/restore, monitoring, costs, deployment stages and actual customer onboarding.
+- Integrated task IDs `AI-*`, `PAY-*`, `SEC-*`, `COM-*`, `OPS-*`, `GTM-*`, `I18N-*`, `CX-*` into the master plan and updated V1 scope, quality rules, release criteria, decisions, README and E2E test matrix.
+- All new capabilities are **requirements**, not implemented features or passed legal security reviews. Sample tariff pricing and plan limits are hypotheses, **not live prices**. No payment processor or Supabase production project has been created through this work.
+- Master-plan documents are part of still-**open PR #17**, not yet merged due to CI infrastructure blocker [Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19). D-01 branding code changes reside in **open PR #18**; do not claim they are on main.
+
 ### Immediate external and validation blockers (checked 2026-10-09)
 
 - **[PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) OPEN, not merged:** Supabase schema/RLS proposal. GitHub Actions failed before exposing usable execution steps/logs, and the rerun also failed. Do not call this CI green or merge without a credible rerun/validation.
@@ -183,13 +196,16 @@ The existing frontend and local business logic are substantial but are **not yet
 
 ## Next exact task
 
-**G-02 — determine why GitHub Actions on PR #16 failed without steps/logs; do not infer that migration SQL passed or failed from absent logs.** Restore a credible CI run and review the SQL before any merge. If infra validation is blocked, work only on isolated unblocked design/QA tasks with their own gates. The user must explicitly choose the new Supabase organization and confirm its actual project-creation price before any project is created.
+**G-02 / R-01 — resolve GitHub Actions validation that fails before first job step on PR #16, #17 and #18 ([Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19)). After CI resumes, validate and merge PR #17 (complete planning) and PR #18 (branding) separately; validate SQL thoroughly before PR #16 merge. Current implementation priority afterward is **B-01 → B-03** (Supabase dedicated project and two-user security proof); next customer-facing development includes onboarding and billing architecture after trust boundary. Unresolved company/tariff/checkout decisions only block commercial activation, not safe isolated development. **do not infer that migration SQL passed or failed from absent logs. do not infer that migration SQL passed or failed from absent logs.** Restore a credible CI run and review the SQL before any merge. If infra validation is blocked, work only on isolated unblocked design/QA tasks with their own gates. The user must explicitly choose the new Supabase organization and confirm its actual project-creation price before any project is created.
 
 ## Validation evidence
 
 - PR #15 (local PostDestination contract): merged 2026-10-08 at `06944b6d98a24f1fc4ad9024b582b65e5aca11e8` after tests/TypeScript/production build succeeded.
 - PR #14 (Phase 3 local calendar/date work): passed automated tests, TypeScript and production build. Its manual browser acceptance is **still open**.
 - PR #16 (Supabase schema): **open with GitHub Actions failure before observable job steps/logs**; not a tested database deployment.
+- PR #17: complete product/business/security/AI and experience planning is **OPEN**, GitHub Actions still blocked before job steps, not merged.
+- PR #18: navigation/branding implementation **OPEN**, CI blocked; no claims of production-visible UI changes.
+- GitHub Issue #19 records the runner issue for PRs #16–#18.
 - Delivery plan/design/competition/release matrix documentation PR: validation pending until a GitHub Actions run is available. Documentation is not production feature acceptance.
 
 ## Phase transition
