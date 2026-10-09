@@ -41,7 +41,7 @@ Differentiation is the idea→content→publish→evidence→experiment learning
 Keep the existing warm-neutral/violet/near-black design baseline but unify it under **Creator Lab** branding. Responsive mobile use, keyboard/accessibility, empty/error/permissions states and truthful publishing labels are part of feature completion, not optional launch polish. Detailed design rubric: `docs/v1/DESIGN_SYSTEM_UX.md`.
 
 ## D-014 — Supabase and external approvals (2026-10-09)
-Supabase is the selected backend technology. No existing inactive Supabase project may be repurposed without explicit confirmation; a new dedicated Creator Lab project requires selected organization and actual cost approval. SQL in open PR #16 is not applied and its GitHub Actions failure still blocks merging/rollout.
+Supabase is the selected backend. The dedicated Creator Lab project `aoyrijspyygqoyeajxpf` has been created in Frankfurt after a €0/month quote/confirmation, with three applied migrations, RLS tables and private storage. Existing inactive projects were not touched. Initial catalog and synthetic A/B SQL RLS checks passed; actual JWT/Storage tests and production wiring remain OPEN. GitHub Actions failure still blocks merging PR #16 even though its SQL has been tested on the dedicated empty project.
 
 ## D-015 — Evidence-based releases (2026-10-09)
 Release gates are tracked by test level (static/unit, browser, authenticated DB, real provider and production) in `docs/v1/RELEASE_TEST_MATRIX.md`. Runner failures with missing steps/logs are not accepted as code validation. Manual browser and provider proofs cannot be replaced by successful TypeScript compilation.
