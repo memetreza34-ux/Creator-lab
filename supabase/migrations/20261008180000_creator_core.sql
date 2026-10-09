@@ -16,7 +16,7 @@ create table public.creator_workspaces (
 -- The workspace RPC alone is insufficient: a workspace owner can UPDATE the row.
 create function public.creator_guard_workspace_timezone()
 returns trigger language plpgsql set search_path = ''
-as $
+as $$
 begin
   if new.timezone is null or not exists (
     select 1 from pg_catalog.pg_timezone_names
@@ -26,7 +26,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 create trigger creator_workspaces_timezone_guard
 before insert or update of timezone on public.creator_workspaces
@@ -212,7 +212,7 @@ create table public.creator_post_destinations (
 -- at the database boundary for both browser and trusted backend writes.
 create function public.creator_guard_destination_identity()
 returns trigger language plpgsql security definer set search_path = ''
-as $
+as $$
 begin
   if new.social_account_id is not null and not exists (
     select 1
@@ -227,7 +227,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 create trigger creator_destinations_account_identity_guard
 before insert or update of social_account_id, workspace_id, platform, connection_mode
