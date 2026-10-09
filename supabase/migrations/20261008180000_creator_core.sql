@@ -439,3 +439,17 @@ create policy creator_storage_delete on storage.objects
     bucket_id = 'creator-media' and
     public.creator_can_edit(public.creator_storage_workspace(name))
   );
+
+
+-- Supabase applies default direct EXECUTE grants for anon on newly created
+-- public functions. REVOKE FROM PUBLIC alone is NOT sufficient for RPC lockdown.
+-- All browser-callable Creator Lab helpers require an authenticated session.
+revoke execute on function public.creator_is_member(uuid) from anon;
+revoke execute on function public.creator_can_edit(uuid) from anon;
+revoke execute on function public.creator_is_owner(uuid) from anon;
+revoke execute on function public.creator_create_workspace(text,text) from anon;
+revoke execute on function public.creator_storage_workspace(text) from anon;
+
+-- Trigger-only guards are never public RPC endpoints.
+revoke execute on function public.creator_guard_workspace_timezone() from public, anon;
+revoke execute on function public.creator_guard_destination_identity() from public, anon;
