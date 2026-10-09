@@ -38,11 +38,30 @@
 - TypeScript and production build green.
 - No fake live integrations.
 
+### AI trust and economics
+- Authenticated, workspace-authorized AI gateway, safe output rendering and no unauthorized model tool use.
+- Accountable AI usage limits/quotas by plan, cost controls, honest heuristic-vs-measured labeling, AI provider processing review.
+- AI Act transparency/marking and AI literacy review **where applicable to the actual use case and role**.
+
+### Customer and SaaS operations
+- First-session onboarding and honest supported platform explanations, not mock connected accounts in real workspaces.
+- Factual public product/help/contact/legal links and support/error recovery.
+- Security/privacy data inventory, GDPR processing rights, export/deletion, vendor agreements, backups and incident response.
+- Stage/prod separation, observability of jobs, AI costs and provider incidents, actual restore drills.
+- Usable navigation on mobile, accessible key flows and a professional consistent brand.
+
+### Additional MUST for a public **paid** launch (may defer during closed/free beta with payments disabled)
+- Reviewed Free/paid plan catalogue and clearly published eligible features, limits and pricing.
+- Verified server-owned billing subscriptions/entitlements/usage, hosted checkout and signed webhook reconciliation.
+- Full upgrade/downgrade/trial/past-due/cancel/invoice/refund user journeys without loss of existing customer content.
+- Germany/EU consumer purchase/cancellation, taxes/invoices and privacy/legal review for chosen sales geography.
+
 ## SHOULD
 
 - Posting queue / reusable posting slots.
 - Best-time recommendations derived from actual historical data when sample size is sufficient.
 - Simple export of analytics/experiment evidence.
+- Additional team plan or annual discount only after secure membership and billing approval.
 - TikTok integration only if audit access is realistically available without delaying V1 core.
 
 ## POST-V1
