@@ -85,9 +85,9 @@ Each task below has an immutable ID. Split into smaller PRs if tests, review or 
 
 ### B — Backend and production identity (depends on user-approved project)
 
-- **B-01 [BLOCKED]** Create a **dedicated** Supabase Creator Lab project; confirm selected organization, exact project cost and Frankfurt location. Do not modify the unrelated inactive projects.
-- **B-02 [BLOCKED]** Apply reviewed versioned migrations; run SQL preflight, check advisors, generate actual schema types. **PR #16 is code preparation only.**
-- **B-03 [BLOCKED]** Two-user security test: anonymous/member/viewer/editor/owner cases, workspace UUID guessing, cross-workspace foreign keys, storage path traversal; deny before enabling user write flows.
+- **B-01 [DONE]** Dedicated Creator Lab Supabase project created in `memetreza34-ux's Org`, Frankfurt (`eu-central-1`), ID `aoyrijspyygqoyeajxpf`, after €0/month project creation cost confirmation. Existing projects untouched; project ACTIVE_HEALTHY.
+- **B-02 [IN PROGRESS]** Three SQL migrations applied to dedicated empty database; source filenames now match recorded Supabase migration versions. Eight RLS tables/private bucket, SQL catalog preflight, generated TS types and security/performance advisor review completed. **PR #16 still not CI-validated/merged**, and RLS signed JWT/browser tests remain outstanding.
+- **B-03 [IN PROGRESS]** Synthetic A/B role/claim test passed on dedicated empty Supabase DB using an explicit SQL transaction/ROLLBACK (cross-workspace read/write, account identity guard, timezone). **Not a genuine Supabase-issued JWT or storage HTTP authorization test**. Still requires real Auth users, owner/editor/viewer/anonymous role cases, signed URLs, workspace guessing and privilege escalation negative checks.
 - **B-04 [READY after B-03]** Supabase client initialization, Auth sign-up/login/logout/password reset/session refresh, route guards, authenticated error states, safe redirect URLs.
 - **B-05 [READY after B-04]** Server-authoritative CRUD repositories for workspaces, pipeline, posts, destinations and media folders; replace `AppContext` local authority without double-write races.
 - **B-06 [READY after B-05]** Private Storage upload/read/delete, object cleanup/reconciliation, mime/size limits, media URL expiry, cross-device QA.
@@ -207,9 +207,9 @@ Each task below has an immutable ID. Split into smaller PRs if tests, review or 
 
 **New deep-dive specifications:** `docs/v1/PRODUCT_EXPERIENCE_BLUEPRINT.md` (customer/visual journey), `docs/v1/SUBSCRIPTIONS_AND_BILLING.md` (paid plans), `docs/v1/AI_GOVERNANCE_AND_PRODUCT.md` (cost/safety/AI Act), `docs/v1/SECURITY_PRIVACY_COMPLIANCE.md` (threat model/GDPR), `docs/v1/SAAS_OPERATIONS_AND_GROWTH.md` (marketing/support/SRE). All MUST/conditional status tracked above.
 
-**Current external decision:** user's chosen Supabase **organization** and actual new-project **cost** confirmation. Two existing inactive projects are **not** Creator Lab and must remain untouched.
+**Resolved external decision:** Creator Lab is provisioned in the selected Supabase organization in Frankfurt after a €0/month quote/confirmation. The two pre-existing projects remain untouched. **Remaining external approvals:** real provider OAuth/app setup and eventual commercial billing/price/legal launch decisions.
 
-**Current code blocker:** [PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) contains initial Supabase SQL/RLS, but its GitHub Actions run failed without usable steps/logs. SQL has not been executed and actual RLS is not proved.
+**Current code/validation blocker:** [PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) SQL was applied to the *separate dedicated* empty Creator Lab database and basic A/B SQL RLS simulation passed, but GitHub Actions still fails before job provisioning. Source PR unmerged. Actual issued-JWT/browsers, Storage and provider trust gates remain OPEN. [PR #20](https://github.com/memetreza34-ux/Creator-lab/pull/20) separately prepares a fail-closed pre-auth AI endpoint, not released.
 
 **Current QA blocker:** Phase 3 cross-timezone/manual responsive calendar test still needs evidence.
 
@@ -220,7 +220,7 @@ Each task below has an immutable ID. Split into smaller PRs if tests, review or 
 1. Finish **G-01**, incorporating **CX/AI/PAY/SEC/COM/OPS/GTM** specifications into the same documentation PR with honest current-state status.
 2. Then attempt **G-02** in a separate focused branch/PR or via the existing PR #16; identify CI infrastructure vs code failure before merging.
 3. While Supabase creation awaits cost/organization selection, implement **D-01** (safe branding/functional navigation audit) and **R-01** (CI reproducibility) only when isolated from backend branch.
-4. Once organization/cost is approved, continue **B-01 → B-03** before touching production Auth/Storage state.
+4. **B-01 is DONE and B-02/B-03 partially verified on an empty project**; implement authenticated two-user JWT/Storage proof next, then allow production Auth/CRUD integration only after security requirements pass.
 5. Proceed through B, P, A, D/R release gates to **M9**.
 
 **Important:** ChatGPT works only when invoked in a session or a separately configured scheduled task. This roadmap describes how to resume consistently; it does not claim unattended continuous work.
