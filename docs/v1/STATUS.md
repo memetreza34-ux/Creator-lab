@@ -1,14 +1,32 @@
 # V1 Status
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
-## Current phase
+## Current phase and delivery governance
 
-PHASE 3 — CALENDAR & SCHEDULING ENGINE
+**Active implementation:** PHASE 4 — BACKEND, AUTH & CLOUD DATA (foundation; production rollout blocked).
+**Open prior acceptance gate:** PHASE 3 — CALENDAR & SCHEDULING ENGINE manual browser / timezone / responsive QA.
+**Execution source:** [Delivery Master Plan](../DELIVERY_MASTER_PLAN.md). Per-feature UX: [Design System](DESIGN_SYSTEM_UX.md). Launch tests: [Release Test Matrix](RELEASE_TEST_MATRIX.md).
 
 ## Overall status
 
-Planning baseline established. Existing frontend is substantial, but production trust boundaries are incomplete.
+The existing frontend and local business logic are substantial but are **not yet production-connected**. A first-class PostDestination local model was merged in PR #15. Real Auth, server-controlled data, provider connections/jobs and authentic analytics are still missing. Product, competition, UX and release scope are now organized under one integrated delivery index in a documentation PR; this does **not** imply any feature was tested or shipped by documentation alone.
+
+### Immediate external and validation blockers (checked 2026-10-09)
+
+- **[PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) OPEN, not merged:** Supabase schema/RLS proposal. GitHub Actions failed before exposing usable execution steps/logs, and the rerun also failed. Do not call this CI green or merge without a credible rerun/validation.
+- **Supabase not created:** two connected inactive projects were seen, neither identifiable as Creator Lab. Supabase was selected as technology, but the dedicated project **organization and actual creation cost must be confirmed by the user** before creation. No DB migration has been applied.
+- **Phase 3 browser acceptance:** automated date tests passed earlier, but genuine cross-timezone Month/Week/Day + mobile interaction QA remains open.
+- **Production trust:** user identity and workspace authorization, cross-device durable media, real provider publishing and metrics still unverified.
+
+### Execution order
+
+1. **G-01:** merge execution docs/master design, competition and tests after credible CI.
+2. **G-02 / R-01:** diagnose and resolve PR #16 CI runner/build gate, review migration SQL without deploying it.
+3. **G-04 / D-03:** execute documented calendar browser/responsive manual acceptance.
+4. **B-01:** ask for Supabase organization and verify real project creation cost; only then create a **dedicated** project.
+5. **B-02 → B-03:** apply migrations, test actual A/B user RLS and Storage boundary.
+6. **B-04 onward:** authenticated state, media, YouTube OAuth/publish/jobs, analytics, experiments, final design/release gates. Task IDs and dependencies are in the master plan.
 
 ## Completed before this plan
 
@@ -165,23 +183,25 @@ Planning baseline established. Existing frontend is substantial, but production 
 
 ## Next exact task
 
-- Obtain explicit hosting/backend choice (recommended Supabase Auth + Postgres + private Storage), then set up actual production tables, policies and API authentication.
-- Add tested ownership checks for two independent users and multiple workspaces; do not build privileged write APIs before auth.
-- Plan safe import of user-entered browser-local data; do not import or disguise demonstration content as real user data.
-- Keep Phase 3 browser acceptance test open; code/CI success does not demonstrate real interactive calendar QA.
-- Do not enable OAuth/social publishing or a billing/Pro entitlement until underlying provider and server enforcement work.
+**G-02 — determine why GitHub Actions on PR #16 failed without steps/logs; do not infer that migration SQL passed or failed from absent logs.** Restore a credible CI run and review the SQL before any merge. If infra validation is blocked, work only on isolated unblocked design/QA tasks with their own gates. The user must explicitly choose the new Supabase organization and confirm its actual project-creation price before any project is created.
 
 ## Validation evidence
 
-Phase 4 destination contract PR is currently under CI review; do not treat it as merged until tests, TypeScript and production build pass.
-PR #14 (Phase 3) previously passed tests, TypeScript and production build.
+- PR #15 (local PostDestination contract): merged 2026-10-08 at `06944b6d98a24f1fc4ad9024b582b65e5aca11e8` after tests/TypeScript/production build succeeded.
+- PR #14 (Phase 3 local calendar/date work): passed automated tests, TypeScript and production build. Its manual browser acceptance is **still open**.
+- PR #16 (Supabase schema): **open with GitHub Actions failure before observable job steps/logs**; not a tested database deployment.
+- Delivery plan/design/competition/release matrix documentation PR: validation pending until a GitHub Actions run is available. Documentation is not production feature acceptance.
 
 ## Phase transition
 
-**PHASE 0 — FOUNDATION: COMPLETE**
+**PHASE 0 — FOUNDATION: COMPLETE (local foundations)**
 
-**PHASE 1 — COMPOSER EXCELLENCE: COMPLETE**
+**PHASE 1 — COMPOSER EXCELLENCE: COMPLETE (local Composer; real platform features deferred to Phase 5)**
 
-**PHASE 2 — CONTENT OPERATIONS: COMPLETE**
+**PHASE 2 — CONTENT OPERATIONS: COMPLETE (local workflow; cloud migration Phase 4)**
 
-**Current phase: PHASE 3 — CALENDAR & SCHEDULING ENGINE**
+**PHASE 3 — CALENDAR: implementation complete, MANUAL BROWSER QA OPEN**
+
+**PHASE 4 — BACKEND / AUTH / CLOUD: active, NOT COMPLETE**
+
+**PHASE 5–8 — NOT COMPLETE**
