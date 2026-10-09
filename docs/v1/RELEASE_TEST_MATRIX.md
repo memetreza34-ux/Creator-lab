@@ -37,6 +37,17 @@ A route screenshot is **L1 visual evidence only**, not L2 data security or L3 pu
 | E2E-19 | User data/account delete and irreversible action confirmation | Defined policy, no orphan files/jobs | R-04 |
 | E2E-20 | Fresh onboarding and critical flows on 375px mobile viewport | All essential controls reachable without unsupported overflow | D-03..D-06 |
 
+| E2E-21 | Free user hits AI quota with concurrent requests and retries | No double metering, overcharge, unbounded model spend or lost draft | AI-02..03 / PAY-02 |
+| E2E-22 | Subscriber buys Pro in payment sandbox, closes tab before return | Server webhook alone grants entitlement exactly once | PAY-02..05 |
+| E2E-23 | Forged/replayed/out-of-order payment events | No unearned Pro access, no double bill, correct invoice history | PAY-03..05 |
+| E2E-24 | Upgrade/downgrade/cancel from mobile and payment failure | Full price and renewal/cancellation terms, preserved data and access policy | PAY-04..06 |
+| E2E-25 | Privacy export/delete and integration revoke for two accounts | Only own data returned/deleted, tokens revoked, retention exceptions documented | COM-01..03 |
+| E2E-26 | Inject adversarial instructions into media captions or analytics | AI cannot override authorization, access secrets or publish | AI-02 / SEC-03 |
+| E2E-27 | Deepfake/AI-generated media or public-interest text case | Correct role-specific transparency/marking or unsupported mode blocked | AI-04 / COM-04 |
+| E2E-28 | New customer sees marketing/pricing then first draft | Honest supported providers, no dead CTAs, useful activation without fake metrics | CX-01..04 / GTM-02 |
+| E2E-29 | Private media and original draft survive backup restore in staging | Restored ownership/media/jobs consistent without leaks | OPS-01 / SEC-04 |
+| E2E-30 | Auth/AI/provider outage and failed billing notifications | Users see actionable recovery, alert/support flow and no fabricated success | OPS-02..04 |
+
 ## 3. Module test depth
 
 | Module | Unit | Integration | Browser/manual | Provider/production |
@@ -50,6 +61,15 @@ A route screenshot is **L1 visual evidence only**, not L2 data security or L3 pu
 | Experiments | observations/sample thresholds | linked evidence rows | compare and explain | measured live posts |
 | Media | reference cleanup | Storage RLS/MIME/quota | upload/preview/delete | cross-device and expiring URL |
 | Design | component state/keyboard semantics | none | viewport, focus, contrast, reduced motion | production browser smoke |
+
+## Paid, compliance and business test evidence
+
+The new E2E-21..30 cases are required for applicable AI/public/commercial stages. A release gate records the actual environment, user identity, billing *test mode* and provider evidence; it is not passed by static inspection.
+
+- Billing must cover signed webhook signature checks, retries, out-of-order delivery, tax/receipts, decline, refund, cancellation and grace policy without double charges.
+- AI must cover user/workspace authorization, adversarial prompt-injection, quotas/budget exhaustion, output sanity, model outage and original draft preservation.
+- Compliance must include real privacy/export/deletion flow, required consent, role-specific AI Act transparency review and legal/customer service links.
+- Operations must test backup restore, staging migration/rollback, alert delivery and supported product claim verification.
 
 ## 4. Nonfunctional release gates
 
