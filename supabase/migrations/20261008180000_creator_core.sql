@@ -12,6 +12,26 @@ create table public.creator_workspaces (
   updated_at timestamptz not null default now()
 );
 
+-- Reject invalid timezone values on *every* write, including owner updates.
+-- The workspace RPC alone is insufficient: a workspace owner can UPDATE the row.
+create function public.creator_guard_workspace_timezone()
+returns trigger language plpgsql set search_path = ''
+as $
+begin
+  if new.timezone is null or not exists (
+    select 1 from pg_catalog.pg_timezone_names
+    where name = new.timezone
+  ) then
+    raise exception 'Invalid IANA timezone' using errcode = '22023';
+  end if;
+  return new;
+end;
+$;
+
+create trigger creator_workspaces_timezone_guard
+before insert or update of timezone on public.creator_workspaces
+for each row execute function public.creator_guard_workspace_timezone();
+
 create table public.creator_workspace_members (
   workspace_id uuid not null references public.creator_workspaces(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -185,6 +205,34 @@ create table public.creator_post_destinations (
     on delete set null (social_account_id),
   check (status <> 'scheduled' or scheduled_at is not null)
 );
+
+-- Cross-workspace FKs prevent foreign account references, but do NOT prevent a
+-- client from mislabeling an OAuth account as a "demo" destination or attaching
+-- a destination to an unrelated platform. Guard the immutable account identity
+-- at the database boundary for both browser and trusted backend writes.
+create function public.creator_guard_destination_identity()
+returns trigger language plpgsql security definer set search_path = ''
+as $
+begin
+  if new.social_account_id is not null and not exists (
+    select 1
+    from public.creator_social_accounts a
+    where a.id = new.social_account_id
+      and a.workspace_id = new.workspace_id
+      and a.platform = new.platform
+      and a.connection_mode = new.connection_mode
+  ) then
+    raise exception 'Destination does not match its connected account identity'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$;
+
+create trigger creator_destinations_account_identity_guard
+before insert or update of social_account_id, workspace_id, platform, connection_mode
+on public.creator_post_destinations
+for each row execute function public.creator_guard_destination_identity();
 
 create table public.creator_media_folders (
   id uuid primary key default gen_random_uuid(),
