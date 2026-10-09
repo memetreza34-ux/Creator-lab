@@ -60,6 +60,42 @@ begin
     raise exception 'Unrestricted Creator Lab policy detected';
   end if;
 
+  -- A workspace-owner update can bypass the workspace creation RPC, so the
+  -- timezone validator must be attached as a database trigger.
+  if not exists (
+    select 1 from pg_catalog.pg_trigger t
+    join pg_catalog.pg_class c on c.oid = t.tgrelid
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'creator_workspaces'
+      and t.tgname = 'creator_workspaces_timezone_guard'
+      and not t.tgisinternal
+      and t.tgenabled in ('O','A')
+  ) then
+    raise exception 'Creator Lab timezone guard missing or disabled';
+  end if;
+
+  -- Per-workspace foreign keys alone do not ensure a destination's
+  -- platform/connection_mode agrees with the referenced social account.
+  if not exists (
+    select 1 from pg_catalog.pg_trigger t
+    join pg_catalog.pg_class c on c.oid = t.tgrelid
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'creator_post_destinations'
+      and t.tgname = 'creator_destinations_account_identity_guard'
+      and not t.tgisinternal
+      and t.tgenabled in ('O','A')
+  ) then
+    raise exception 'Creator Lab destination account guard missing or disabled';
+  end if;
+
+  if pg_catalog.has_function_privilege(
+    'anon', 'public.creator_create_workspace(text,text)', 'EXECUTE'
+  ) then
+    raise exception 'Anonymous client can execute workspace creation';
+  end if;
+
   raise notice 'Creator Lab schema/RLS catalog preflight passed';
 end
 $check$;
