@@ -183,6 +183,7 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Database SQL catalog preflight completed successfully after correcting two function delimiter errors and revoking explicit `anon` EXECUTE grants that Supabase provided to public schema functions by default.
 - Corrected two additional integrity weaknesses: owner timezone edits now require real timezone names, and destination accounts must match platform and connection mode.
 - Supabase database types generated and committed; missing FK indexes fixed. Four authenticated SECURITY DEFINER functions still trigger an advisor warning **by design**, and need live two-user authorization proof.
+- **Role matrix SQL PASS:** a second rollback-only DB probe verified owner/editor/viewer read-write boundaries and prevention of role escalation; eight public tables empty after test. This still simulates claims instead of exercising issued JWTs or Storage HTTP APIs.
 - **NOT DONE:** real Supabase Auth users/JWT testing, browser cloud data integration, actual media upload tests, OAuth secrets/publishing, checkout/entitlements. GitHub Actions still fails before runner steps; PR #16 must not be called CI green.
 
 ## Next exact task
