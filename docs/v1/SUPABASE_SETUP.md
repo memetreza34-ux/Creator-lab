@@ -86,6 +86,7 @@ Tests must use actual authenticated JWT sessions and check both successful and d
 - Performance advisor now reports only unused indexes expected on empty tables. Missing foreign-key index warnings were addressed.
 - Generated database TypeScript definitions are committed as `src/backend/database.types.ts`.
 - **SQL-level A/B role probe executed:** `supabase/verify/002_transactional_rls_probe.sql` uses temporary test Auth rows plus simulated JWT claims under PostgreSQL `authenticated` role; it passed, and every table remained empty after `ROLLBACK`. This checks RLS semantics but does **not** prove actual Supabase-issued JWTs, account lifecycle or storage HTTP permissions.
+- **Additional SQL role verification PASSED:** `supabase/verify/003_role_matrix_rollback.sql` simulated three authenticated identities with server-seeded owner/editor/viewer membership. Viewer read-only and escalation denial, editor content editing with owner-setting denial, and owner workspace mutation were all verified. Test transaction rolled back; the eight public tables remain empty. This is not proof of JWT signature validation or real HTTP Storage access.
 - **NEXT: real two-user Supabase Auth RLS/storage tests and authenticated client integration.** Do not describe Phase 4 as complete until they pass.
 
 ## Deployment stages
