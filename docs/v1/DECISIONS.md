@@ -45,3 +45,18 @@ Supabase is the selected backend technology. No existing inactive Supabase proje
 
 ## D-015 — Evidence-based releases (2026-10-09)
 Release gates are tracked by test level (static/unit, browser, authenticated DB, real provider and production) in `docs/v1/RELEASE_TEST_MATRIX.md`. Runner failures with missing steps/logs are not accepted as code validation. Manual browser and provider proofs cannot be replaced by successful TypeScript compilation.
+
+## D-016 — Customer-first SaaS scope and commercial readiness (2026-10-09)
+The V1 must be useful to an actual new creator, not a visually polished prototype with empty integrations. The customer journey and design are specified in `PRODUCT_EXPERIENCE_BLUEPRINT.md`. Commercial paid launch requires `SUBSCRIPTIONS_AND_BILLING.md` gates; free/private beta may precede charging but must not advertise unimplemented entitlements.
+
+## D-017 — Pro/Studio packages are hypotheses, not offers (2026-10-09)
+Free / Creator Pro / optional Studio are candidates for interviews; illustrative prices and usage in `SUBSCRIPTIONS_AND_BILLING.md` have **not** been approved or enabled. No "unlimited" usage or billing provider is committed. Workspace subscriptions and limits must be authoritative on the server.
+
+## D-018 — AI with explicit human control and cost/safety boundaries (2026-10-09)
+AI in the Composer remains a suggestion/review workflow; it must never write to foreign workspaces or publish without an independent authorized action. Production AI requests require Auth, rate/cost caps, bounded prompt/response and provenance/evaluation. Article 50/AI Act duties are determined per actual role and use case, not asserted universally. See `AI_GOVERNANCE_AND_PRODUCT.md`.
+
+## D-019 — GDPR/security and commercial compliance are launch gates (2026-10-09)
+Privacy-by-design, storage isolation, verified provider tokens, data export/deletion, retention, processor agreements, German/EU commerce rules, legal text and breach processes are tracked in `SECURITY_PRIVACY_COMPLIANCE.md`. No compliance certification is claimed by a document.
+
+## D-020 — Real business operations and evidence (2026-10-09)
+Operational product includes actual staging/prod boundaries, support, transactional notifications, monitoring/incident response, backups/restore, truthful marketing, and a cost-based plan. See `SAAS_OPERATIONS_AND_GROWTH.md`; a feature is not accepted simply because a route renders.
