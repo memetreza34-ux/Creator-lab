@@ -43,7 +43,7 @@ Copy `.env.example` into your local environment and provide only the server-side
 
 [Open PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) proposes the first Supabase schema and RLS rules. **It is not merged or applied.** Create a *separate Creator Lab Supabase project* only after confirming the user's chosen organization and actual project cost. The two existing inactive Supabase projects must not be repurposed without consent.
 
-Details: [Phase 4 requirements](docs/v1/phases/PHASE_04_BACKEND_AUTH.md) and, once PR #16 is validated/merged, [Supabase deployment runbook](docs/v1/SUPABASE_SETUP.md).
+Details: [Phase 4 requirements](docs/v1/phases/PHASE_04_BACKEND_AUTH.md) and, once PR #16 is validated/merged, [Supabase deployment runbook (open PR #16)](https://github.com/memetreza34-ux/Creator-lab/blob/phase-4/supabase-schema-rls/docs/v1/SUPABASE_SETUP.md).
 
 ## Product principle
 
