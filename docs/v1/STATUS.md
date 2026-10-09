@@ -196,7 +196,9 @@ The existing frontend and local business logic are substantial but are **not yet
 
 ## Next exact task
 
-**G-02 / R-01 — resolve GitHub Actions validation that fails before first job step on PR #16, #17 and #18 ([Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19)). After CI resumes, validate and merge PR #17 (complete planning) and PR #18 (branding) separately; validate SQL thoroughly before PR #16 merge. Current implementation priority afterward is **B-01 → B-03** (Supabase dedicated project and two-user security proof); next customer-facing development includes onboarding and billing architecture after trust boundary. Unresolved company/tariff/checkout decisions only block commercial activation, not safe isolated development. **do not infer that migration SQL passed or failed from absent logs. do not infer that migration SQL passed or failed from absent logs.** Restore a credible CI run and review the SQL before any merge. If infra validation is blocked, work only on isolated unblocked design/QA tasks with their own gates. The user must explicitly choose the new Supabase organization and confirm its actual project-creation price before any project is created.
+**G-02 / R-01 — resolve GitHub Actions jobs failing before their first step** for PR #16, #17 and #18 (tracked in [Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19)). Obtain the actual runner error from GitHub, restore credible automated tests/TypeScript/build, then review/merge documentation PR #17 and navigation PR #18 separately. Review SQL and actual RLS validation before merging or deploying PR #16.
+
+**Then B-01 → B-03:** confirm the dedicated Supabase project organization and creation cost with the user, set up the isolated project, apply/test migrations, and prove tenant isolation with two authenticated users. Safe design/AI evaluation/QA tasks can proceed while external approvals are pending. Commercial payment activation remains blocked until actual prices, billing provider, cost model and DE/EU legal/tax requirements are approved.
 
 ## Validation evidence
 
