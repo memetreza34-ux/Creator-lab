@@ -7,6 +7,19 @@ const migration = readFileSync(
   'utf8',
 );
 
+const aclMigration = readFileSync(
+  new URL('../../supabase/migrations/20261009163313_creator_function_acl.sql', import.meta.url),
+  'utf8',
+);
+const hardeningMigration = readFileSync(
+  new URL('../../supabase/migrations/20261009163442_creator_security_indexes.sql', import.meta.url),
+  'utf8',
+);
+const rlsProbe = readFileSync(
+  new URL('../../supabase/verify/002_transactional_rls_probe.sql', import.meta.url),
+  'utf8',
+);
+
 const workspaceTables = [
   'creator_workspaces',
   'creator_workspace_members',
@@ -76,4 +89,59 @@ test('a destination cannot disguise a real account as demo or change platform', 
     migration,
     /before insert or update of social_account_id, workspace_id, platform, connection_mode\s+on public\.creator_post_destinations/i,
   );
+});
+
+test('Supabase default direct anonymous function grants are explicitly removed', () => {
+  for (const name of [
+    'creator_is_member(uuid)',
+    'creator_can_edit(uuid)',
+    'creator_is_owner(uuid)',
+    'creator_create_workspace(text,text)',
+    'creator_storage_workspace(text)',
+  ]) {
+    assert.ok(
+      migration.includes(`revoke execute on function public.${name} from anon;`),
+      `Missing bootstrap anonymous revoke on ${name}`,
+    );
+    assert.ok(
+      aclMigration.includes(`revoke execute on function public.${name} from anon;`),
+      `Missing forward migration anonymous revoke on ${name}`,
+    );
+  }
+});
+
+test('internal triggers do not grant direct anonymous or authenticated RPC access', () => {
+  for (const name of [
+    'creator_guard_workspace_timezone()',
+    'creator_guard_destination_identity()',
+  ]) {
+    assert.ok(
+      migration.includes(
+        `revoke execute on function public.${name} from public, anon, authenticated;`,
+      ),
+    );
+    assert.ok(
+      hardeningMigration.includes(`revoke execute on function public.${name} from authenticated;`),
+    );
+  }
+});
+
+test('composite relationship indexes are present for parent updates and deletes', () => {
+  for (const name of [
+    'creator_posts_source_item',
+    'creator_destinations_social_account',
+    'creator_assets_folder',
+  ]) {
+    assert.ok(migration.includes(`create index ${name} on public.`));
+    assert.ok(hardeningMigration.includes(`create index if not exists ${name}`));
+  }
+});
+
+test('transactional tenant probe is rollback-only and uses authenticated role', () => {
+  assert.match(rlsProbe, /set local role authenticated/i);
+  assert.match(rlsProbe, /creator_create_workspace\('Temporary A'/i);
+  assert.match(rlsProbe, /creator_create_workspace\('Temporary B'/i);
+  assert.match(rlsProbe, /exception when insufficient_privilege/i);
+  assert.match(rlsProbe, /exception when check_violation/i);
+  assert.match(rlsProbe.trimEnd(), /rollback;$/i);
 });
