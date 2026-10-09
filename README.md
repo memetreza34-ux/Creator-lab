@@ -41,7 +41,7 @@ Copy `.env.example` into your local environment and provide only the server-side
 
 ## Backend release gate
 
-[Open PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) proposes the first Supabase schema and RLS rules. **It is not merged or applied.** Create a *separate Creator Lab Supabase project* only after confirming the user's chosen organization and actual project cost. The two existing inactive Supabase projects must not be repurposed without consent.
+[Open PR #16](https://github.com/memetreza34-ux/Creator-lab/pull/16) contains the first Supabase schema and RLS rules. **The dedicated Creator Lab project is already created in Frankfurt** (ref `aoyrijspyygqoyeajxpf`; project creation quoted/confirmed at €0/month), and three SQL migrations were applied successfully. SQL security preflight and a rollback-only simulated two-user RLS probe passed. **PR #16 is not merged or CI green**, and actual Auth JWT/Storage tests and browser integration are still pending. The two older Supabase projects remain untouched.
 
 Details: [Phase 4 requirements](docs/v1/phases/PHASE_04_BACKEND_AUTH.md) and, once PR #16 is validated/merged, [Supabase deployment runbook (open PR #16)](https://github.com/memetreza34-ux/Creator-lab/blob/phase-4/supabase-schema-rls/docs/v1/SUPABASE_SETUP.md).
 
