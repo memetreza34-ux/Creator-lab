@@ -90,11 +90,22 @@ begin
     raise exception 'Creator Lab destination account guard missing or disabled';
   end if;
 
-  if pg_catalog.has_function_privilege(
-    'anon', 'public.creator_create_workspace(text,text)', 'EXECUTE'
-  ) then
-    raise exception 'Anonymous client can execute workspace creation';
-  end if;
+  -- Every Creator Lab function is an RPC-like object as far as Supabase
+  -- default privileges are concerned; anon must never receive EXECUTE.
+  foreach table_name in array array[
+    'public.creator_is_member(uuid)',
+    'public.creator_can_edit(uuid)',
+    'public.creator_is_owner(uuid)',
+    'public.creator_create_workspace(text,text)',
+    'public.creator_storage_workspace(text)',
+    'public.creator_guard_workspace_timezone()',
+    'public.creator_guard_destination_identity()'
+  ]
+  loop
+    if pg_catalog.has_function_privilege('anon', table_name, 'EXECUTE') then
+      raise exception 'Anonymous EXECUTE privilege remains on: %', table_name;
+    end if;
+  end loop;
 
   raise notice 'Creator Lab schema/RLS catalog preflight passed';
 end
