@@ -101,6 +101,21 @@ A clear, modern, **premium creator workspace**, not a generic admin template: fo
 - Clear distinction between user-entered assumptions, AI interpretation and measured results.
 - From insight → create experiment → link variant to Composer with minimal friction.
 
+### Pricing, billing & usage (new paid SaaS views)
+
+- Marketing pricing: Free and only *actually released* paid plans, supported platforms and real feature caps. Show total with tax where applicable, renewal term, cancellation and trial conditions; no false comparison badges.
+- Signed-in plan manager: current plan with source/period, usage meters and reset dates (AI requests, private media quota, channel allowance), invoices, payment method, upgrade/downgrade/cancel actions.
+- Handle payment processing/3-D Secure, failed invoices, grace periods, past-due, refunds, webhook delay and downgrade-below-limit honestly without wiping data.
+- Checkout and cancellation UI must work on mobile, keyboard, screen reader and non-logged-in cancellation path where legally required. Support link always reachable.
+- Plans/quotas displayed from server-authoritative entitlements rather than optimistic client state; never show a green paid badge from unverified redirect.
+
+### AI assist, accountability & legal transparency
+
+- A contextual creator-facing assistant, not a separate generic AI app. Clear suggestion context, limits, revision history, Apply/Discard/diff, and no autonomous publishing controls.
+- Explain AI origin and heuristics vs measurement; if future synthetic media/deepfake capabilities require metadata/disclosure under applicable AI Act provisions, show a review workflow at generate/export/publish.
+- Show remaining allowance/cost estimate before expensive calls, errors/retries without content loss, and practical AI misuse report/help affordance.
+- Create a design-review state matrix for failure, model refusal, privacy-sensitive content, wrong metrics and quota exhaustion.
+
 ### Settings, errors and support (`SettingsPage`, new account views)
 
 - Workspace name/timezone, member role/permissions (when enabled), connected channels, privacy and account/data deletion.
