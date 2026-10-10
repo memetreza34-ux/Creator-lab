@@ -197,14 +197,20 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
         id + '&order=sort_order.asc,created_at.asc');
     },
 
-    async createContentItem(workspaceId: string, title: string): Promise<CloudContentItem> {
+    async createContentItem(
+      workspaceId: string, title: string,
+      details?: Omit<CloudContentChanges, 'title'>,
+    ): Promise<CloudContentItem> {
       const id = requireUuid(workspaceId, 'workspace ID');
-      if (!title.trim() || title.trim().length > 240) {
+      if (typeof title !== 'string' || !title.trim() || title.trim().length > 240) {
         throw new Error('Content title must be between 1 and 240 characters');
       }
+      // One atomic INSERT, never an INSERT followed by a PATCH that could fail
+      // halfway and leave an invisible/duplicated draft.
+      const valid = details === undefined ? {} : normalizeContentChanges(details);
       const rows = await request<CloudContentItem[]>('POST',
         '/rest/v1/creator_content_items?select=*',
-        { workspace_id: id, title: title.trim() }, true);
+        { workspace_id: id, title: title.trim(), ...valid }, true);
       if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== id) {
         throw new Error('Cloud content write was not confirmed by the server');
       }
