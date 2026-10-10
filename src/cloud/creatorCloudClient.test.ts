@@ -103,7 +103,7 @@ test('content queries require valid workspace UUIDs and stay workspace scoped', 
       });
     },
   });
-  await assert.rejects(client.listContentItems('not-a-workspace-id'), /Invalid workspace ID/);
+  assert.throws(() => client.listContentItems('not-a-workspace-id'), /Invalid workspace ID/);
   assert.equal(requests, 0);
   assert.deepEqual(await client.listContentItems(workspaceId), []);
   assert.equal(requests, 1);
