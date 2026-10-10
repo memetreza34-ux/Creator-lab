@@ -1,4 +1,4 @@
-import { Experiment } from '../types';
+import type { Experiment } from '../types';
 
 /**
  * Records the creator's *manual preference* between two creative variations.
