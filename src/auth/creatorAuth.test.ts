@@ -125,7 +125,8 @@ test('signup and recovery do not claim an account exists or sign in without a se
 test('signing out is final even when a refresh returns later', async () => {
   const storage = fakeStorage();
   let releaseRefresh: ((response: Response) => void) | undefined;
-  const auth = createCreatorAuth({ url, publishableKey, storage, now: () => 4000000,
+  let clock = 1000;
+  const auth = createCreatorAuth({ url, publishableKey, storage, now: () => clock,
     fetchImpl: (async (input) => {
       if (String(input).includes('grant_type=refresh_token')) {
         return new Promise<Response>((resolve) => { releaseRefresh = resolve; });
@@ -138,16 +139,16 @@ test('signing out is final even when a refresh returns later', async () => {
     }) as typeof fetch,
   });
   await auth.signIn('creator@example.test', 'test');
-  // Simulate expiration after an initially successful login.
-  const saved = JSON.parse([...storage.data.values()][0]);
-  saved.expiresAt = 1000;
-  storage.setItem([...storage.data.keys()][0], JSON.stringify(saved));
+  clock = 4000000;
+  const inFlight = auth.getAccessToken();
+  for (let attempt = 0; attempt < 10 && !releaseRefresh; attempt++) await Promise.resolve();
+  assert.ok(releaseRefresh, 'expired token must trigger a refresh');
   await auth.signOut();
   assert.equal(auth.identity(), null);
-  assert.equal(storage.data.size, 0);
-  // A late network reply must not re-create the local session.
-  assert.equal(await auth.getAccessToken(), null);
-  assert.equal(releaseRefresh, undefined);
+  releaseRefresh(json(response()));
+  assert.equal(await inFlight, null);
+  assert.equal(auth.identity(), null);
+  assert.equal(storage.data.size, 0, 'late refresh must not re-create a signed-out session');
 });
 
 test('authentication errors never surface raw server secrets', async () => {
