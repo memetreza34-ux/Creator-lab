@@ -15,11 +15,13 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ExperimentLabPage } from './pages/ExperimentLabPage';
 import { SocialAccountsPage } from './pages/SocialAccountsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CloudAccountPage } from './pages/CloudAccountPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/cloud" element={<CloudAccountPage />} />
         <Route path="/" element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="create" element={<CreatePostPage />} />
