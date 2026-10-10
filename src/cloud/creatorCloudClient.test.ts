@@ -143,3 +143,20 @@ test('cloud requests never disclose raw response bodies or JWTs in errors', asyn
     return true;
   });
 });
+
+test('user JWT payloads containing non-ASCII metadata remain valid UTF-8', async () => {
+  const claims = {
+    role: 'authenticated',
+    sub: userId,
+    user_metadata: { display_name: 'München — 東京' },
+  };
+  const token = 'e30.' + Buffer.from(JSON.stringify(claims)).toString('base64url') + '.test';
+  const client = createCreatorCloudClient({
+    ...opts,
+    getAccessToken: () => token,
+    fetchImpl: async () => new Response('[]', {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }),
+  });
+  assert.deepEqual(await client.listWorkspaces(), []);
+});
