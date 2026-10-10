@@ -69,6 +69,20 @@ export function CloudPipelinePanel({ cloud, workspaceId }: {
     return () => { active = false; };
   }, [load]);
 
+  async function reload() {
+    if (busyId) return;
+    setLoading(true);
+    setError('');
+    setNotice('');
+    try {
+      setItems(await load());
+    } catch (err) {
+      setError(describeError(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function perform(label: string, op: () => Promise<unknown>) {
     if (busyId) return;
     setBusyId(label);
@@ -82,7 +96,7 @@ export function CloudPipelinePanel({ cloud, workspaceId }: {
     } catch (err) {
       // A write can succeed while a follow-up read fails: never claim it did
       // not reach the server. Reload from the server before retrying a write.
-      setError('Unable to confirm the current server state. Reload before retrying. ' +
+      setError('Unable to confirm the current server state. Reload before retrying a write. ' +
         describeError(err));
     } finally {
       setBusyId(null);
@@ -108,7 +122,8 @@ export function CloudPipelinePanel({ cloud, workspaceId }: {
     setEditingId(item.id);
     setEditTitle(item.title);
     setEditNotes(item.notes);
-    setEditFormat(item.format as CloudContentFormat);
+    setEditFormat(CLOUD_CONTENT_FORMATS.includes(item.format as CloudContentFormat) ?
+      item.format as CloudContentFormat : 'short');
     setEditDate(item.target_date ?? '');
     setEditPlatforms(item.platforms.filter((p): p is CloudContentPlatform =>
       (CLOUD_CONTENT_PLATFORMS as readonly string[]).includes(p)));
@@ -157,12 +172,18 @@ export function CloudPipelinePanel({ cloud, workspaceId }: {
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-5" aria-label="Cloud content pipeline">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Cloud content pipeline</h2>
-        <p className="mt-1 text-xs text-zinc-600">
-          Ideas → Research → Script → Recording → Editing → Ready → Planned → Published.
-          These are manual workflow stages, not provider-confirmed publishing statuses.
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Cloud content pipeline</h2>
+          <p className="mt-1 text-xs text-zinc-600">
+            Ideas → Research → Script → Recording → Editing → Ready → Planned → Published.
+            These are manual workflow stages, not provider-confirmed publishing statuses.
+          </p>
+        </div>
+        <button type="button" disabled={busyId !== null || loading}
+          onClick={() => { void reload(); }} className={actionStyle}>
+          Reload from cloud
+        </button>
       </div>
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
       {notice && <p role="status" className="mb-3 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</p>}
