@@ -84,6 +84,7 @@ export function createCreatorAuth(options: {
   const now = options.now ?? Date.now;
   let session: SessionTokens | null = null;
   let refreshPending: Promise<string | null> | null = null;
+  let authEpoch = 0; // Prevent in-flight refresh/login from reviving a signed-out session.
   const listeners = new Set<(identity: AuthIdentity | null) => void>();
 
   function identity(): AuthIdentity | null {
@@ -138,11 +139,11 @@ export function createCreatorAuth(options: {
     }
   }
 
-  async function acceptTokens(data: AuthResponse): Promise<AuthIdentity> {
+  async function acceptTokens(data: AuthResponse, expectedEpoch = authEpoch): Promise<AuthIdentity> {
     const token = data.access_token;
     const refresh = data.refresh_token;
     const seconds = data.expires_in;
-    if (!token || !refresh || !Number.isFinite(seconds) || (seconds ?? 0) <= 0 ||
+    if (!token || !refresh || typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0 ||
         !data.user?.id || data.user.is_anonymous === true) {
       throw new CreatorAuthError('Authentication response did not include a valid user session');
     }
@@ -154,6 +155,7 @@ export function createCreatorAuth(options: {
     if (verified.id !== data.user.id || verified.is_anonymous === true) {
       throw new CreatorAuthError('Authenticated user identity could not be verified');
     }
+    if (authEpoch !== expectedEpoch) throw new CreatorAuthError('Session changed. Sign in again.');
     setSession({
       accessToken: token,
       refreshToken: refresh,
@@ -168,12 +170,13 @@ export function createCreatorAuth(options: {
     if (!session) return null;
     if (refreshPending) return refreshPending;
     const oldSession = session;
+    const epochAtStart = authEpoch;
     const pending = (async () => {
       try {
         const response = await call<AuthResponse>('/auth/v1/token?grant_type=refresh_token',
           'POST', { refresh_token: oldSession.refreshToken });
         if (!response.user) response.user = { id: oldSession.userId, email: oldSession.email };
-        await acceptTokens(response);
+        await acceptTokens(response, epochAtStart);
         return session?.accessToken ?? null;
       } catch {
         if (session === oldSession) setSession(null);
@@ -228,16 +231,18 @@ export function createCreatorAuth(options: {
   }
 
   async function signIn(email: string, password: string): Promise<AuthIdentity> {
+    const epochAtStart = authEpoch;
     const data = await call<AuthResponse>('/auth/v1/token?grant_type=password',
       'POST', { email: email.trim(), password });
-    return acceptTokens(data);
+    return acceptTokens(data, epochAtStart);
   }
 
   async function signUp(email: string, password: string, redirectTo: string): Promise<SignupResult> {
+    const epochAtStart = authEpoch;
     const data = await call<AuthResponse>('/auth/v1/signup?redirect_to=' +
       encodeURIComponent(redirectTo), 'POST', { email: email.trim(), password });
     if (data.access_token) {
-      await acceptTokens(data);
+      await acceptTokens(data, epochAtStart);
       return 'signed-in';
     }
     return 'confirmation-required';
@@ -256,6 +261,7 @@ export function createCreatorAuth(options: {
 
   async function acceptRedirect(hash: string): Promise<'recovery' | 'signup' | null> {
     const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+    const epochAtStart = authEpoch;
     const access_token = params.get('access_token');
     const refresh_token = params.get('refresh_token');
     if (!access_token && !refresh_token) return null;
@@ -263,12 +269,13 @@ export function createCreatorAuth(options: {
     const expires_in = Number(params.get('expires_in') ?? '3600');
     const user = await call<{ id: string; email?: string; is_anonymous?: boolean }>(
       '/auth/v1/user', 'GET', undefined, access_token);
-    await acceptTokens({ access_token, refresh_token, expires_in, user });
+    await acceptTokens({ access_token, refresh_token, expires_in, user }, epochAtStart);
     return params.get('type') === 'recovery' ? 'recovery' : 'signup';
   }
 
   async function signOut(): Promise<void> {
     const token = session?.accessToken;
+    authEpoch++;
     setSession(null); // No stale cloud access, even if the network fails.
     if (!token) return;
     try {
