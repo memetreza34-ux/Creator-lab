@@ -47,7 +47,8 @@ test('refuses secret keys and service-role legacy JWTs', () => {
 
 test('a denied write must have non-2xx status', () => {
   mustBeDenied({ status: 403 }, 'forbidden write');
-  assert.throws(() => mustBeDenied({ status: 201 }, 'forbidden write'), /unexpectedly succeeded/);
+  assert.throws(() => mustBeDenied({ status: 201 }, 'forbidden write'), /expected authorization rejection/);
+  assert.throws(() => mustBeDenied({ status: 500 }, 'broken server'), /expected authorization rejection/);
 });
 
 test('RLS reads and updates must return explicitly empty arrays', () => {
