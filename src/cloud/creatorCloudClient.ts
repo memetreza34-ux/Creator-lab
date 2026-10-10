@@ -33,6 +33,27 @@ export class CloudAuthenticationRequired extends Error {
   }
 }
 
+function requireAuthenticatedUserToken(token: string): void {
+  // Defense in depth only. The Supabase API verifies the JWT signature/expiry.
+  // This prevents accidentally sending a service_role JWT from frontend code.
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new Error('Invalid JWT shape');
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(payload)) as {
+      role?: string;
+      sub?: string;
+      is_anonymous?: boolean;
+    };
+    if (claims.role !== 'authenticated' || !claims.sub ||
+        !UUID.test(claims.sub) || claims.is_anonymous === true) {
+      throw new Error('Not an authenticated user JWT');
+    }
+  } catch {
+    throw new CloudAuthenticationRequired();
+  }
+}
+
 function requireUuid(value: string, label: string): string {
   if (!UUID.test(value)) throw new Error('Invalid ' + label);
   return value;
@@ -64,6 +85,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
     if (!token || typeof token !== 'string' || token.trim().length === 0) {
       throw new CloudAuthenticationRequired();
     }
+    requireAuthenticatedUserToken(token);
     const response = await requestFetch(url.origin + path, {
       method,
       headers: {
@@ -82,7 +104,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
   return {
     /** RLS returns only workspaces where the JWT user is an actual member. */
     listWorkspaces(): Promise<CloudWorkspace[]> {
-      return request('GET',
+      return request<CloudWorkspace[]>('GET',
         '/rest/v1/creator_workspaces?select=id,name,timezone,created_at,updated_at&order=created_at.asc');
     },
 
@@ -91,14 +113,14 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
       if (name.trim().length < 2 || name.trim().length > 100) {
         throw new Error('Workspace name must be between 2 and 100 characters');
       }
-      return request('POST', '/rest/v1/rpc/creator_create_workspace',
+      return request<string>('POST', '/rest/v1/rpc/creator_create_workspace',
         { workspace_name: name.trim(), workspace_timezone: timezone });
     },
 
     /** Server RLS enforces membership; client additionally constrains workspace. */
     listContentItems(workspaceId: string): Promise<CloudContentItem[]> {
       const id = requireUuid(workspaceId, 'workspace ID');
-      return request('GET',
+      return request<CloudContentItem[]>('GET',
         '/rest/v1/creator_content_items?select=*&workspace_id=eq.' +
         id + '&order=sort_order.asc,created_at.asc');
     },
@@ -120,7 +142,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
     /** Read-only until backend-owned provider publishing is integrated. */
     listPosts(workspaceId: string): Promise<CloudPost[]> {
       const id = requireUuid(workspaceId, 'workspace ID');
-      return request('GET',
+      return request<CloudPost[]>('GET',
         '/rest/v1/creator_posts?select=*&workspace_id=eq.' +
         id + '&order=created_at.desc');
     },
