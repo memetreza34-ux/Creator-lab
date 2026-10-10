@@ -65,6 +65,45 @@ export function buildCloudDraftPayload(input: CloudDraftInput): CloudDraftPayloa
   };
 }
 
+
+/** Refuse to edit/delete legacy drafts with media or unsupported JSON shapes.
+ * Saving those through the text-only pilot would silently discard attachments.
+ */
+export function isEditableTextDraft(post: {
+  status: string;
+  title: string;
+  original_content: unknown;
+  platform_content: unknown;
+  source_content_item_id: string | null;
+}): boolean {
+  if (post.status !== 'draft' || typeof post.title !== 'string' ||
+      !post.title.trim() || post.title.length > 240 ||
+      (post.source_content_item_id !== null &&
+       !UUID.test(post.source_content_item_id))) return false;
+  const raw = post.original_content;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const base = raw as Record<string, unknown>;
+  if (typeof base.caption !== 'string' || base.caption.length > MAX_CAPTION_CHARS ||
+      !Array.isArray(base.mediaIds) || base.mediaIds.length !== 0) return false;
+  if (!Array.isArray(post.platform_content) ||
+      post.platform_content.length > CLOUD_CONTENT_PLATFORMS.length) return false;
+  const seen = new Set<string>();
+  for (const item of post.platform_content) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const variant = item as Record<string, unknown>;
+    if (typeof variant.platform !== 'string' ||
+        !CLOUD_CONTENT_PLATFORMS.includes(variant.platform as CloudContentPlatform) ||
+        variant.enabled !== true || seen.has(variant.platform)) return false;
+    seen.add(variant.platform);
+    const body = variant.content;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+    const data = body as Record<string, unknown>;
+    if (typeof data.caption !== 'string' || data.caption.length > MAX_CAPTION_CHARS ||
+        !Array.isArray(data.mediaIds) || data.mediaIds.length !== 0) return false;
+  }
+  return true;
+}
+
 /**
  * Defensive display parsing only. Never trusts arbitrary backend JSON to
  * contain supported media URLs or provider-published outcomes.
