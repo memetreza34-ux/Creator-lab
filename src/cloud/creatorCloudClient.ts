@@ -5,6 +5,77 @@ export type CloudWorkspace = Tables['creator_workspaces']['Row'];
 export type CloudContentItem = Tables['creator_content_items']['Row'];
 export type CloudPost = Tables['creator_posts']['Row'];
 
+
+export const CLOUD_PIPELINE_STAGES = [
+  'ideas', 'research', 'script', 'recording', 'editing', 'ready', 'scheduled', 'published',
+] as const;
+export type CloudPipelineStage = typeof CLOUD_PIPELINE_STAGES[number];
+
+export const CLOUD_CONTENT_FORMATS = ['short', 'long', 'image', 'carousel', 'text'] as const;
+export type CloudContentFormat = typeof CLOUD_CONTENT_FORMATS[number];
+
+export const CLOUD_CONTENT_PLATFORMS = [
+  'youtube', 'instagram', 'tiktok', 'twitter', 'linkedin',
+  'facebook', 'pinterest', 'threads',
+] as const;
+export type CloudContentPlatform = typeof CLOUD_CONTENT_PLATFORMS[number];
+
+/** Only browser-owned planning fields, never workspace ID, owner, or provider outcome. */
+export type CloudContentChanges = {
+  title?: string;
+  notes?: string;
+  stage?: CloudPipelineStage;
+  format?: CloudContentFormat;
+  platforms?: CloudContentPlatform[];
+  target_date?: string | null;
+};
+
+function normalizeContentChanges(changes: CloudContentChanges): CloudContentChanges {
+  const allowedKeys = new Set(['title', 'notes', 'stage', 'format', 'platforms', 'target_date']);
+  if (Object.keys(changes).length === 0 || Object.keys(changes).some((key) => !allowedKeys.has(key))) {
+    throw new Error('Invalid content update fields');
+  }
+  const clean: CloudContentChanges = {};
+  if (changes.title !== undefined) {
+    if (typeof changes.title !== 'string' || changes.title.trim().length < 1 ||
+        changes.title.trim().length > 240) throw new Error('Content title must have 1–240 characters');
+    clean.title = changes.title.trim();
+  }
+  if (changes.notes !== undefined) {
+    if (typeof changes.notes !== 'string' || changes.notes.length > 10000) {
+      throw new Error('Content notes must have at most 10000 characters');
+    }
+    clean.notes = changes.notes;
+  }
+  if (changes.stage !== undefined) {
+    if (!CLOUD_PIPELINE_STAGES.includes(changes.stage)) throw new Error('Invalid pipeline stage');
+    clean.stage = changes.stage;
+  }
+  if (changes.format !== undefined) {
+    if (!CLOUD_CONTENT_FORMATS.includes(changes.format)) throw new Error('Invalid content format');
+    clean.format = changes.format;
+  }
+  if (changes.platforms !== undefined) {
+    if (!Array.isArray(changes.platforms) ||
+        new Set(changes.platforms).size !== changes.platforms.length ||
+        !changes.platforms.every((platform) => CLOUD_CONTENT_PLATFORMS.includes(platform))) {
+      throw new Error('Invalid content platforms');
+    }
+    clean.platforms = [...changes.platforms];
+  }
+  if (changes.target_date !== undefined) {
+    if (changes.target_date !== null &&
+        (typeof changes.target_date !== 'string' ||
+         !/^\d{4}-\d{2}-\d{2}$/.test(changes.target_date) ||
+         !Number.isFinite(Date.parse(changes.target_date + 'T00:00:00Z')) ||
+         new Date(changes.target_date + 'T00:00:00Z').toISOString().slice(0, 10) !== changes.target_date)) {
+      throw new Error('Invalid target date');
+    }
+    clean.target_date = changes.target_date;
+  }
+  return clean;
+}
+
 export type AccessTokenProvider = () => string | null | Promise<string | null>;
 
 export interface CreatorCloudOptions {
@@ -80,7 +151,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
   const requestFetch = options.fetchImpl ?? fetch;
 
   async function request<T>(
-    method: 'GET' | 'POST', path: string, body?: object, returnRows = false,
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: object, returnRows = false,
   ): Promise<T> {
     const token = await options.getAccessToken();
     if (!token || typeof token !== 'string' || token.trim().length === 0) {
@@ -134,10 +205,42 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
       const rows = await request<CloudContentItem[]>('POST',
         '/rest/v1/creator_content_items?select=*',
         { workspace_id: id, title: title.trim() }, true);
-      if (rows.length !== 1) {
+      if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== id) {
         throw new Error('Cloud content write was not confirmed by the server');
       }
       return rows[0];
+    },
+
+    /** Updates a SINGLE known workspace item. RLS is the server-side permission gate. */
+    async updateContentItem(
+      workspaceId: string, itemId: string, changes: CloudContentChanges,
+    ): Promise<CloudContentItem> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const iid = requireUuid(itemId, 'content item ID');
+      const valid = normalizeContentChanges(changes);
+      const rows = await request<CloudContentItem[]>('PATCH',
+        '/rest/v1/creator_content_items?workspace_id=eq.' + wid +
+        '&id=eq.' + iid + '&select=*',
+        valid, true);
+      if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== wid ||
+          rows[0].id !== iid) {
+        throw new Error('Content update was not confirmed. Check workspace permissions.');
+      }
+      return rows[0];
+    },
+
+    /** Delete returns the deleted row; a zero-row RLS result is NOT a success. */
+    async deleteContentItem(workspaceId: string, itemId: string): Promise<void> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const iid = requireUuid(itemId, 'content item ID');
+      const rows = await request<Array<Pick<CloudContentItem, 'id' | 'workspace_id'>>>(
+        'DELETE', '/rest/v1/creator_content_items?workspace_id=eq.' + wid +
+        '&id=eq.' + iid + '&select=id,workspace_id', undefined, true,
+      );
+      if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== wid ||
+          rows[0].id !== iid) {
+        throw new Error('Content deletion was not confirmed. Check workspace permissions.');
+      }
     },
 
     /** Read-only until backend-owned provider publishing is integrated. */
