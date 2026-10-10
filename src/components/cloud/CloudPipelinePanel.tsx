@@ -93,8 +93,7 @@ export function CloudPipelinePanel({ cloud, workspaceId }: {
     event.preventDefault();
     if (!title.trim() || busyId) return;
     await perform('creating', async () => {
-      const created = await cloud.createContentItem(workspaceId, title);
-      await cloud.updateContentItem(workspaceId, created.id, {
+      await cloud.createContentItem(workspaceId, title, {
         notes, format, platforms, target_date: dueDate || null,
       });
       setTitle('');
