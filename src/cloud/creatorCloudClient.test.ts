@@ -292,3 +292,110 @@ test('mismatched returned workspace is rejected despite a 2xx server response', 
     { stage: 'research' }), /not confirmed/);
   await assert.rejects(client.deleteContentItem(workspaceId, userId), /not confirmed/);
 });
+
+test('draft POST saves only a draft; never schedules/publishes or connects media', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (url, init) => {
+      calls++;
+      assert.equal(init?.method, 'POST');
+      const address = new URL(String(url));
+      assert.equal(address.pathname, '/rest/v1/creator_posts');
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      const payload = JSON.parse(String(init?.body));
+      assert.deepEqual(payload, {
+        workspace_id: workspaceId,
+        status: 'draft',
+        title: 'Idea from pipeline',
+        original_content: { caption: 'My caption', mediaIds: [] },
+        platform_content: [
+          { platform: 'youtube', enabled: true, content: { caption: 'YouTube only', mediaIds: [] } },
+        ],
+        source_content_item_id: userId,
+      });
+      assert.equal(payload.scheduled_at, undefined);
+      assert.equal(payload.published_at, undefined);
+      return new Response(JSON.stringify([{ id: userId, ...payload }]), { status: 201 });
+    },
+  });
+  const created = await client.createDraft(workspaceId, {
+    title: 'Idea from pipeline',
+    caption: 'My caption',
+    sourceContentItemId: userId,
+    variants: [{ platform: 'youtube', caption: 'YouTube only' }],
+  });
+  assert.equal(created.status, 'draft');
+  assert.equal(calls, 1);
+});
+
+test('draft update is filtered by workspace, id and draft status and confirms one row', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (url, init) => {
+      assert.equal(init?.method, 'PATCH');
+      const address = new URL(String(url));
+      assert.equal(address.pathname, '/rest/v1/creator_posts');
+      assert.equal(address.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(address.searchParams.get('id'), 'eq.' + userId);
+      assert.equal(address.searchParams.get('status'), 'eq.draft');
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      const payload = JSON.parse(String(init?.body));
+      assert.deepEqual(Object.keys(payload).sort(), [
+        'original_content', 'platform_content', 'source_content_item_id', 'title',
+      ]);
+      return new Response(JSON.stringify([{ id: userId, workspace_id: workspaceId,
+        status: 'draft', ...payload }]), { status: 200 });
+    },
+  });
+  const updated = await client.updateDraft(workspaceId, userId, {
+    title: 'Updated', caption: '', sourceContentItemId: null, variants: [],
+  });
+  assert.equal(updated.title, 'Updated');
+});
+
+test('draft deletion filters by all three parameters and confirms deleted record', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (url, init) => {
+      assert.equal(init?.method, 'DELETE');
+      const address = new URL(String(url));
+      assert.equal(address.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(address.searchParams.get('id'), 'eq.' + userId);
+      assert.equal(address.searchParams.get('status'), 'eq.draft');
+      assert.equal(address.searchParams.get('select'), 'id,workspace_id,status');
+      return new Response(JSON.stringify([{ id: userId, workspace_id: workspaceId,
+        status: 'draft' }]), { status: 200 });
+    },
+  });
+  await client.deleteDraft(workspaceId, userId);
+});
+
+test('draft cannot be reported saved when RLS hides record or server reports wrong status', async () => {
+  for (const returned of [[], [{ id: userId, workspace_id: workspaceId, status: 'published' }],
+    [{ id: userId, workspace_id: 'c181a192-c80b-4489-b271-4bb2ce9ae543', status: 'draft' }]]) {
+    const client = createCreatorCloudClient({
+      ...opts,
+      fetchImpl: async () => new Response(JSON.stringify(returned), { status: 200 }),
+    });
+    const input = { title: 'An idea', caption: '', variants: [],
+      sourceContentItemId: null };
+    await assert.rejects(client.createDraft(workspaceId, input), /not confirmed/);
+    await assert.rejects(client.updateDraft(workspaceId, userId, input), /not confirmed/);
+    await assert.rejects(client.deleteDraft(workspaceId, userId), /not confirmed/);
+  }
+});
+
+test('draft validation rejects forged privileged fields before ANY network access', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => { calls++; return new Response('[]'); },
+  });
+  const invalid = { title: 'Fake published post', caption: 'abc', sourceContentItemId: null,
+    variants: [], status: 'published', scheduled_at: '2026-10-11' };
+  await assert.rejects(client.createDraft(workspaceId, invalid as never), /Invalid draft fields/);
+  await assert.rejects(client.updateDraft(workspaceId, userId, invalid as never), /Invalid draft fields/);
+  await assert.rejects(client.deleteDraft(workspaceId, 'bad-uuid'), /Invalid post ID/);
+  assert.equal(calls, 0);
+});

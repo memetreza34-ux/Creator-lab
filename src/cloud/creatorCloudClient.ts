@@ -1,4 +1,7 @@
 import type { Database } from '../backend/database.types';
+import { buildCloudDraftPayload, type CloudDraftInput } from './cloudDrafts';
+import { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './cloudPlatforms';
+export { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './cloudPlatforms';
 
 type Tables = Database['public']['Tables'];
 export type CloudWorkspace = Tables['creator_workspaces']['Row'];
@@ -14,11 +17,7 @@ export type CloudPipelineStage = typeof CLOUD_PIPELINE_STAGES[number];
 export const CLOUD_CONTENT_FORMATS = ['short', 'long', 'image', 'carousel', 'text'] as const;
 export type CloudContentFormat = typeof CLOUD_CONTENT_FORMATS[number];
 
-export const CLOUD_CONTENT_PLATFORMS = [
-  'youtube', 'instagram', 'tiktok', 'twitter', 'linkedin',
-  'facebook', 'pinterest', 'threads',
-] as const;
-export type CloudContentPlatform = typeof CLOUD_CONTENT_PLATFORMS[number];
+
 
 /** Only browser-owned planning fields, never workspace ID, owner, or provider outcome. */
 export type CloudContentChanges = {
@@ -246,6 +245,55 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
       if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== wid ||
           rows[0].id !== iid) {
         throw new Error('Content deletion was not confirmed. Check workspace permissions.');
+      }
+    },
+
+    /**
+     * Authenticated cloud drafts ONLY. No scheduled/published statuses, media
+     * attachments, provider account IDs, analytics or OAuth connection claims.
+     */
+    async createDraft(workspaceId: string, input: CloudDraftInput): Promise<CloudPost> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const payload = buildCloudDraftPayload(input);
+      const rows = await request<CloudPost[]>('POST',
+        '/rest/v1/creator_posts?select=*',
+        { workspace_id: wid, status: 'draft', ...payload }, true);
+      if (!Array.isArray(rows) || rows.length !== 1 ||
+          rows[0].workspace_id !== wid || rows[0].status !== 'draft') {
+        throw new Error('Cloud draft creation was not confirmed by the server');
+      }
+      return rows[0];
+    },
+
+    /** Edits only drafts and fails rather than reporting a zero-row RLS success. */
+    async updateDraft(
+      workspaceId: string, postId: string, input: CloudDraftInput,
+    ): Promise<CloudPost> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const pid = requireUuid(postId, 'post ID');
+      const payload = buildCloudDraftPayload(input);
+      const rows = await request<CloudPost[]>('PATCH',
+        '/rest/v1/creator_posts?workspace_id=eq.' + wid +
+        '&id=eq.' + pid + '&status=eq.draft&select=*', payload, true);
+      if (!Array.isArray(rows) || rows.length !== 1 ||
+          rows[0].workspace_id !== wid || rows[0].id !== pid ||
+          rows[0].status !== 'draft') {
+        throw new Error('Draft update was not confirmed. Check permissions and current status.');
+      }
+      return rows[0];
+    },
+
+    /** Delete only one draft; published and scheduled records cannot be deleted here. */
+    async deleteDraft(workspaceId: string, postId: string): Promise<void> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const pid = requireUuid(postId, 'post ID');
+      const rows = await request<Array<Pick<CloudPost, 'workspace_id' | 'id' | 'status'>>>(
+        'DELETE', '/rest/v1/creator_posts?workspace_id=eq.' + wid +
+        '&id=eq.' + pid + '&status=eq.draft&select=id,workspace_id,status', undefined, true);
+      if (!Array.isArray(rows) || rows.length !== 1 ||
+          rows[0].workspace_id !== wid || rows[0].id !== pid ||
+          rows[0].status !== 'draft') {
+        throw new Error('Draft deletion was not confirmed. Check permissions and current status.');
       }
     },
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { createCreatorAuth, type AuthIdentity } from '../auth/creatorAuth';
 import { createCreatorCloudClient, type CloudWorkspace } from '../cloud/creatorCloudClient';
 import { CloudPipelinePanel } from '../components/cloud/CloudPipelinePanel';
+import { CloudDraftComposerPanel } from '../components/cloud/CloudDraftComposerPanel';
 
 type View = 'login' | 'register' | 'forgot' | 'recover';
 
@@ -186,7 +187,7 @@ export function CloudAccountPage() {
   const button = 'rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:bg-zinc-700';
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-900">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Creator Lab Cloud</h1>
@@ -309,7 +310,14 @@ export function CloudAccountPage() {
                 workspaceId={selectedWorkspace}
               />
             )}
-            <p className="text-xs text-zinc-600">Cloud ideas and workflow stages are stored remotely. Composer, Calendar, social accounts, and media remain local-demo-only. Changing a workflow stage never publishes a post.</p>
+            {selectedWorkspace && clients.cloud && (
+              <CloudDraftComposerPanel
+                key={'drafts:' + identity.id + ':' + selectedWorkspace}
+                cloud={clients.cloud}
+                workspaceId={selectedWorkspace}
+              />
+            )}
+            <p className="text-xs text-zinc-600">Cloud pipeline ideas and written drafts are saved remotely. The advanced local demo Composer, Calendar, accounts and media remain local-only. No cloud publishing or scheduling is enabled.</p>
           </section>
         )}
       </div>
