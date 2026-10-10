@@ -203,10 +203,15 @@ export async function runLiveAcceptance(env, request = fetch, report = console.l
     await check('anonymous caller cannot download private media', async () =>
       mustBeDenied(await api('GET', objectUrl, null), 'Storage anonymous GET'));
     await check('another workspace user cannot upload under workspace A', async () => {
-      const forbiddenUrl = '/storage/v1/object/' + BUCKET + '/' +
-        wa + '/' + randomUUID() + '/forbidden.png';
-      mustBeDenied(await api('POST', forbiddenUrl, b.token, PNG,
-        { 'Content-Type': 'image/png', 'x-upsert': 'false' }), 'Storage foreign INSERT');
+      const forbiddenPath = wa + '/' + randomUUID() + '/forbidden.png';
+      const forbiddenUrl = '/storage/v1/object/' + BUCKET + '/' + forbiddenPath;
+      const attempted = await api('POST', forbiddenUrl, b.token, PNG,
+        { 'Content-Type': 'image/png', 'x-upsert': 'false' });
+      // If RLS is broken and the foreign write succeeds, clean it up as owner A.
+      if (attempted.status >= 200 && attempted.status < 300) {
+        uploaded.push({ token: a.token, path: forbiddenPath });
+      }
+      mustBeDenied(attempted, 'Storage foreign INSERT');
     });
   } catch (err) {
     thrown = err;
