@@ -210,7 +210,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
       const valid = details === undefined ? {} : normalizeContentChanges(details);
       const rows = await request<CloudContentItem[]>('POST',
         '/rest/v1/creator_content_items?select=*',
-        { workspace_id: id, title: title.trim(), ...valid }, true);
+        { workspace_id: id, ...valid, title: title.trim() }, true);
       if (!Array.isArray(rows) || rows.length !== 1 || rows[0].workspace_id !== id) {
         throw new Error('Cloud content write was not confirmed by the server');
       }
