@@ -1,4 +1,4 @@
-import { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './creatorCloudClient';
+import { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './cloudPlatforms';
 
 export type CloudDraftInput = {
   title: string;
