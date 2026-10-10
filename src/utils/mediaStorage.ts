@@ -41,8 +41,11 @@ export async function saveMediaBlob(id: string, file: Blob | File): Promise<void
     const store = tx.objectStore(STORE_NAME);
     const request = store.put({ id, blob: file, timestamp: Date.now() });
 
-    request.onsuccess = () => resolve();
+    // A successful request is not a durable write: the whole transaction can
+    // still abort (for example due to quota errors) after request success.
+    tx.oncomplete = () => resolve();
     request.onerror = () => reject(request.error || new Error('Failed to store media blob'));
+    tx.onerror = () => reject(tx.error || new Error('Media storage transaction failed'));
     tx.onabort = () => reject(tx.error || new Error('Media storage transaction aborted'));
   });
 
@@ -80,22 +83,25 @@ export async function getMediaBlob(id: string): Promise<Blob | null> {
  * Delete a media blob from IndexedDB and revoke its runtime URL
  */
 export async function deleteMediaBlob(id: string): Promise<void> {
-  const cachedUrl = runtimeUrlCache.get(id);
-  if (cachedUrl?.startsWith('blob:')) {
-    URL.revokeObjectURL(cachedUrl);
-    runtimeUrlCache.delete(id);
-  }
-
   const db = await openDatabase();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const request = store.delete(id);
 
-    request.onsuccess = () => resolve();
+    tx.oncomplete = () => resolve();
     request.onerror = () => reject(request.error || new Error('Failed to delete media blob'));
+    tx.onerror = () => reject(tx.error || new Error('Media delete transaction failed'));
     tx.onabort = () => reject(tx.error || new Error('Media delete transaction aborted'));
   });
+
+  // Keep the preview working if the delete rolled back. Revoke its URL only
+  // after IndexedDB has actually committed the deletion.
+  const cachedUrl = runtimeUrlCache.get(id);
+  if (cachedUrl?.startsWith('blob:')) {
+    URL.revokeObjectURL(cachedUrl);
+    runtimeUrlCache.delete(id);
+  }
 }
 
 /**
