@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Beaker, TrendingUp, Users, ArrowRight, Plus, 
-  CheckCircle2, Play, Pause, Trash2, Trophy, X, 
+  CheckCircle2, Play, Pause, Trash2, X, 
   Sparkles, Award, Clock, Image, Type, HelpCircle 
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Experiment, ExperimentType, ExperimentStatus } from '../types';
+import { selectPreferredVariant } from '../utils/experimentIntegrity';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -85,17 +86,12 @@ export function ExperimentLabPage() {
     toast.success(`Experiment marked as ${newStatus}`);
   };
 
-  const handleDeclareWinner = (experiment: Experiment, winner: 'A' | 'B') => {
+  const handleSelectPreferredVariant = (experiment: Experiment, variant: 'A' | 'B') => {
     dispatch({
       type: 'UPDATE_EXPERIMENT',
-      payload: { 
-        ...experiment, 
-        winner, 
-        status: 'concluded',
-        aiInterpretation: `Variant ${winner} was declared the winning creative based on higher ${experiment.primaryMetric}.`
-      }
+      payload: selectPreferredVariant(experiment, variant),
     });
-    toast.success(`Variant ${winner} declared as winner!`);
+    toast.success(`Variant ${variant} saved as your manual preference (not a measured winner)`);
   };
 
   const handleDelete = (id: string) => {
@@ -114,7 +110,7 @@ export function ExperimentLabPage() {
             Creator Experiment Lab
           </h1>
           <p className="text-[12px] text-zinc-500 mt-0.5">
-            Statistical A/B testing for hooks, titles, thumbnails, and posting hours
+            Plan creative variations and select a preference manually. Verified A/B metrics are not connected yet.
           </p>
         </div>
 
@@ -152,7 +148,7 @@ export function ExperimentLabPage() {
           <Beaker className="w-8 h-8 text-zinc-300 mb-2" />
           <h3 className="text-[14px] font-semibold text-zinc-800">No experiments found</h3>
           <p className="text-[12px] text-zinc-500 mt-1 max-w-sm">
-            Launch an A/B test between two hooks, titles, or thumbnails to scientifically prove what resonates.
+            Draft two creative variations to compare ideas. Selections are manual preferences, not evidence of a statistical winner.
           </p>
           <button
             onClick={() => setIsCreateOpen(true)}
@@ -168,7 +164,7 @@ export function ExperimentLabPage() {
               key={exp.id} 
               experiment={exp} 
               onStatusChange={handleStatusChange}
-              onDeclareWinner={handleDeclareWinner}
+              onSelectPreferredVariant={handleSelectPreferredVariant}
               onDelete={handleDelete}
             />
           ))}
@@ -330,14 +326,14 @@ export function ExperimentLabPage() {
 interface ExperimentCardProps {
   experiment: Experiment; 
   onStatusChange: (exp: Experiment, s: ExperimentStatus) => void;
-  onDeclareWinner: (exp: Experiment, w: 'A' | 'B') => void;
+  onSelectPreferredVariant: (exp: Experiment, w: 'A' | 'B') => void;
   onDelete: (id: string) => void;
 }
 
 const ExperimentCard: React.FC<ExperimentCardProps> = ({ 
   experiment, 
   onStatusChange, 
-  onDeclareWinner, 
+  onSelectPreferredVariant, 
   onDelete 
 }) => {
   const isRunning = experiment.status === 'running';
@@ -410,7 +406,7 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({
               </span>
               {experiment.winner === 'A' && (
                 <span className="flex items-center text-[11px] font-bold text-emerald-700">
-                  <Trophy className="w-3 h-3 mr-1" /> Winner
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Selected manually
                 </span>
               )}
             </div>
@@ -426,14 +422,14 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({
 
           <div className="mt-3 pt-2 border-t border-[#F2F2F0] flex items-center justify-between">
             <span className="text-[11px] font-bold text-zinc-900">
-              {metricA > 0 ? `${metricA}%` : 'Pending'}
+              {metricA > 0 ? `${metricA} (unverified)` : 'No measurement'}
             </span>
             {!isConcluded && (
               <button
-                onClick={() => onDeclareWinner(experiment, 'A')}
+                onClick={() => onSelectPreferredVariant(experiment, 'A')}
                 className="text-[10px] font-semibold text-brand-600 hover:text-brand-800 hover:underline"
               >
-                Declare Winner
+                Select manually
               </button>
             )}
           </div>
@@ -454,7 +450,7 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({
               </span>
               {experiment.winner === 'B' && (
                 <span className="flex items-center text-[11px] font-bold text-emerald-700">
-                  <Trophy className="w-3 h-3 mr-1" /> Winner
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Selected manually
                 </span>
               )}
             </div>
@@ -470,23 +466,24 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({
 
           <div className="mt-3 pt-2 border-t border-[#F2F2F0] flex items-center justify-between">
             <span className="text-[11px] font-bold text-zinc-900">
-              {metricB > 0 ? `${metricB}%` : 'Pending'}
+              {metricB > 0 ? `${metricB} (unverified)` : 'No measurement'}
             </span>
             {!isConcluded && (
               <button
-                onClick={() => onDeclareWinner(experiment, 'B')}
+                onClick={() => onSelectPreferredVariant(experiment, 'B')}
                 className="text-[10px] font-semibold text-brand-600 hover:text-brand-800 hover:underline"
               >
-                Declare Winner
+                Select manually
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Metric Ratio Bar */}
+      {/* Relative share of stored local values. This is not statistical confidence. */}
       {totalMetric > 0 && (
-        <div className="mb-3">
+        <div className="mb-3" aria-label="Relative share of unverified local metric values, not a statistical result">
+          <p className="text-[10px] text-zinc-500 mb-1">Share of local values — not statistical confidence</p>
           <div className="flex justify-between text-[10px] font-semibold text-zinc-500 mb-1">
             <span>A: {aPercent.toFixed(1)}%</span>
             <span>B: {bPercent.toFixed(1)}%</span>
@@ -496,6 +493,10 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({
             <div className="bg-indigo-400 h-full transition-all duration-700" style={{ width: `${bPercent}%` }} />
           </div>
         </div>
+      )}
+
+      {experiment.winner && (
+        <p className="text-[11px] text-zinc-500 mb-2">Manual preference only. No verified performance result was used.</p>
       )}
 
       {/* Interpretation or Status Controls */}
