@@ -4,7 +4,7 @@ import {
   type CloudContentItem, type CloudContentPlatform, type CloudPost,
   createCreatorCloudClient,
 } from '../../cloud/creatorCloudClient';
-import { readCloudDraft, type CloudDraftInput } from '../../cloud/cloudDrafts';
+import { isEditableTextDraft, readCloudDraft, type CloudDraftInput } from '../../cloud/cloudDrafts';
 
 type Cloud = ReturnType<typeof createCreatorCloudClient>;
 const input = 'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500';
@@ -24,6 +24,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
   workspaceId: string;
 }) {
   const [posts, setPosts] = useState<CloudPost[]>([]);
+  const [locked, setLocked] = useState<CloudPost[]>([]);
   const [items, setItems] = useState<CloudContentItem[]>([]);
   const [draft, setDraft] = useState<CloudDraftInput>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,8 +39,11 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
       cloud.listPosts(workspaceId),
       cloud.listContentItems(workspaceId),
     ]);
+    const scopedDrafts = allPosts.filter((post) =>
+      post.workspace_id === workspaceId && post.status === 'draft');
     return {
-      posts: allPosts.filter((post) => post.workspace_id === workspaceId && post.status === 'draft'),
+      posts: scopedDrafts.filter(isEditableTextDraft),
+      locked: scopedDrafts.filter((post) => !isEditableTextDraft(post)),
       items: allItems.filter((item) => item.workspace_id === workspaceId),
     };
   }, [cloud, workspaceId]);
@@ -51,6 +55,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
     void load().then((data) => {
       if (active) {
         setPosts(data.posts);
+      setLocked(data.locked);
         setItems(data.items);
         setLoading(false);
       }
@@ -68,6 +73,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
     try {
       const data = await load();
       setPosts(data.posts);
+      setLocked(data.locked);
       setItems(data.items);
       // Never silently overwrite unsaved text with server state. The user
       // explicitly chooses a saved draft after reloading.
@@ -126,6 +132,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
         : await cloud.createDraft(workspaceId, draft);
       const data = await load();
       setPosts(data.posts);
+      setLocked(data.locked);
       setItems(data.items);
       setEditingId(saved.id);
       setDraft(readCloudDraft(saved));
@@ -149,6 +156,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
       await cloud.deleteDraft(workspaceId, post.id);
       const data = await load();
       setPosts(data.posts);
+      setLocked(data.locked);
       setItems(data.items);
       if (editingId === post.id) {
         setEditingId(null);
@@ -192,6 +200,17 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
             <button type="button" className={btn} disabled={busy || reloadNeeded}
               onClick={startNew}>New draft</button>
           </div>
+          {locked.length > 0 && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-medium text-amber-900">
+                {locked.length} existing drafts use media or unsupported formats. They are
+                protected from editing or deletion in this text-only composer.
+              </p>
+              <ul className="mt-2 list-disc pl-4 text-xs text-amber-800">
+                {locked.map((post) => <li key={post.id}>{post.title}</li>)}
+              </ul>
+            </div>
+          )}
           {loading ? (
             <p role="status" className="text-sm text-zinc-600">Loading cloud drafts…</p>
           ) : posts.length === 0 ? (
