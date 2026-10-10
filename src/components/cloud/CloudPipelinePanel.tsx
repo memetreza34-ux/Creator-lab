@@ -15,7 +15,7 @@ type CloudClient = ReturnType<typeof createCreatorCloudClient>;
 
 const stageTitles: Record<CloudPipelineStage, string> = {
   ideas: 'Ideas', research: 'Research', script: 'Script', recording: 'Recording',
-  editing: 'Editing', ready: 'Ready', scheduled: 'Planned', published: 'Published',
+  editing: 'Editing', ready: 'Ready', scheduled: 'Planned', published: 'Published (manual)',
 };
 
 const inputStyle = 'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
