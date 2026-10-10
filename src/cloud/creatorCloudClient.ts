@@ -57,7 +57,9 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
   }
   const requestFetch = options.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST', path: string, body?: object): Promise<T> {
+  async function request<T>(
+    method: 'GET' | 'POST', path: string, body?: object, returnRows = false,
+  ): Promise<T> {
     const token = await options.getAccessToken();
     if (!token || typeof token !== 'string' || token.trim().length === 0) {
       throw new CloudAuthenticationRequired();
@@ -68,6 +70,7 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
         apikey: options.publishableKey,
         Authorization: 'Bearer ' + token,
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(returnRows ? { Prefer: 'return=representation' } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(20000),
@@ -100,14 +103,18 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
         id + '&order=sort_order.asc,created_at.asc');
     },
 
-    createContentItem(workspaceId: string, title: string): Promise<CloudContentItem> {
+    async createContentItem(workspaceId: string, title: string): Promise<CloudContentItem> {
       const id = requireUuid(workspaceId, 'workspace ID');
       if (!title.trim() || title.trim().length > 240) {
         throw new Error('Content title must be between 1 and 240 characters');
       }
-      return request<CloudContentItem[]>('POST',
+      const rows = await request<CloudContentItem[]>('POST',
         '/rest/v1/creator_content_items?select=*',
-        { workspace_id: id, title: title.trim() });
+        { workspace_id: id, title: title.trim() }, true);
+      if (rows.length !== 1) {
+        throw new Error('Cloud content write was not confirmed by the server');
+      }
+      return rows[0];
     },
 
     /** Read-only until backend-owned provider publishing is integrated. */
