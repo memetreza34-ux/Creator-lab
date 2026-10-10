@@ -1,4 +1,6 @@
 import type { Database } from '../backend/database.types';
+import { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './cloudPlatforms';
+export { CLOUD_CONTENT_PLATFORMS, type CloudContentPlatform } from './cloudPlatforms';
 
 type Tables = Database['public']['Tables'];
 export type CloudWorkspace = Tables['creator_workspaces']['Row'];
@@ -14,11 +16,7 @@ export type CloudPipelineStage = typeof CLOUD_PIPELINE_STAGES[number];
 export const CLOUD_CONTENT_FORMATS = ['short', 'long', 'image', 'carousel', 'text'] as const;
 export type CloudContentFormat = typeof CLOUD_CONTENT_FORMATS[number];
 
-export const CLOUD_CONTENT_PLATFORMS = [
-  'youtube', 'instagram', 'tiktok', 'twitter', 'linkedin',
-  'facebook', 'pinterest', 'threads',
-] as const;
-export type CloudContentPlatform = typeof CLOUD_CONTENT_PLATFORMS[number];
+
 
 /** Only browser-owned planning fields, never workspace ID, owner, or provider outcome. */
 export type CloudContentChanges = {
