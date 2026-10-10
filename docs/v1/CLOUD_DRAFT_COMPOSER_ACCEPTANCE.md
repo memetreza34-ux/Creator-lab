@@ -26,7 +26,14 @@ The workspace/account-specific React key clears local editor state when the user
 - Server-provided errors are sanitized by the cloud API layer. The network only receives the user's JWT, never a service-role credential.
 - Editing/deletion is restricted to draft records; the UI never attempts to modify a scheduled, published or failed post.
 
-**Important backend hardening gate:** The current table RLS still accepts `scheduled` for direct authenticated INSERT/UPDATE (original phase 4 schema). This separate pilot never requests it, but **public launching real scheduling requires restricting provider/job status changes to a trusted server role and durable job processing**. The absence of a publish button is not sufficient authorization protection. Review and migrate this before public release.
+**Provider-state backend hardening:** The directly authenticated Data API previously
+permitted forged `scheduled` and demo `connected` states. The restriction has now
+been **applied and verified** in the existing Creator Lab Supabase project by migration
+`20261010151402_creator_server_owned_provider_statuses`, tracked separately in
+[security PR #28](https://github.com/memetreza34-ux/Creator-lab/pull/28). Until
+PR #28 is merged with the schema on all release environments and actual issued-JWT
+tests pass, this remains a **release-blocking dependency**. This Composer still
+never makes real provider requests or advertises connected accounts.
 
 ## Tests to run
 
