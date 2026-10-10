@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Experiment } from '../types';
+import type { Experiment } from '../types';
 import { selectPreferredVariant } from './experimentIntegrity';
 
 const experiment: Experiment = {
