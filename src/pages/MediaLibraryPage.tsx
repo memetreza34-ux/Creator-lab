@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
@@ -35,7 +35,12 @@ export function MediaLibraryPage() {
   // Move asset modal state
   const [assetToMove, setAssetToMove] = useState<MediaAsset | null>(null);
 
-  const allWorkspaceMedia = getWorkspaceMedia(state);
+  // Keep the media list stable across local UI state updates. A fresh filtered
+  // array on every render would re-trigger URL resolution and setState forever.
+  const allWorkspaceMedia = useMemo(
+    () => getWorkspaceMedia(state),
+    [state.mediaAssets, state.activeWorkspaceId],
+  );
   const mediaFolders = getWorkspaceMediaFolders(state);
 
   const mediaAssets = allWorkspaceMedia
