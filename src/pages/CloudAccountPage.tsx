@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { createCreatorAuth, type AuthIdentity } from '../auth/creatorAuth';
 import { createCreatorCloudClient, type CloudWorkspace, type CloudContentItem } from '../cloud/creatorCloudClient';
@@ -124,7 +124,7 @@ export function CloudAccountPage() {
   const resetNotice = () => { setMessage(''); setError(''); };
   const redirectTo = () => window.location.origin + '/cloud';
 
-  async function submitCredentials(event: React.FormEvent<HTMLFormElement>) {
+  async function submitCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!clients.auth || busy) return;
     resetNotice();
@@ -169,7 +169,7 @@ export function CloudAccountPage() {
     }
   }
 
-  async function createWorkspace(event: React.FormEvent<HTMLFormElement>) {
+  async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!clients.cloud || busy) return;
     resetNotice();
@@ -186,7 +186,7 @@ export function CloudAccountPage() {
     finally { setBusy(false); }
   }
 
-  async function createIdea(event: React.FormEvent<HTMLFormElement>) {
+  async function createIdea(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!clients.cloud || !selectedWorkspace || busy) return;
     resetNotice();
