@@ -40,7 +40,8 @@ function requireAuthenticatedUserToken(token: string): void {
     const parts = token.split('.');
     if (parts.length !== 3) throw new Error('Invalid JWT shape');
     const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const claims = JSON.parse(atob(payload)) as {
+    const utf8 = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
+    const claims = JSON.parse(new TextDecoder().decode(utf8)) as {
       role?: string;
       sub?: string;
       is_anonymous?: boolean;
