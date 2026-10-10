@@ -37,8 +37,16 @@ export function assertSafeConfig(env) {
   if (env.RLS_TEST_A_EMAIL.trim().toLowerCase() === env.RLS_TEST_B_EMAIL.trim().toLowerCase()) {
     throw new Error('Real A/B accounts must use different email addresses');
   }
-  if (!env.SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_') &&
-      !env.SUPABASE_PUBLISHABLE_KEY.startsWith('eyJ')) {
+  if (env.SUPABASE_PUBLISHABLE_KEY.startsWith('eyJ')) {
+    let role;
+    try {
+      const payload = env.SUPABASE_PUBLISHABLE_KEY.split('.')[1];
+      role = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')).role;
+    } catch {
+      throw new Error('Invalid legacy key; use a publishable key or an anon-role JWT');
+    }
+    if (role !== 'anon') throw new Error('Legacy JWT must have the anon role, never service_role');
+  } else if (!env.SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_')) {
     throw new Error('Use a publishable/legacy anon key, NEVER a service-role or secret key');
   }
   return { origin: url.origin, key: env.SUPABASE_PUBLISHABLE_KEY };
@@ -210,6 +218,11 @@ export async function runLiveAcceptance(env, request = fetch, report = console.l
         const r = await api('DELETE', '/storage/v1/object/' + BUCKET,
           item.token, { prefixes: [item.path] });
         if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status);
+        const check = await api('GET',
+          '/storage/v1/object/' + BUCKET + '/' + item.path, item.token);
+        if (check.status >= 200 && check.status < 300) {
+          throw new Error('Storage object remains accessible after cleanup');
+        }
         report('CLEANUP storage asset removed');
       } catch {
         failures++;
