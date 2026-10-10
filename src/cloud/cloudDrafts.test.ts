@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildCloudDraftPayload, readCloudDraft, type CloudDraftInput } from './cloudDrafts';
+import { buildCloudDraftPayload, isEditableTextDraft, readCloudDraft, type CloudDraftInput } from './cloudDrafts';
 
 const sourceId = 'a2278121-80d3-4696-a655-bd02188bcb3f';
 const draft: CloudDraftInput = {
@@ -88,4 +88,31 @@ test('safely loads legacy/malformed server JSON without trusting media or provid
     title: 'Untouched', source_content_item_id: null,
     original_content: null, platform_content: 'corrupted',
   }), { title: 'Untouched', caption: '', sourceContentItemId: null, variants: [] });
+});
+
+
+test('text-only draft editability rejects media-bearing, disabled and malformed variants', () => {
+  const clean = {
+    status: 'draft',
+    title: 'A real cloud draft',
+    source_content_item_id: null,
+    original_content: { caption: 'text', mediaIds: [] },
+    platform_content: [{ platform: 'youtube', enabled: true,
+      content: { caption: 'youtube', mediaIds: [] } }],
+  };
+  assert.equal(isEditableTextDraft(clean), true);
+  const unsafe = [
+    { ...clean, status: 'published' },
+    { ...clean, original_content: { caption: 'text', mediaIds: ['asset.jpg'] } },
+    { ...clean, platform_content: [{ platform: 'youtube', enabled: false,
+      content: { caption: 'youtube', mediaIds: [] } }] },
+    { ...clean, platform_content: [{ platform: 'youtube', enabled: true,
+      content: { caption: 'youtube', mediaIds: ['asset.jpg'] } }] },
+    { ...clean, platform_content: [
+      { platform: 'youtube', enabled: true, content: { caption: 'first', mediaIds: [] } },
+      { platform: 'youtube', enabled: true, content: { caption: 'second', mediaIds: [] } },
+    ] },
+    { ...clean, original_content: {} },
+  ];
+  for (const record of unsafe) assert.equal(isEditableTextDraft(record), false);
 });
