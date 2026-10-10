@@ -53,8 +53,8 @@ export function assertSafeConfig(env) {
 }
 
 export function mustBeDenied(response, context) {
-  assert.ok(response.status < 200 || response.status >= 300,
-    context + ': request unexpectedly succeeded with HTTP ' + response.status);
+  assert.ok([400, 401, 403, 404].includes(response.status),
+    context + ': expected authorization rejection (400/401/403/404), got HTTP ' + response.status);
 }
 
 export function mustBeEmptyRows(response, context) {
