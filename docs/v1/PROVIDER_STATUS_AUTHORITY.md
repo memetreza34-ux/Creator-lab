@@ -49,6 +49,12 @@ clearly identified as a prototype.
 - 'supabase/verify/004_provider_truthfulness.sql': read-only anonymous DO
   contract assertion of required draft/disconnected fields across 11 policy
   sides **executed successfully** against the Frankfurt project.
+- 'supabase/verify/005_provider_denial_rollback.sql': executed successfully
+  as a rollback-only, **synthetic JWT-claim** test on the empty project.
+  Legitimate draft/disabled demo creation/update passed; attempts to insert or
+  update scheduled posts, scheduled demo destinations and fake connected/synced
+  social accounts were rejected; no rows were retained. This is still **not**
+  a real Supabase Auth-issued JWT/HTTP test.
 - The four existing SECURITY DEFINER advisor warnings on intentionally callable
   authenticated helper functions remain separate work (review rationale;
   no false claim of clean security advisor).
