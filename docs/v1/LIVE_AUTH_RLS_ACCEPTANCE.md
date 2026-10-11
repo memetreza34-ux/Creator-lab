@@ -15,8 +15,9 @@ It fails closed if pointed anywhere else.
 
 ## Preconditions
 
-1. Finish PR #16 review. The project's three schema migrations are already applied.
-   Do **not** re-run them or create a second Supabase project.
+1. Finish schema/security PR reviews and confirm migrations from PR #16, #28
+   and **#30** are already applied to the dedicated project (and every intended
+   test environment). Do **not** duplicate production migrations.
 2. Create two separate, verified disposable Auth users via the Supabase dashboard or
    normal signup flow. Verify/confirm their email addresses. Do not use production users.
 3. Make sure the Supabase Data API exposes 'public' and has the intended grants/RLS.
@@ -52,12 +53,19 @@ Then execute 'node scripts/verify-live-auth-rls.mjs' with the above exported var
 5. Inserts an owner-scoped content item. Verifies that the other user cannot SELECT,
    INSERT, UPDATE or DELETE that owner's item.
 6. Uploads one transparent PNG to the private 'creator-media' bucket under the
-   owner's workspace path. Tests owner download, forbidden other-user and anonymous
-   download, and denied cross-workspace upload.
-7. Removes the PNG **via the Storage API**, not Postgres SQL, verifies it is no
-   longer accessible, then deletes only the temporary workspaces created in the
-   run. Reports failures and cleanup failures separately.
-8. Exits with nonzero code on any failed assertion or failed cleanup.
+   owner's workspace path. Tests owner download via the **private authenticated
+   Storage endpoint** (the previous probe used an incorrect private GET URL),
+   forbidden other-user and anonymous download, and denied cross-workspace upload.
+7. Creates an actual 'draft' in creator_posts and indexed file metadata in
+   creator_media_assets; tests owner attachment via creator_post_media,
+   forbidden foreign read/insert, direct schedule/connected-account fabrication
+   denied, and attached Storage object/metadata deletion forbidden.
+8. Detaches the file and verifies the object still exists after detachment.
+9. Cleanup always checks and removes precisely tracked draft/media links
+   **before** deleting Storage objects, even if a test assertion failed or a
+   link-insert response was lost. Then removes the PNG via Storage API,
+   verifies it is inaccessible, and deletes only temporary workspaces.
+10. Exits nonzero on failed authorization assertions or incomplete cleanup.
 
 **Important:** A successful offline unit test alone is NOT B-03 acceptance. A
 successful green script run is only one part of the backend gate; browser
@@ -84,3 +92,16 @@ The GitHub-hosted CI runner is currently blocked before first step
 Even when CI is restored, keep live tests **manually opted in** and separated
 from default PR checks: they mutate dedicated staging data and require secrets.
 Do not store those secrets as public variables or print token values.
+
+## Verification status, 2026-10-11
+
+The new offline integration fixture is committed in
+'scripts/verify-live-auth-rls.integration.test.mjs'. Its scenarios include
+successful authorized linking, foreign-user denial, a forged-scheduled-post
+negative test, and cleanup after an intentional security assertion failure.
+The source has undergone a V8 syntax compilation check, but full Node.js
+offline tests have **not yet been executed on a checked-out repository**.
+
+Read-only Supabase inspection on 2026-10-11 still found **zero Auth users** and
+zero cloud media links. Therefore the real two-user JWT test remains **NOT RUN**.
+Do not use those missing results as evidence of launch readiness.
