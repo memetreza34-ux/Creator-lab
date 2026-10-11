@@ -28,6 +28,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
   } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const previewUrl = useRef<string | null>(null);
+  const mounted = useRef(true);
 
   function clearPreview() {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
@@ -37,6 +38,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
 
   useEffect(() => {
     let active = true;
+    mounted.current = true;
     setLoading(true);
     setAssets([]);
     void media.listMedia(workspaceId).then((items) => {
@@ -46,6 +48,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
     });
     return () => {
       active = false;
+      mounted.current = false;
       if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
       previewUrl.current = null;
     };
@@ -75,8 +78,10 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
     setBusy(true);
     setError('');
     setNotice('');
+    let writeConfirmed = false;
     try {
       const saved = await media.uploadMedia(workspaceId, file);
+      writeConfirmed = true;
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
       const fresh = await media.listMedia(workspaceId);
@@ -86,7 +91,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
         throw new CloudMediaReconciliationRequired();
       }
     } catch (err) {
-      if (err instanceof CloudMediaReconciliationRequired) setNeedsReconciliation(true);
+      if (writeConfirmed || err instanceof CloudMediaReconciliationRequired) setNeedsReconciliation(true);
       setError('Upload not confirmed. Check the cloud media list before retrying. ' +
         safeMessage(err));
     } finally {
@@ -101,6 +106,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
     clearPreview();
     try {
       const blob = await media.loadPrivateBlob(workspaceId, asset);
+      if (!mounted.current) return;
       const url = URL.createObjectURL(blob);
       previewUrl.current = url;
       setPreview({ id: asset.id, url, mime: asset.mime_type, name: asset.file_name });
@@ -118,8 +124,10 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
     setError('');
     setNotice('');
     if (preview?.id === asset.id) clearPreview();
+    let writeConfirmed = false;
     try {
       await media.deleteMedia(workspaceId, asset);
+      writeConfirmed = true;
       const fresh = await media.listMedia(workspaceId);
       setAssets(fresh);
       if (fresh.some((entry) => entry.id === asset.id)) {
@@ -127,7 +135,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
       }
       setNotice('Storage object and cloud media record were both deleted.');
     } catch (err) {
-      if (err instanceof CloudMediaReconciliationRequired) setNeedsReconciliation(true);
+      if (writeConfirmed || err instanceof CloudMediaReconciliationRequired) setNeedsReconciliation(true);
       setError('Deletion may be incomplete. Avoid retrying until you reconcile it. ' +
         safeMessage(err));
     } finally {
