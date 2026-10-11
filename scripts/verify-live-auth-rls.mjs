@@ -67,6 +67,7 @@ export async function runLiveAcceptance(env, request = fetch, report = console.l
   const run = randomUUID();
   const created = [];
   const uploaded = [];
+  const attachmentIntent = [];
   let failures = 0;
 
   async function api(method, path, token, body, headers = {}) {
@@ -247,6 +248,9 @@ export async function runLiveAcceptance(env, request = fetch, report = console.l
     const pairFilter = '&workspace_id=eq.' + wa + '&post_id=eq.' + pid;
     const linkFilter = pairFilter + '&media_asset_id=eq.' + mid;
     const owned = { workspace_id: wa, post_id: pid, media_asset_id: mid };
+    // Track the exact tuple BEFORE a possibly ambiguous POST response. On
+    // failure, cleanup will query for its presence and remove it if needed.
+    attachmentIntent.push({ workspaceId: wa, postId: pid, mediaAssetId: mid, token: a.token });
     await check('owner can attach private media to own draft', async () => {
       const res = await api('POST', linkPath, a.token, owned,
         { Prefer: 'return=representation' });
@@ -329,6 +333,34 @@ export async function runLiveAcceptance(env, request = fetch, report = console.l
     thrown = err;
     report('FAIL ' + (err instanceof Error ? err.message : 'Unknown test failure'));
   } finally {
+    // Always clear our own exact draft/media links first; otherwise the
+    // Storage DELETE policy rightly prevents removal of a referenced object.
+    // This also handles lost/ambiguous link INSERT responses.
+    for (const link of attachmentIntent.reverse()) {
+      const selector = '/rest/v1/creator_post_media?workspace_id=eq.' + link.workspaceId +
+        '&post_id=eq.' + link.postId + '&media_asset_id=eq.' + link.mediaAssetId;
+      try {
+        const before = await api('GET', selector + '&select=media_asset_id', link.token);
+        assert.equal(before.status, 200, 'Cannot inspect temporary link before cleanup');
+        if (!Array.isArray(before.body) || before.body.length > 1) {
+          throw new Error('Link readback was not precise');
+        }
+        if (before.body.length === 1) {
+          const deleted = await api('DELETE', selector + '&select=media_asset_id',
+            link.token, undefined, { Prefer: 'return=representation' });
+          assert.equal(deleted.status, 200, 'Temporary link deletion denied');
+          assert.equal(deleted.body?.[0]?.media_asset_id, link.mediaAssetId,
+            'Temporary link deletion was not confirmed');
+        }
+        const check = await api('GET', selector + '&select=media_asset_id', link.token);
+        mustBeEmptyRows(check, 'Temporary media link cleanup verification');
+        report('CLEANUP temporary draft media link removed');
+      } catch {
+        failures++;
+        report('CLEANUP FAILED attachment link (manual workspace cleanup required)');
+      }
+    }
+
     // Delete Storage objects through the Storage API (not SQL, which orphans blobs).
     for (const item of uploaded.reverse()) {
       try {
