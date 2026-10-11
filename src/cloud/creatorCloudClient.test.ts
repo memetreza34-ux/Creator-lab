@@ -399,3 +399,89 @@ test('draft validation rejects forged privileged fields before ANY network acces
   await assert.rejects(client.deleteDraft(workspaceId, 'bad-uuid'), /Invalid post ID/);
   assert.equal(calls, 0);
 });
+
+test('draft attachment listing is scoped to one workspace and post UUID', async () => {
+  const mediaId = 'a1edcf29-fc4c-4e10-b390-f6af49d3a733';
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      assert.equal(init?.method, 'GET');
+      const uri = new URL(String(input));
+      assert.equal(uri.pathname, '/rest/v1/creator_post_media');
+      assert.equal(uri.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(uri.searchParams.get('post_id'), 'eq.' + userId);
+      return new Response(JSON.stringify([{
+        workspace_id: workspaceId, post_id: userId, media_asset_id: mediaId,
+      }]), { status: 200 });
+    },
+  });
+  const links = await client.listDraftMedia(workspaceId, userId);
+  assert.equal(links[0].media_asset_id, mediaId);
+});
+
+test('draft media attach sends only three UUIDs; server composite FKs and RLS own authorization', async () => {
+  const mediaId = 'a1edcf29-fc4c-4e10-b390-f6af49d3a733';
+  let requests = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      requests++;
+      assert.equal(init?.method, 'POST');
+      assert.equal(new URL(String(input)).pathname, '/rest/v1/creator_post_media');
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        workspace_id: workspaceId, post_id: userId, media_asset_id: mediaId,
+      });
+      return new Response(JSON.stringify([{
+        workspace_id: workspaceId, post_id: userId, media_asset_id: mediaId,
+      }]), { status: 201 });
+    },
+  });
+  assert.equal((await client.attachDraftMedia(workspaceId, userId, mediaId)).media_asset_id, mediaId);
+  assert.equal(requests, 1);
+});
+
+test('draft media detach targets exact triple and never deletes the Storage object', async () => {
+  const mediaId = 'a1edcf29-fc4c-4e10-b390-f6af49d3a733';
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      const uri = new URL(String(input));
+      assert.equal(uri.pathname, '/rest/v1/creator_post_media');
+      assert.equal(init?.method, 'DELETE');
+      assert.equal(uri.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(uri.searchParams.get('post_id'), 'eq.' + userId);
+      assert.equal(uri.searchParams.get('media_asset_id'), 'eq.' + mediaId);
+      assert.equal(uri.searchParams.get('select'), 'workspace_id,post_id,media_asset_id');
+      return new Response(JSON.stringify([{
+        workspace_id: workspaceId, post_id: userId, media_asset_id: mediaId,
+      }]), { status: 200 });
+    },
+  });
+  await client.detachDraftMedia(workspaceId, userId, mediaId);
+});
+
+test('media link zero-row RLS results and wrong workspace are rejected', async () => {
+  const mediaId = 'a1edcf29-fc4c-4e10-b390-f6af49d3a733';
+  for (const rows of [[], [{
+    workspace_id: 'af111aa9-5dc9-43db-ab71-64fa15ef8a17', post_id: userId, media_asset_id: mediaId,
+  }]]) {
+    const client = createCreatorCloudClient({
+      ...opts, fetchImpl: async () => new Response(JSON.stringify(rows), { status: 200 }),
+    });
+    await assert.rejects(client.attachDraftMedia(workspaceId, userId, mediaId), /not confirmed/);
+    await assert.rejects(client.detachDraftMedia(workspaceId, userId, mediaId), /not confirmed/);
+  }
+});
+
+test('invalid media link IDs never reach HTTP and foreign responses are rejected', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => { calls++; return new Response('[]'); },
+  });
+  await assert.rejects(client.attachDraftMedia('foreign', userId, userId), /Invalid workspace ID/);
+  await assert.rejects(client.detachDraftMedia(workspaceId, 'invalid', userId), /Invalid post ID/);
+  await assert.rejects(client.listDraftMedia(workspaceId, 'bad'), /Invalid post ID/);
+  assert.equal(calls, 0);
+});
