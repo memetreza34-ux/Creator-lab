@@ -103,7 +103,7 @@ export class CloudAuthenticationRequired extends Error {
   }
 }
 
-function requireAuthenticatedUserToken(token: string): void {
+export function requireAuthenticatedUserToken(token: string): void {
   // Defense in depth only. The Supabase API verifies the JWT signature/expiry.
   // This prevents accidentally sending a service_role JWT from frontend code.
   try {
