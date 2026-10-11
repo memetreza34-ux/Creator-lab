@@ -52,3 +52,20 @@
 No change to the workflow file alone can repair an account-side billing or
 runner availability restriction. Do not treat this PR as an infrastructure
 resolution until an actual job executes and passes.
+
+## Fresh PR #33 confirmation (2026-10-11)
+
+New validation workflow run 38147480046 was automatically triggered by
+this very CI change. It again **failed in three seconds before the first
+step**. Job 114493763966 returned steps:null and logs_url:null; GitHub
+check-run output shows annotations_count=2. The new Runner diagnostics first
+step could not print anything because no job step was ever started.
+
+This is positive evidence that the workflow event was registered, but the
+runner/startup problem persists independent of the new workflow YAML.
+Resolve the owner-visible annotations/account billing and runner controls
+before attributing these results to npm, CI syntax or source-code tests.
+
+Run: https://github.com/memetreza34-ux/Creator-lab/actions/runs/38147480046
+Job annotations via authenticated CLI:
+'gh api repos/memetreza34-ux/Creator-lab/check-runs/114493763966/annotations'
