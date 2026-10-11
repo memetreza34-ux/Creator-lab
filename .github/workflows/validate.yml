@@ -4,14 +4,31 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+# Validation needs source read-only access. Never run untrusted PR code with secrets.
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - name: Runner diagnostics
+        run: |
+          echo "Runner assigned; workflow execution has actually started."
+          echo "Event: ${{ github.event_name }}"
+          node --version || true
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
