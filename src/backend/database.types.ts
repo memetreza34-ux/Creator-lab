@@ -223,6 +223,45 @@ export type Database = {
           },
         ]
       }
+      creator_post_media: {
+        Row: {
+          created_at: string
+          media_asset_id: string
+          post_id: string
+          sort_order: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          media_asset_id: string
+          post_id: string
+          sort_order?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          media_asset_id?: string
+          post_id?: string
+          sort_order?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_post_media_workspace_id_media_asset_id_fkey"
+            columns: ["workspace_id", "media_asset_id"]
+            isOneToOne: false
+            referencedRelation: "creator_media_assets"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "creator_post_media_workspace_id_post_id_fkey"
+            columns: ["workspace_id", "post_id"]
+            isOneToOne: false
+            referencedRelation: "creator_posts"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       creator_posts: {
         Row: {
           created_at: string
