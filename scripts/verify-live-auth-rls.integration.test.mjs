@@ -158,17 +158,23 @@ test('offline full-response fixture proves correct private endpoint, link author
 });
 
 test('acceptance fails closed if server lets clients forge scheduled posts', async () => {
-  const { fakeFetch } = fixture({ allowFakeSchedule: true });
+  const { fakeFetch, state } = fixture({ allowFakeSchedule: true });
   const messages = [];
   await assert.rejects(runLiveAcceptance(env, fakeFetch, (line) => messages.push(line)),
     /Live acceptance failed/);
   assert.ok(messages.some((line) => line.includes('FAIL')));
+  assert.equal(state.workspaces.size, 0);
+  assert.equal(state.files.size, 0);
+  assert.equal(state.attachment, null, 'reconciliation cleans links even on failed state checks');
 });
 
 test('acceptance fails closed if foreign workspace sees private attachments', async () => {
-  const { fakeFetch } = fixture({ leakForeignLink: true });
+  const { fakeFetch, state } = fixture({ leakForeignLink: true });
   const messages = [];
   await assert.rejects(runLiveAcceptance(env, fakeFetch, (line) => messages.push(line)),
     /Live acceptance failed/);
   assert.ok(messages.some((line) => line.includes('FAIL')));
+  assert.equal(state.workspaces.size, 0);
+  assert.equal(state.files.size, 0);
+  assert.equal(state.attachment, null, 'failed cross-workspace read must not strand Storage');
 });
