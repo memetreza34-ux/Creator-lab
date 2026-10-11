@@ -271,3 +271,43 @@ test('malformed metadata paths are never used as Storage endpoints', async () =>
   await assert.rejects(media.loadPrivateBlob(wid, tainted), /Unsupported/);
   assert.equal(calls, 0);
 });
+
+
+test('lost upload response is reconciled with authenticated HEAD before metadata insert', async () => {
+  let calls = 0;
+  const media = createCreatorMediaClient({
+    ...options,
+    fetchImpl: async (url, init) => {
+      calls++;
+      const path = new URL(String(url)).pathname;
+      if (init?.method === 'POST' && path.includes('/storage/v1/')) {
+        throw new Error('Connection dropped after Storage committed');
+      }
+      if (init?.method === 'HEAD') {
+        assert.match(path, /^\/storage\/v1\/object\/authenticated\/creator-media\//);
+        assert.equal((init.headers as Record<string, string>).Authorization, 'Bearer ' + token);
+        return new Response(null, { status: 200 });
+      }
+      assert.equal(init?.method, 'POST');
+      const posted = JSON.parse(String(init?.body));
+      return json([{ ...asset(), ...posted }], 201);
+    },
+  });
+  assert.equal((await media.uploadMedia(wid, file())).workspace_id, wid);
+  assert.equal(calls, 3);
+});
+
+test('definitive 404 after lost upload response prevents metadata creation', async () => {
+  let requests = 0;
+  const media = createCreatorMediaClient({
+    ...options,
+    fetchImpl: async (_url, init) => {
+      requests++;
+      if (init?.method === 'POST') throw new Error('Lost upload response');
+      assert.equal(init?.method, 'HEAD');
+      return new Response(null, { status: 404 });
+    },
+  });
+  await assert.rejects(media.uploadMedia(wid, file()), /no private Storage object was found/);
+  assert.equal(requests, 2);
+});
