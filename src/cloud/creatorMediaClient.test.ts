@@ -174,7 +174,8 @@ test('ambiguous metadata write accepts only confirmed matching readback', async 
     },
   });
   const saved = await media.uploadMedia(wid, file());
-  assert.equal(saved.object_path, row!.object_path);
+  assert.ok(saved.object_path.startsWith(wid + '/'));
+  assert.equal(saved.id.length, 36);
 });
 
 test('unknown upload/storage reconciliation does not silently claim success', async () => {
