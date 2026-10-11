@@ -315,10 +315,11 @@ export function CloudAccountPage() {
                 workspaceId={selectedWorkspace}
               />
             )}
-            {selectedWorkspace && clients.cloud && (
+            {selectedWorkspace && clients.cloud && clients.media && (
               <CloudDraftComposerPanel
                 key={'drafts:' + identity.id + ':' + selectedWorkspace}
                 cloud={clients.cloud}
+                media={clients.media}
                 workspaceId={selectedWorkspace}
               />
             )}
@@ -329,7 +330,7 @@ export function CloudAccountPage() {
                 workspaceId={selectedWorkspace}
               />
             )}
-            <p className="text-xs text-zinc-600">Cloud pipeline, written drafts and private media are stored remotely. The advanced local demo Composer and Calendar remain local-only. Cloud uploads are not automatically attached to drafts; no publishing or scheduling is enabled.</p>
+            <p className="text-xs text-zinc-600">Cloud pipeline, written drafts and private media are stored remotely. The advanced local demo Composer and Calendar remain local-only. Private cloud files can be attached manually to saved drafts. No external publishing or scheduling is enabled.</p>
           </section>
         )}
       </div>

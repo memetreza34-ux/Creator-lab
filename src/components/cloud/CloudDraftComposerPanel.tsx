@@ -7,6 +7,7 @@ import {
 import { isEditableTextDraft, readCloudDraft, type CloudDraftInput } from '../../cloud/cloudDrafts';
 
 type Cloud = ReturnType<typeof createCreatorCloudClient>;
+type Media = ReturnType<typeof createCreatorMediaClient>;
 const input = 'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 const btn = 'rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium disabled:opacity-50 hover:bg-zinc-50';
 
@@ -19,8 +20,9 @@ function safeError(error: unknown): string {
 }
 
 /** Only cloud data; intentionally not the local demo Composer or provider publisher. */
-export function CloudDraftComposerPanel({ cloud, workspaceId }: {
+export function CloudDraftComposerPanel({ cloud, media, workspaceId }: {
   cloud: Cloud;
+  media: Media;
   workspaceId: string;
 }) {
   const [posts, setPosts] = useState<CloudPost[]>([]);
@@ -178,7 +180,7 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
         <div>
           <h2 className="text-lg font-semibold">Cloud draft composer</h2>
           <p className="mt-1 text-xs text-zinc-600">
-            Save written drafts and platform-specific caption variants. No uploads, scheduling or publishing yet.
+            Save written drafts, caption variants and attach files already uploaded into this workspace. No scheduling or publishing.
           </p>
         </div>
         <button type="button" disabled={busy || loading}
@@ -300,6 +302,20 @@ export function CloudDraftComposerPanel({ cloud, workspaceId }: {
           <p className="text-xs text-zinc-600">
             This action only saves a draft in your selected cloud workspace.
           </p>
+          {editingId && !reloadNeeded && (
+            <CloudDraftAttachmentsPanel
+              key={editingId}
+              cloud={cloud}
+              media={media}
+              workspaceId={workspaceId}
+              postId={editingId}
+            />
+          )}
+          {!editingId && (
+            <p className="text-xs text-zinc-500">
+              Save the draft first to enable private media attachments.
+            </p>
+          )}
         </form>
       </div>
     </section>

@@ -136,7 +136,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
       setNotice('Storage object and cloud media record were both deleted.');
     } catch (err) {
       if (writeConfirmed || err instanceof CloudMediaReconciliationRequired) setNeedsReconciliation(true);
-      setError('Deletion may be incomplete. Avoid retrying until you reconcile it. ' +
+      setError('Deletion failed or may be incomplete. If the file is attached to a draft, detach it first. Avoid retrying until you reconcile the server state. ' +
         safeMessage(err));
     } finally {
       setBusy(false);
@@ -226,7 +226,7 @@ export function CloudMediaLibraryPanel({ media, workspaceId }: {
       )}
       <p className="text-xs text-zinc-500">
         Files are in a private Supabase bucket. Temporary browser previews are revoked when closed.
-        Provider publishing and attaching media to Cloud drafts are not enabled.
+        To use a file in a draft, save your draft and attach it there. Detach files from every draft before deleting them here. Provider publishing is not enabled.
       </p>
     </section>
   );
