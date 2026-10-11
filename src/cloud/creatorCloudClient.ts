@@ -7,6 +7,7 @@ type Tables = Database['public']['Tables'];
 export type CloudWorkspace = Tables['creator_workspaces']['Row'];
 export type CloudContentItem = Tables['creator_content_items']['Row'];
 export type CloudPost = Tables['creator_posts']['Row'];
+export type CloudPostMedia = Tables['creator_post_media']['Row'];
 
 
 export const CLOUD_PIPELINE_STAGES = [
@@ -294,6 +295,53 @@ export function createCreatorCloudClient(options: CreatorCloudOptions) {
           rows[0].workspace_id !== wid || rows[0].id !== pid ||
           rows[0].status !== 'draft') {
         throw new Error('Draft deletion was not confirmed. Check permissions and current status.');
+      }
+    },
+
+    /** Draft-media links have TWO composite server FKs, plus member/editor RLS. */
+    async listDraftMedia(workspaceId: string, postId: string): Promise<CloudPostMedia[]> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const pid = requireUuid(postId, 'post ID');
+      const rows = await request<CloudPostMedia[]>('GET',
+        '/rest/v1/creator_post_media?select=*&workspace_id=eq.' + wid +
+        '&post_id=eq.' + pid + '&order=sort_order.asc,created_at.asc');
+      if (!Array.isArray(rows) || rows.some((r) => r.workspace_id !== wid || r.post_id !== pid)) {
+        throw new Error('Cloud media links response could not be verified');
+      }
+      return rows;
+    },
+
+    async attachDraftMedia(
+      workspaceId: string, postId: string, mediaAssetId: string,
+    ): Promise<CloudPostMedia> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const pid = requireUuid(postId, 'post ID');
+      const aid = requireUuid(mediaAssetId, 'media asset ID');
+      const rows = await request<CloudPostMedia[]>('POST',
+        '/rest/v1/creator_post_media?select=*',
+        { workspace_id: wid, post_id: pid, media_asset_id: aid }, true);
+      if (!Array.isArray(rows) || rows.length !== 1 ||
+          rows[0].workspace_id !== wid || rows[0].post_id !== pid ||
+          rows[0].media_asset_id !== aid) {
+        throw new Error('Media attachment was not confirmed by the server');
+      }
+      return rows[0];
+    },
+
+    async detachDraftMedia(
+      workspaceId: string, postId: string, mediaAssetId: string,
+    ): Promise<void> {
+      const wid = requireUuid(workspaceId, 'workspace ID');
+      const pid = requireUuid(postId, 'post ID');
+      const aid = requireUuid(mediaAssetId, 'media asset ID');
+      const rows = await request<CloudPostMedia[]>('DELETE',
+        '/rest/v1/creator_post_media?workspace_id=eq.' + wid +
+        '&post_id=eq.' + pid + '&media_asset_id=eq.' + aid +
+        '&select=workspace_id,post_id,media_asset_id', undefined, true);
+      if (!Array.isArray(rows) || rows.length !== 1 ||
+          rows[0].workspace_id !== wid || rows[0].post_id !== pid ||
+          rows[0].media_asset_id !== aid) {
+        throw new Error('Media removal from draft was not confirmed by the server');
       }
     },
 
