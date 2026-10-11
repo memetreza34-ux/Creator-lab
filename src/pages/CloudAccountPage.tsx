@@ -4,6 +4,8 @@ import { createCreatorAuth, type AuthIdentity } from '../auth/creatorAuth';
 import { createCreatorCloudClient, type CloudWorkspace } from '../cloud/creatorCloudClient';
 import { CloudPipelinePanel } from '../components/cloud/CloudPipelinePanel';
 import { CloudDraftComposerPanel } from '../components/cloud/CloudDraftComposerPanel';
+import { createCreatorMediaClient } from '../cloud/creatorMediaClient';
+import { CloudMediaLibraryPanel } from '../components/cloud/CloudMediaLibraryPanel';
 
 type View = 'login' | 'register' | 'forgot' | 'recover';
 
@@ -22,9 +24,12 @@ export function CloudAccountPage() {
       const cloud = createCreatorCloudClient({
         url, publishableKey, getAccessToken: auth.getAccessToken,
       });
-      return { auth, cloud, configError: '' };
+      const media = createCreatorMediaClient({
+        url, publishableKey, getAccessToken: auth.getAccessToken,
+      });
+      return { auth, cloud, media, configError: '' };
     } catch {
-      return { auth: null, cloud: null,
+      return { auth: null, cloud: null, media: null,
         configError: 'Cloud sign-in is not configured on this installation.' };
     }
   }, []);
@@ -317,7 +322,14 @@ export function CloudAccountPage() {
                 workspaceId={selectedWorkspace}
               />
             )}
-            <p className="text-xs text-zinc-600">Cloud pipeline ideas and written drafts are saved remotely. The advanced local demo Composer, Calendar, accounts and media remain local-only. No cloud publishing or scheduling is enabled.</p>
+            {selectedWorkspace && clients.media && (
+              <CloudMediaLibraryPanel
+                key={'media:' + identity.id + ':' + selectedWorkspace}
+                media={clients.media}
+                workspaceId={selectedWorkspace}
+              />
+            )}
+            <p className="text-xs text-zinc-600">Cloud pipeline, written drafts and private media are stored remotely. The advanced local demo Composer and Calendar remain local-only. Cloud uploads are not automatically attached to drafts; no publishing or scheduling is enabled.</p>
           </section>
         )}
       </div>
