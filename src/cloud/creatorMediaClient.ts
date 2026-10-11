@@ -124,7 +124,7 @@ export function createCreatorMediaClient(options: {
   const send = options.fetchImpl ?? fetch;
 
   async function authorized(
-    path: string, method: 'GET' | 'POST' | 'DELETE',
+    path: string, method: 'GET' | 'POST' | 'DELETE' | 'HEAD',
     body?: BodyInit, headers: Record<string, string> = {},
   ): Promise<Response> {
     const jwt = await options.getAccessToken();
@@ -187,6 +187,18 @@ export function createCreatorMediaClient(options: {
     return rows[0] ?? null;
   }
 
+  async function uploadedObjectExists(path: string): Promise<boolean> {
+    try {
+      await authorized('/storage/v1/object/authenticated/' + BUCKET + '/' +
+        path.split('/').map(encodeURIComponent).join('/'), 'HEAD');
+      return true;
+    } catch (err) {
+      // Only a definitive "not found" is safe evidence that no object exists.
+      if (err instanceof CloudRequestError && err.status === 404) return false;
+      throw new CloudMediaReconciliationRequired();
+    }
+  }
+
   async function removeObject(path: string): Promise<boolean> {
     const result = await authorized('/storage/v1/object/' + BUCKET, 'DELETE',
       JSON.stringify({ prefixes: [path] }), { 'Content-Type': 'application/json' });
@@ -203,11 +215,18 @@ export function createCreatorMediaClient(options: {
    */
   async function uploadMedia(workspaceId: string, file: File): Promise<CloudMediaAsset> {
     const info = await prepareMediaUpload(file, workspaceId);
-    const upload = await authorized(
-      '/storage/v1/object/' + BUCKET + '/' + info.path.split('/').map(encodeURIComponent).join('/'),
-      'POST', file, { 'Content-Type': info.mimeType, 'x-upsert': 'false', 'cache-control': '3600' });
-    // A successful upload response confirms the Storage request, not DB metadata.
-    if (!upload.ok) throw new CloudMediaReconciliationRequired();
+    try {
+      await authorized(
+        '/storage/v1/object/' + BUCKET + '/' + info.path.split('/').map(encodeURIComponent).join('/'),
+        'POST', file, { 'Content-Type': info.mimeType, 'x-upsert': 'false', 'cache-control': '3600' });
+    } catch (err) {
+      if (!(err instanceof CloudMediaReconciliationRequired)) throw err;
+      // The connection may drop AFTER Storage commits. Check the unique path
+      // before creating metadata or asking the user to upload again.
+      if (!await uploadedObjectExists(info.path)) {
+        throw new Error('Upload did not complete and no private Storage object was found');
+      }
+    }
     const row = {
       id: info.mediaId,
       workspace_id: workspaceId,
