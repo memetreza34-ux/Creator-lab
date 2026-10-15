@@ -31,7 +31,7 @@ Scope reference: proposed focus PR #34. This document describes the **local M1 U
 - `main` still relies on browser localStorage and IndexedDB, not production Auth/Postgres/private cloud storage. Do NOT advertise this PR alone as beta ready.
 - PRs #16/#23/#24–#32 hold substantial **unmerged** cloud/security work; integrate and validate rather than reimplement. Rebase this UI slice onto the accepted cloud state as needed; in particular cloud drafts must persist manual target platforms too.
 - PR #20 is the existing fix direction for unauthenticated production AI. Disable production AI until JWT auth + spending limits are enforced.
-- CI issue #19 remains blocking: previous runs had no runner steps. No merge without credible typecheck/test/build + QA.
+- **CI is now green for this PR branch**: GitHub Actions run #38776708630 (2026-10-15) ran Checkout, npm ci, 74 tests / 74 passed, TypeScript check and production build. Historical issue #19 involved failed runner provisioning on older PRs; re-run and re-validate those branches separately rather than assuming their code is validated. Browser/cloud/security acceptance remains OPEN.
 - Existing saved mock/demo state persists. Users should not have data cleared implicitly; a future safe migration should distinguish demo and user-owned records.
 - No feature or data was deleted from old routes/components. Deprecated UI paths redirect to Overview in this branch.
 
@@ -51,7 +51,7 @@ Scope reference: proposed focus PR #34. This document describes the **local M1 U
 - Support, legal/privacy/operational gates before public commercial launch.
 
 ## Tests and verification
-GitHub connector code edits only. `npm ci`, `npm test`, `npm run lint`, `npm run build` and interactive browser/E2E were NOT run here due unavailable executable checkout and unresolved Actions runner. All review/merge gates remain open.
+GitHub Actions run #38776708630 on branch head `93a9aa6b0e4fc16d0484a7c0809e6c703281e64a` passed npm ci, 74/74 automated tests, TypeScript validation, and Vite/Node production build. Actual browser/E2E, real cloud login, cross-device tests, live RLS and social provider publication were **NOT** verified. This documentation-only follow-up commit requires its own current-head CI status before merge.
 
 ## One next action
-Diagnose issue #19, reconcile the first cloud security migrations and true JWT tests, then run full validations and rebase/integrate this focused interface slice with the cloud app before releasing M1.
+Review the existing Supabase migrations/security PRs #16/#28/#30 and genuine issued-JWT probe #23/#32, re-run their branch CI now runner execution is demonstrably working, and integrate accepted cloud code with this UI slice. Complete browser/multiuser tests before releasing M1.
