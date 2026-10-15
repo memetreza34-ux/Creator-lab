@@ -6,6 +6,7 @@ import {
   Search,
   MoreHorizontal,
   Copy,
+  Download,
   Trash2,
   Edit2,
   ImageIcon,
@@ -26,6 +27,7 @@ import {
 } from '../utils/selectors';
 import { resolveMediaUrl } from '../utils/mediaStorage';
 import { getPostDisplayDateTime } from '../utils/scheduling';
+import { formatPostForManualExport, safePostExportFilename } from '../utils/postExport';
 
 export function PostsPage() {
   const { state, dispatch } = useApp();
@@ -93,6 +95,31 @@ export function PostsPage() {
     setOpenMenuId(null);
   };
 
+  const handleCopyText = async (post: Post) => {
+    try {
+      await navigator.clipboard.writeText(formatPostForManualExport(post));
+      toast.success('Content copied. Publish manually on your platform.');
+    } catch {
+      toast.error('Could not copy. Try downloading the text file instead.');
+    }
+    setOpenMenuId(null);
+  };
+
+  const handleDownloadText = (post: Post) => {
+    const data = new Blob([formatPostForManualExport(post)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = safePostExportFilename(post.title);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // The browser is allowed to start downloading before revoking the URL.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success('Text file prepared for manual posting');
+    setOpenMenuId(null);
+  };
+
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       dispatch({ type: 'DELETE_POST', payload: id });
@@ -104,7 +131,7 @@ export function PostsPage() {
   const tabs: { id: PostStatus | 'all'; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'draft', label: 'Drafts' },
-    { id: 'scheduled', label: 'Scheduled' },
+    { id: 'scheduled', label: 'Locally Planned' },
     { id: 'published', label: 'Published' },
     { id: 'needs_review', label: 'Needs Review' },
     { id: 'failed', label: 'Failed' },
@@ -115,7 +142,7 @@ export function PostsPage() {
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
           <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Posts</h1>
-          <p className="text-[14px] text-zinc-500 mt-1">Manage and track your content. Dates shown in {workspaceTimeZone}.</p>
+          <p className="text-[14px] text-zinc-500 mt-1">Manage drafts and manual posting plans. Nothing is published automatically. Dates use {workspaceTimeZone}.</p>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -280,7 +307,7 @@ export function PostsPage() {
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
                         {openMenuId === post.id && (
-                          <div className="absolute right-6 top-10 w-40 bg-white border border-zinc-200 rounded-[8px] shadow-lg z-10 py-1 text-left">
+                          <div className="absolute right-6 top-10 w-48 bg-white border border-zinc-200 rounded-[8px] shadow-lg z-10 py-1 text-left">
                             <button
                               onClick={() => navigate(`/create?edit=${post.id}`)}
                               className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
@@ -294,6 +321,18 @@ export function PostsPage() {
                             >
                               <Copy className="w-4 h-4 mr-2" />
                               Duplicate
+                            </button>
+                            <button
+                              onClick={() => void handleCopyText(post)}
+                              className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
+                            >
+                              <Copy className="w-4 h-4 mr-2" /> Copy for manual posting
+                            </button>
+                            <button
+                              onClick={() => handleDownloadText(post)}
+                              className="w-full px-4 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-50 flex items-center"
+                            >
+                              <Download className="w-4 h-4 mr-2" /> Export .txt
                             </button>
                             <div className="h-px bg-zinc-100 my-1 mx-2" />
                             <button
