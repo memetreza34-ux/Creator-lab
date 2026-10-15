@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AppState } from '../types';
 import {
+  getPostPlatforms,
   getPostsForContentItem,
   getPostsUsingAccount,
   getPostsUsingMedia,
@@ -147,4 +148,9 @@ test('media usage detects platform-specific references without duplicating a pos
     getPostsUsingMedia(scopedState, 'media-a').map((post) => post.id),
     ['post-a'],
   );
+});
+
+test('manual target platforms are visible without any connected accounts', () => {
+  const draft = { ...state.posts[0], planningPlatforms: ['instagram', 'youtube'] as const };
+  assert.deepEqual(getPostPlatforms({ ...draft, planningPlatforms: [...draft.planningPlatforms] }, [], []), ['instagram', 'youtube']);
 });
