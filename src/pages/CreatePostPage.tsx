@@ -94,6 +94,7 @@ export function CreatePostPage() {
   const workspaceMedia = getWorkspaceMedia(state);
 
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [planningPlatforms, setPlanningPlatforms] = useState<Platform[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<'original' | Platform>('original');
   const [isScheduling, setIsScheduling] = useState(Boolean(dateParam));
   const [scheduleDate, setScheduleDate] = useState(dateParam);
@@ -192,6 +193,7 @@ export function CreatePostPage() {
       }
 
       if (existing) {
+        setPlanningPlatforms(existing.planningPlatforms || []);
         const availableAccountIds = new Set(
           availableAccounts.map((account) => account.id),
         );
@@ -230,6 +232,9 @@ export function CreatePostPage() {
       }
     } else if (platformsParam) {
       const targetPlatforms = platformsParam.split(',');
+      setPlanningPlatforms(targetPlatforms.filter(
+        (platform): platform is Platform => ['youtube', 'instagram', 'tiktok'].includes(platform),
+      ));
       const matchedAccountIds = availableAccounts
         .filter((account) => targetPlatforms.includes(account.platform))
         .map((account) => account.id);
@@ -289,7 +294,7 @@ export function CreatePostPage() {
   )?.publishBlockReason;
 
   const selectedPlatforms = Array.from(
-    new Set<Platform>(selectedAccounts.map((account) => account.platform)),
+    new Set<Platform>([...planningPlatforms, ...selectedAccounts.map((account) => account.platform)]),
   );
 
   const currentContentObj = activePreviewTab === 'original'
@@ -573,6 +578,7 @@ export function CreatePostPage() {
       originalContent: sanitized.baseContent,
       platformContent: sanitized.platformContent,
       destinationAccountIds: selectedAccounts.map((account) => account.id),
+      planningPlatforms,
       sourceContentItemId:
         fromPipelineId || existingPost?.sourceContentItemId || undefined,
       createdAt: existingPost?.createdAt || new Date().toISOString(),
@@ -662,6 +668,7 @@ export function CreatePostPage() {
       originalContent: sanitized.baseContent,
       platformContent: sanitized.platformContent,
       destinationAccountIds: selectedAccounts.map((account) => account.id),
+      planningPlatforms,
       sourceContentItemId:
         fromPipelineId || existingPost?.sourceContentItemId || undefined,
       createdAt: existingPost?.createdAt || new Date().toISOString(),
@@ -765,7 +772,22 @@ export function CreatePostPage() {
             )}
           </div>
 
-          <div className="space-y-2.5">
+          <section aria-label="Manual target platforms" className="space-y-2">
+            <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Prepare for (optional)</p>
+            <div className="flex flex-wrap gap-2">
+              {(['youtube', 'instagram', 'tiktok'] as Platform[]).map(platform => {
+                const chosen = planningPlatforms.includes(platform);
+                return <button key={platform} type="button" aria-pressed={chosen}
+                  onClick={() => { markDirty(); setPlanningPlatforms(previous => chosen ? previous.filter(p => p !== platform) : [...previous, platform]); }}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${chosen ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-zinc-200 text-zinc-600'}`}>
+                  <PlatformIcon platform={platform} className="w-3.5 h-3.5" /> {PLATFORM_CONFIGS[platform].displayName}
+                </button>;
+              })}
+            </div>
+            <p className="text-[11px] text-zinc-500">Only prepares text and previews. No account is connected or content published.</p>
+          </section>
+
+          {availableAccounts.length > 0 && <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                 Optional planning profiles ({selectedAccountIds.length})
@@ -828,7 +850,7 @@ export function CreatePostPage() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-[#EBEBE9] pb-0.5">
