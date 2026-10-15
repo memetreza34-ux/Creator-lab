@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { appReducer } from './AppContext';
+import { appReducer, createSeedState } from './AppContext';
 import { AppState } from '../types';
 
 const baseState: AppState = {
@@ -247,4 +247,15 @@ test('deleting a workspace removes owned destination snapshots only', () => {
   const next = appReducer(state, { type: 'DELETE_WORKSPACE', payload: 'a' });
 
   assert.deepEqual(next.postDestinations.map(d => d.workspaceId), ['b']);
+});
+
+test('first-time workspace has no invented posts, accounts or analytics', () => {
+  const fresh = createSeedState();
+  assert.equal(fresh.workspaces.length, 1);
+  assert.equal(fresh.activeWorkspaceId, fresh.workspaces[0].id);
+  assert.equal(fresh.posts.length, 0);
+  assert.equal(fresh.socialAccounts.length, 0);
+  assert.equal(fresh.analytics.length, 0);
+  assert.equal(fresh.postPerformances.length, 0);
+  assert.equal(fresh.mediaAssets.length, 0);
 });
