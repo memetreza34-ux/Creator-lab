@@ -9,17 +9,7 @@ import {
   SocialAccount,
   Workspace,
 } from '../types';
-import {
-  mockAnalytics,
-  mockExperiments,
-  mockMediaAssets,
-  mockMediaFolders,
-  mockPipelineItems,
-  mockPostPerformance,
-  mockPosts,
-  mockSocialAccounts,
-  mockWorkspaces,
-} from '../data/mockData';
+import { v4 as uuidv4 } from 'uuid';
 import {
   PERSISTED_STATE_KEY,
   deserializePersistedState,
@@ -31,7 +21,6 @@ import {
 } from '../utils/contentOperations';
 import {
   detachSocialAccount,
-  hydratePostDestinations,
   syncPostDestinations,
 } from '../domain/postDestinations';
 
@@ -81,20 +70,20 @@ const AppContext = createContext<{
   dispatch: React.Dispatch<Action>;
 } | undefined>(undefined);
 
-function createSeedState(): AppState {
-  return {
-    workspaces: mockWorkspaces,
-    activeWorkspaceId: mockWorkspaces[0].id,
-    socialAccounts: mockSocialAccounts,
-    posts: mockPosts,
-    postDestinations: hydratePostDestinations(mockPosts, mockSocialAccounts, []),
-    mediaAssets: mockMediaAssets,
-    mediaFolders: mockMediaFolders,
-    pipelineItems: mockPipelineItems,
-    experiments: mockExperiments,
-    analytics: mockAnalytics,
-    postPerformances: mockPostPerformance,
+/**
+ * Brand-new users start with their own empty workspace instead of fictional
+ * social accounts, engagement charts and demo posts.
+ * Existing versioned localStorage data is loaded above and is never cleared here.
+ */
+export function createSeedState(): AppState {
+  const workspace: Workspace = {
+    id: uuidv4(),
+    name: 'My Workspace',
+    plan: 'free',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    createdAt: new Date().toISOString(),
   };
+  return { ...initialState, workspaces: [workspace], activeWorkspaceId: workspace.id };
 }
 
 export function appReducer(state: AppState, action: Action): AppState {
