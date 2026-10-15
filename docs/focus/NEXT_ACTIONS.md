@@ -55,3 +55,8 @@ The old master plan's many additional work items should **not** auto-enter this 
 | User validation and launch compliance | NOT VERIFIED | Required as applicable | Findings, privacy/support/release review |
 
 No calendar-date promises or fictitious % completion. Progress = verified completed end-to-end gates.
+
+## Existing beta UI slice — do not recreate
+- [PR #35](https://github.com/memetreza34-ux/Creator-lab/pull/35) (DRAFT, not merged): local-only UI focus, empty first run, accountless drafts/manual planning, planning-only YouTube/Instagram/TikTok text targets, copy/text export and local media downloads. Retains old advanced data/code. **No CI/browser E2E validation claimed.**
+- Before accepting #35, resolve GitHub Actions issue #19, run tests/typecheck/build, manually verify mobile + persistence + no-account export flow, and reconcile with the stacked cloud integration PR chain. Do not copy this local-only implementation wholesale as a second cloud app.
+- **Important:** #35 does not complete F-004/F-005 or the real M1 beta. It only advances the local-screen slice; production Auth/cloud is still unverified.
