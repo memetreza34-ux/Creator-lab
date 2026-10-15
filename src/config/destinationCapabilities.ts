@@ -139,12 +139,13 @@ export function validateComposerDestinations(
 ): ComposerValidationIssue[] {
   const issues: ComposerValidationIssue[] = [];
 
-  if (input.accounts.length === 0) {
+  // Drafts and manual/local plans must work without connecting an account.
+  // Real publishing always requires a verified destination.
+  if (input.accounts.length === 0 && input.intent === 'publish') {
     issues.push({
       code: 'no_destination',
-      message: 'Select at least one destination account.',
+      message: 'Connect a verified destination before publishing.',
     });
-    return issues;
   }
 
   if (
