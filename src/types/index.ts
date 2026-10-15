@@ -48,6 +48,8 @@ export interface Post {
   workspaceId: string;
   title: string;
   destinationAccountIds: string[];
+  /** Manual text-preparation targets; not connected publishing destinations. */
+  planningPlatforms?: Platform[];
   originalContent: PostContent;
   platformContent: PlatformSpecificContent[];
   status: PostStatus;
