@@ -81,7 +81,13 @@ export function MediaLibraryPage() {
     let savedCount = 0;
     let failedCount = 0;
 
+    const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime']);
+    const maxFileBytes = 25 * 1024 * 1024; // Browser-local beta safety limit.
     for (const file of files) {
+      if (!allowedMimeTypes.has(file.type) || file.size === 0 || file.size > maxFileBytes) {
+        failedCount += 1;
+        continue;
+      }
       const id = uuidv4();
 
       try {
@@ -113,9 +119,9 @@ export function MediaLibraryPage() {
     if (savedCount > 0 && failedCount === 0) {
       toast.success(`Successfully uploaded ${savedCount} asset(s)`, { id: loadingToast });
     } else if (savedCount > 0) {
-      toast.error(`${savedCount} saved, ${failedCount} failed to store locally`, { id: loadingToast });
+      toast.error(`${savedCount} saved, ${failedCount} unsupported/oversized (25 MB max) or failed to store`, { id: loadingToast });
     } else {
-      toast.error('Upload failed. Media could not be stored in this browser.', { id: loadingToast });
+      toast.error('Upload failed. Use JPG, PNG, WEBP, GIF, MP4 or MOV (25 MB max), with available browser storage.', { id: loadingToast });
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -406,7 +412,7 @@ export function MediaLibraryPage() {
             ref={fileInputRef} 
             onChange={handleUpload} 
             multiple 
-            accept="image/*,video/*" 
+            accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.mov" 
             className="hidden" 
           />
         </div>
