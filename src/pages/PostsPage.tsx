@@ -132,14 +132,14 @@ export function PostsPage() {
     { id: 'all', label: 'All' },
     { id: 'draft', label: 'Drafts' },
     { id: 'scheduled', label: 'Locally Planned' },
-    { id: 'published', label: 'Published' },
+    { id: 'published', label: 'History (unverified)' },
     { id: 'needs_review', label: 'Needs Review' },
     { id: 'failed', label: 'Failed' },
   ];
 
   return (
     <div className="p-6 h-full flex flex-col bg-surface-bg" onClick={() => setOpenMenuId(null)}>
-      <div className="flex items-center justify-between mb-6 shrink-0">
+      <div className="flex flex-wrap gap-3 items-center justify-between mb-6 shrink-0">
         <div>
           <h1 className="text-[24px] font-semibold text-zinc-900 tracking-tight">Posts</h1>
           <p className="text-[14px] text-zinc-500 mt-1">Manage drafts and manual posting plans. Nothing is published automatically. Dates use {workspaceTimeZone}.</p>
@@ -153,7 +153,7 @@ export function PostsPage() {
               placeholder="Search posts..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 w-64 bg-white shadow-sm"
+              className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-brand-500 w-full sm:w-64 bg-white shadow-sm"
             />
           </div>
         </div>
@@ -194,7 +194,7 @@ export function PostsPage() {
           </div>
         ) : (
           <div className="bg-white border border-border-subtle rounded-[12px] shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[740px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-border-subtle bg-zinc-50/50">
                   <th className="px-5 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider w-[40%]">Post</th>
@@ -272,7 +272,7 @@ export function PostsPage() {
                       </td>
                       <td className="px-5 py-3 align-middle">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                          post.status === 'published' ? 'bg-status-success/10 text-status-success' :
+                          post.status === 'published' ? 'bg-zinc-100 text-zinc-600' :
                           post.status === 'scheduled' ? 'bg-brand-50 text-brand-600' :
                           post.status === 'failed' ? 'bg-status-danger/10 text-status-danger' :
                           post.status === 'needs_review' ? 'bg-amber-50 text-amber-700' :
