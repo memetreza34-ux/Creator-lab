@@ -12,9 +12,14 @@ export function formatPostForManualExport(post: Post): string {
     post.originalContent.caption.trim() || '(media-only draft)',
   ];
 
-  for (const item of post.platformContent) {
-    if (!item.enabled) continue;
-    lines.push('', `${item.platform.toUpperCase()} VERSION`, item.content.caption.trim() || '(no text)');
+  const targets = Array.from(new Set([
+    ...(post.planningPlatforms || []),
+    ...post.platformContent.filter(item => item.enabled).map(item => item.platform),
+  ]));
+  for (const platform of targets) {
+    const override = post.platformContent.find(item => item.platform === platform && item.enabled);
+    lines.push('', `${platform.toUpperCase()} VERSION`,
+      override?.content.caption.trim() || post.originalContent.caption.trim() || '(media-only draft)');
   }
   if (post.scheduledAt && post.status === 'scheduled') {
     lines.push('', `LOCAL PLAN (UTC): ${post.scheduledAt}`, 'This is a reminder, not an automatic publish job.');
