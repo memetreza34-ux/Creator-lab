@@ -3,14 +3,14 @@
 Snapshot checked 2026-10-15. **This is a living work board, not a claim that checks have been executed.** Update after every substantive PR/merge and include links/evidence.
 
 ## Immediate objective
-**Restore trusted delivery and prove the existing cloud slice before implementing any new functionality.** WIP limit: one principal implementation task; separate runner/admin triage may occur in parallel. No additional phase/feature ideas.
+**Validate existing backend/cloud security work and integrate one real creator journey before building new features.** WIP limit: one principal implementation task; separate runner/admin triage may occur in parallel. No additional phase/feature ideas.
 
-## NOW — single current blocker (P0)
-**F-001: Diagnose GitHub Actions pre-step failure, issue #19.**
-- Owner/admin opens a failed Actions run (#16/#17/#33), captures the exact GitHub error banner, checks Actions settings/billing/runner permissions; no root-cause assumption.
-- Verify whether PR #33's trigger fix for stacked branches is appropriate.
-- Exit: runner starts; test/build/lint logs available and actual selected-PR validation passes. Record evidence.
-- If externally blocked, record as BLOCKED and execute **one isolated, locally testable security/QA task** only; do not pretend CI is fixed.
+## NOW — single current priority (P0)
+**F-002: Review and reconcile existing applied Supabase migrations (#16/#28/#30), then run genuine 2-user JWT/Storage acceptance (#23/#32).**
+- Status update 2026-10-15: the historical pre-step GitHub Actions failure (#19) is **not currently reproduced on new branch PR #35**. Actions [run #38776708630](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38776708630) completed Checkout, npm ci, **74/74 tests**, TypeScript and production build on commit `93a9aa6b0e4fc16d0484a7c0809e6c703281e64a`. This confirms runner capacity for that branch; the old root cause remains unknown and old PRs are **not** automatically validated.
+- Inspect actual dedicated Supabase migration history and security policies before further SQL. Re-run CI on the exact candidate schema/tests branches; do not merge blind.
+- Success is documented live database source match, two **genuine issued JWTs**, denied cross-user/workspace data and private media access, and reproducible evidence. Only then integrate existing cloud UI adapters.
+- Do not add new product features while this P0 dependency is open.
 
 ## NEXT — ordered backlog with exact acceptance gates
 | ID | Priority | Task (reuse PRs) | Done only when |
@@ -48,7 +48,7 @@ The old master plan's many additional work items should **not** auto-enter this 
 | Durable draft/media across devices | NOT VERIFIED | Required | Multi-session browser E2E |
 | Clean end-to-end creator journey | NOT VERIFIED | Required | Observed M1 task |
 | Usable accessible error/recovery states | NOT VERIFIED | Required | Mobile + keyboard + failure tests |
-| CI validation on merged candidate | BLOCKED (#19) | Required | Actual logs and checks |
+| CI validation on merged candidate | PR #35 branch GREEN (74/74); combined/merged candidate NOT VERIFIED | Required | Actual run #38776708630; old branches need independent checks |
 | Real OAuth/provider upload | Not promised | NOT VERIFIED | Provider-side ID and verification |
 | Safe durable scheduled jobs | Not promised | NOT VERIFIED | Delayed publish + duplicate retry |
 | Truthful basic real analytics | Demo must be hidden | NOT VERIFIED | Dated provider evidence |
@@ -57,6 +57,6 @@ The old master plan's many additional work items should **not** auto-enter this 
 No calendar-date promises or fictitious % completion. Progress = verified completed end-to-end gates.
 
 ## Existing beta UI slice — do not recreate
-- [PR #35](https://github.com/memetreza34-ux/Creator-lab/pull/35) (DRAFT, not merged): local-only UI focus, empty first run, accountless drafts/manual planning, planning-only YouTube/Instagram/TikTok text targets, copy/text export and local media downloads. Retains old advanced data/code. **No CI/browser E2E validation claimed.**
-- Before accepting #35, resolve GitHub Actions issue #19, run tests/typecheck/build, manually verify mobile + persistence + no-account export flow, and reconcile with the stacked cloud integration PR chain. Do not copy this local-only implementation wholesale as a second cloud app.
+- [PR #35](https://github.com/memetreza34-ux/Creator-lab/pull/35) (DRAFT, not merged): local-only UI focus, empty first run, accountless drafts/manual planning, planning-only YouTube/Instagram/TikTok text targets, copy/text export and local media downloads. Retains old advanced data/code. **Branch CI verified (74/74 tests, TS/build); real browser/cloud E2E NOT VERIFIED.**
+- Before accepting #35, recheck current-head CI, manually verify mobile + persistence + no-account export flow, run genuine multiuser Auth/Storage tests, and reconcile with the stacked cloud integration PR chain. Do not copy this local-only implementation wholesale as a second cloud app.
 - **Important:** #35 does not complete F-004/F-005 or the real M1 beta. It only advances the local-screen slice; production Auth/cloud is still unverified.
