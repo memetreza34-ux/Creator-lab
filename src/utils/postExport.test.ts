@@ -25,7 +25,7 @@ test('manual planned date is labeled as reminder, not publication', () => {
 });
 
 test('export filename strips unsafe characters and handles blank titles', () => {
-  assert.equal(safePostExportFilename('../../Bad:Name?'), 'Bad-Name-.txt');
+  assert.equal(safePostExportFilename('../../Bad:Name?'), 'Bad-Name.txt');
   assert.equal(safePostExportFilename('...'), 'creator-lab-post.txt');
   assert.equal(safePostExportFilename(' My Post '), 'My Post.txt');
 });
