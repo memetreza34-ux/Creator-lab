@@ -7,6 +7,7 @@ const sample: Post = {
   id: 'post-1', workspaceId: 'workspace-1', title: 'My example',
   destinationAccountIds: [], status: 'draft', createdAt: '2026-10-15T12:00:00Z',
   originalContent: { caption: 'Hello everyone', mediaIds: [] },
+  planningPlatforms: ['youtube'],
   platformContent: [{ platform: 'youtube', enabled: true, content: { caption: 'Hello YouTube', mediaIds: [] } }],
 };
 
@@ -27,4 +28,13 @@ test('export filename strips unsafe characters and handles blank titles', () => 
   assert.equal(safePostExportFilename('../../Bad:Name?'), 'Bad-Name-.txt');
   assert.equal(safePostExportFilename('...'), 'creator-lab-post.txt');
   assert.equal(safePostExportFilename(' My Post '), 'My Post.txt');
+});
+
+test('a manual target without an override inherits the base caption', () => {
+  const result = formatPostForManualExport({
+    ...sample,
+    planningPlatforms: ['instagram'],
+    platformContent: [],
+  });
+  assert.match(result, /INSTAGRAM VERSION\nHello everyone/);
 });
