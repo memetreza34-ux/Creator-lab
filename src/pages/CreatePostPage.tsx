@@ -778,7 +778,7 @@ export function CreatePostPage() {
               {(['youtube', 'instagram', 'tiktok'] as Platform[]).map(platform => {
                 const chosen = planningPlatforms.includes(platform);
                 return <button key={platform} type="button" aria-pressed={chosen}
-                  onClick={() => { markDirty(); setPlanningPlatforms(previous => chosen ? previous.filter(p => p !== platform) : [...previous, platform]); }}
+                  onClick={() => { markDirty(); if (chosen && activePreviewTab === platform) setActivePreviewTab('original'); setPlanningPlatforms(previous => chosen ? previous.filter(p => p !== platform) : [...previous, platform]); }}
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${chosen ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-zinc-200 text-zinc-600'}`}>
                   <PlatformIcon platform={platform} className="w-3.5 h-3.5" /> {PLATFORM_CONFIGS[platform].displayName}
                 </button>;
