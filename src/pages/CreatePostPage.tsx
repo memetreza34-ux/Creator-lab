@@ -556,6 +556,19 @@ export function CreatePostPage() {
     setPlatformContents(nextPlatformContents);
   };
 
+  const handleCopyCurrentText = async () => {
+    if (!currentContentText.trim()) {
+      toast.error('Write some text before copying');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(currentContentText);
+      toast.success('Text copied for manual posting. Your draft was not automatically saved.');
+    } catch {
+      toast.error('Could not copy text. Save the draft and export it from Posts instead.');
+    }
+  };
+
   const handleSaveDraft = () => {
     const sanitized = getSanitizedComposerContent();
     if (!sanitized.baseContent.caption.trim() && sanitized.baseContent.mediaIds.length === 0) {
@@ -1163,25 +1176,17 @@ export function CreatePostPage() {
                 {isScheduling ? 'Scheduling' : 'Set Schedule'}
               </button>
 
-              <button
-                onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
-                disabled={!isScheduling && !canPublishLive}
-                title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
-                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs disabled:cursor-not-allowed ${
-                  !isScheduling && !canPublishLive
-                    ? 'bg-zinc-300 text-zinc-600 hover:bg-zinc-300'
-                    : 'bg-brand-600 text-white hover:bg-brand-700'
-                }`}
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                {isScheduling
-                  ? hasLocalOnlyDestinations
-                    ? 'Plan Locally'
-                    : 'Schedule Post'
-                  : canPublishLive
-                    ? 'Publish Now'
-                    : 'Live Publish Unavailable'}
-              </button>
+              {isScheduling ? (
+                <button onClick={() => handleScheduleOrPublish('scheduled')}
+                  className="inline-flex items-center px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 font-medium text-[12px] rounded-lg transition-colors shadow-xs">
+                  <Clock className="w-3.5 h-3.5 mr-1.5" /> Plan Locally
+                </button>
+              ) : (
+                <button onClick={() => void handleCopyCurrentText()} disabled={!currentContentText.trim()}
+                  className="inline-flex items-center px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-[12px] rounded-lg transition-colors shadow-xs">
+                  <Send className="w-3.5 h-3.5 mr-1.5" /> Copy Text
+                </button>
+              )}
             </div>
           </div>
         </div>
