@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
   Upload, Folder, Image as ImageIcon, FileVideo, Search,
   Trash2, Plus, Grid, List, ChevronRight, Edit2,
-  ArrowRight, FolderInput, Check, X
+  ArrowRight, FolderInput, Check, X, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -35,7 +35,10 @@ export function MediaLibraryPage() {
   // Move asset modal state
   const [assetToMove, setAssetToMove] = useState<MediaAsset | null>(null);
 
-  const allWorkspaceMedia = getWorkspaceMedia(state);
+  const allWorkspaceMedia = useMemo(
+    () => getWorkspaceMedia(state),
+    [state.mediaAssets, state.activeWorkspaceId],
+  );
   const mediaFolders = getWorkspaceMediaFolders(state);
 
   const mediaAssets = allWorkspaceMedia
@@ -150,6 +153,25 @@ export function MediaLibraryPage() {
       console.error('Failed to delete media asset', error);
       toast.error('Could not remove the stored media file');
     }
+  };
+
+  const handleDownloadMedia = async (asset: MediaAsset) => {
+    if (asset.storageType !== 'indexeddb') {
+      toast.error('Sample media cannot be downloaded as an original file. Upload your own file first.');
+      return;
+    }
+    const url = await resolveMediaUrl(asset.id, asset.url);
+    if (!url.startsWith('blob:')) {
+      toast.error('Original file is no longer available in this browser.');
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = asset.name || 'creator-media';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast.success('Original media download requested');
   };
 
   const handleUseInPost = (asset: MediaAsset, e: React.MouseEvent) => {
@@ -540,6 +562,12 @@ export function MediaLibraryPage() {
                         </span>
                       )}
                     </div>
+                    {asset.storageType === 'indexeddb' && (
+                      <button type="button" onClick={() => void handleDownloadMedia(asset)}
+                        className="mt-2 inline-flex gap-1 items-center rounded-md px-2 py-1 bg-zinc-100 hover:bg-zinc-200 text-[11px] font-medium text-zinc-700">
+                        <Download className="w-3 h-3" /> Download original
+                      </button>
+                    )}
                     {getPostsUsingMedia(state, asset.id).length > 0 && (
                       <p className="mt-1 text-[10px] font-medium text-brand-700">
                         Used in {getPostsUsingMedia(state, asset.id).length} post{getPostsUsingMedia(state, asset.id).length === 1 ? '' : 's'}
@@ -609,6 +637,11 @@ export function MediaLibraryPage() {
                             <span>Use in Post</span>
                             <ArrowRight className="w-3 h-3" />
                           </button>
+                          {asset.storageType === 'indexeddb' && (
+                            <button onClick={() => void handleDownloadMedia(asset)} className="p-1.5 text-zinc-500 hover:text-brand-700 rounded-md" title="Download original file" aria-label={`Download ${asset.name}`}>
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setAssetToMove(asset)}
                             className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-md"
