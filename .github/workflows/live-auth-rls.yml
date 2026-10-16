@@ -1,0 +1,65 @@
+name: Live two-user Supabase RLS acceptance
+
+# Never execute this against PR code. This mutates only disposable test workspaces
+# in the dedicated Creator Lab project and requires two independently confirmed
+# Supabase Auth identities. It is NOT part of ordinary pull request CI.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Explicit opt-in to live, temporary two-user RLS/Storage checks'
+        required: true
+        type: choice
+        default: NO
+        options:
+          - NO
+          - RUN_LIVE_RLS
+
+permissions:
+  contents: read
+
+concurrency:
+  group: creator-lab-live-auth-acceptance
+  cancel-in-progress: false
+
+jobs:
+  live-auth-rls:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'RUN_LIVE_RLS' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout reviewed main only, without retained credentials
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Node built-ins only: do NOT npm install or run third-party scripts in
+      # the secret-bearing job. npm dependencies are not needed for this probe.
+      - name: Verify offline harness before using credentials
+        run: node --test scripts/verify-live-auth-rls.test.mjs scripts/verify-live-auth-rls.integration.test.mjs
+
+      - name: Run genuine Auth-issued JWT and private Storage acceptance
+        env:
+          CREATOR_LAB_LIVE_TESTS: 'YES'
+          SUPABASE_URL: https://aoyrijspyygqoyeajxpf.supabase.co/
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CREATOR_LAB_RLS_PUBLISHABLE_KEY }}
+          RLS_TEST_A_EMAIL: ${{ secrets.CREATOR_LAB_RLS_A_EMAIL }}
+          RLS_TEST_A_PASSWORD: ${{ secrets.CREATOR_LAB_RLS_A_PASSWORD }}
+          RLS_TEST_B_EMAIL: ${{ secrets.CREATOR_LAB_RLS_B_EMAIL }}
+          RLS_TEST_B_PASSWORD: ${{ secrets.CREATOR_LAB_RLS_B_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for secret_name in SUPABASE_PUBLISHABLE_KEY RLS_TEST_A_EMAIL RLS_TEST_A_PASSWORD RLS_TEST_B_EMAIL RLS_TEST_B_PASSWORD; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "::error::Missing required encrypted Actions secret mapped to ${secret_name}; live test not started."
+              exit 1
+            fi
+          done
+          node scripts/verify-live-auth-rls.mjs
