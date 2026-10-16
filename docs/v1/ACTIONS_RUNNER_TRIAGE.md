@@ -16,6 +16,15 @@
 - The cause (billing/permissions/runner availability/policy) is **unknown**.
   Do not claim an npm or TypeScript failure when no runner was assigned.
 
+## Recovery verification — 2026-10-16
+
+The original historical runner-provisioning blocker is **no longer reproduced on new retries**.
+- Schema PR #16's previous failed [run #37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) was retried on its same head commit (`443ea264ff07e650d2f684d60408eda7f0e67a30`) and returned **success**: Checkout, npm ci, Automated tests, TypeScript check and Production build all executed successfully.
+- PR #35 run #38776708630 had 74/74 automated tests pass, TypeScript and production build on 2026-10-15. This confirms actual runners are assigned.
+- On this CI PR #33, existing [run #38147580581](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38147580581) was also retried on 2026-10-16. Confirm its final result and first diagnostic step independently.
+- **Root cause of the earlier pre-step failure remains unknown.** Do not assert that billing, YAML syntax or permissions were the cause. Historical pre-step failures do not imply application test failures.
+- **Still not done:** live-issued two-user Auth JWT/Storage acceptance. Green CI is not proof of production authorization.
+
 ## New workflow behavior (this PR)
 
 - Validate pull requests targeting ANY base branch, not only main. Keeps
