@@ -26,7 +26,7 @@ These merges **did not apply** already installed SQL again, create users, turn o
 
 ## Other PRs: assess, don't reimplement
 - **#23** closed without merge: old security test harness superseded by corrected merged #32. Never remerge old version.
-- **#17** expansive SaaS/master plan still open, reference only: conflicts with tighter M1 freeze. Do not merge wholesale as implementation instruction.
+- **#17** expansive SaaS/master plan **CLOSED as superseded on 2026-10-16**: history remains readable as reference but must not override narrow M1.
 - **#18** visual branding/navigation: coordinate with #35, avoid duplicate redesign.
 - **#21** local IndexedDB safety: evaluate remaining local→cloud handoff; don't introduce duplicate storage.
 - **#22** experiment honesty labeling: relevant only when advanced Experiment Lab is reintroduced.
