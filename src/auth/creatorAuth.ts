@@ -175,6 +175,12 @@ export function createCreatorAuth(options: {
       try {
         const response = await call<AuthResponse>('/auth/v1/token?grant_type=refresh_token',
           'POST', { refresh_token: oldSession.refreshToken });
+        // A refresh must never silently switch the signed-in identity.
+        // The server verifies the issued JWT in acceptTokens(), but also
+        // require the refreshed identity to match the original tab session.
+        if (response.user?.id && response.user.id !== oldSession.userId) {
+          throw new CreatorAuthError('Refreshed session belongs to another user');
+        }
         if (!response.user) response.user = { id: oldSession.userId, email: oldSession.email };
         await acceptTokens(response, epochAtStart);
         return session?.accessToken ?? null;
@@ -197,48 +203,76 @@ export function createCreatorAuth(options: {
     return session.accessToken;
   }
 
+  // A restored session is NOT trusted until Supabase Auth verifies the JWT.
+  // Never expose a cached bearer token via getAccessToken() during restore.
+  let restorePending: Promise<AuthIdentity | null> | null = null;
   async function restore(): Promise<AuthIdentity | null> {
     if (session) return identity();
-    let saved: SessionTokens | null = null;
-    try {
-      saved = storage ? JSON.parse(storage.getItem(SESSION_KEY) || 'null') : null;
-    } catch { /* malformed or blocked storage */ }
-    if (!saved || typeof saved.accessToken !== 'string' ||
-        typeof saved.refreshToken !== 'string' ||
-        typeof saved.userId !== 'string' ||
-        typeof saved.expiresAt !== 'number') {
-      setSession(null);
-      return null;
-    }
-    try {
-      checkUserJwt(saved.accessToken, saved.userId);
-      session = saved;
-      if (saved.expiresAt < now() + 60000) {
-        const renewed = await refresh();
-        return renewed ? identity() : null;
+    if (restorePending) return restorePending;
+
+    const epochAtStart = authEpoch;
+    const pending = (async (): Promise<AuthIdentity | null> => {
+      let saved: SessionTokens | null = null;
+      try {
+        saved = storage ? JSON.parse(storage.getItem(SESSION_KEY) || 'null') : null;
+      } catch { /* malformed or blocked storage */ }
+
+      if (!saved || typeof saved.accessToken !== 'string' ||
+          typeof saved.refreshToken !== 'string' ||
+          typeof saved.userId !== 'string' ||
+          typeof saved.expiresAt !== 'number' || !Number.isFinite(saved.expiresAt)) {
+        if (authEpoch === epochAtStart && !session) setSession(null);
+        return null;
       }
-      const user = await call<{ id: string; email?: string; is_anonymous?: boolean }>(
-        '/auth/v1/user', 'GET', undefined, saved.accessToken,
-      );
-      if (user.id !== saved.userId || user.is_anonymous === true) throw new Error('Mismatch');
-      session.email = user.email ?? '';
-      announce();
-      return identity();
-    } catch {
-      setSession(null);
-      return null;
+
+      try {
+        checkUserJwt(saved.accessToken, saved.userId);
+        if (saved.expiresAt < now() + 60000) {
+          // Rotate a nearly expired session without making old credentials
+          // visible to other cloud requests while the response is in flight.
+          const response = await call<AuthResponse>('/auth/v1/token?grant_type=refresh_token',
+            'POST', { refresh_token: saved.refreshToken });
+          if (response.user?.id && response.user.id !== saved.userId) {
+            throw new CreatorAuthError('Restored session belongs to another user');
+          }
+          if (!response.user) response.user = { id: saved.userId, email: saved.email };
+          const verified = await acceptTokens(response, epochAtStart);
+          return verified.id === saved.userId ? verified : null;
+        }
+
+        const user = await call<{ id: string; email?: string; is_anonymous?: boolean }>(
+          '/auth/v1/user', 'GET', undefined, saved.accessToken,
+        );
+        if (user.id !== saved.userId || user.is_anonymous === true) {
+          throw new CreatorAuthError('Stored user identity does not match Supabase Auth');
+        }
+        // A sign-out, new login or another redirect may have happened while
+        // the network request was pending. Never restore their old identity.
+        if (authEpoch !== epochAtStart || session) return null;
+        setSession({ ...saved, email: user.email ?? '' });
+        return identity();
+      } catch {
+        if (authEpoch === epochAtStart && !session) setSession(null);
+        return null;
+      }
+    })();
+    restorePending = pending;
+    try {
+      return await pending;
+    } finally {
+      if (restorePending === pending) restorePending = null;
     }
   }
 
   async function signIn(email: string, password: string): Promise<AuthIdentity> {
-    const epochAtStart = authEpoch;
+    const epochAtStart = ++authEpoch;
     const data = await call<AuthResponse>('/auth/v1/token?grant_type=password',
       'POST', { email: email.trim(), password });
     return acceptTokens(data, epochAtStart);
   }
 
   async function signUp(email: string, password: string, redirectTo: string): Promise<SignupResult> {
-    const epochAtStart = authEpoch;
+    const epochAtStart = ++authEpoch;
     const data = await call<AuthResponse>('/auth/v1/signup?redirect_to=' +
       encodeURIComponent(redirectTo), 'POST', { email: email.trim(), password });
     if (data.access_token) {
@@ -261,7 +295,7 @@ export function createCreatorAuth(options: {
 
   async function acceptRedirect(hash: string): Promise<'recovery' | 'signup' | null> {
     const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-    const epochAtStart = authEpoch;
+    const epochAtStart = ++authEpoch;
     const access_token = params.get('access_token');
     const refresh_token = params.get('refresh_token');
     if (!access_token && !refresh_token) return null;
