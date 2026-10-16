@@ -4,6 +4,8 @@
 
 **Work ownership:** [AI_OWNERSHIP_V1.md](./AI_OWNERSHIP_V1.md) separates responsibilities: owner provisions real A/B users and secrets; ChatGPT coordinates and assesses gates; Codex implements bounded PRs; Claude reviews the *finished* PR independently. No automatic agent execution, no duplicate Cloud rebuild, and no release claim without issue #36.
 
+**Verified handoff reviews, 2026-10-16:** [read-only live privileged-function and RLS triage](../v1/LIVE_PRIVILEGED_FUNCTION_REVIEW.md) confirms the four authenticated-callable SECURITY DEFINER advisor warnings are intentional membership/creation helpers with authenticated-only permissions, **not proven safe by live issued-JWT tests**. [Codex/Claude V1 delivery brief](./CODEX_CLAUDE_V1_DELIVERY_BRIEF.md) gives a selective #39/#26/#27/#29/#31 integration path after the real #36 gate. Do not overwrite current M1 routes with older stacked UI.
+
 ## One current objective — F-003 P0
 **Prove real two-user Supabase Auth / Postgres RLS / private Storage isolation.**
 Track with [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36); exact reproducible guide is [LIVE_AUTH_RLS_ACCEPTANCE.md](../v1/LIVE_AUTH_RLS_ACCEPTANCE.md).
