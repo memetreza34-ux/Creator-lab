@@ -2,6 +2,8 @@
 
 **Verified 2026-10-16.** This file overrides outdated work-in-progress notes in earlier phase documents. Main at handoff: `a24d67671b3c92dd80272afe0eff871120c13776`. Re-check HEAD, CI and open PRs before acting.
 
+**Work ownership:** [AI_OWNERSHIP_V1.md](./AI_OWNERSHIP_V1.md) separates responsibilities: owner provisions real A/B users and secrets; ChatGPT coordinates and assesses gates; Codex implements bounded PRs; Claude reviews the *finished* PR independently. No automatic agent execution, no duplicate Cloud rebuild, and no release claim without issue #36.
+
 ## One current objective — F-003 P0
 **Prove real two-user Supabase Auth / Postgres RLS / private Storage isolation.**
 Track with [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36); exact reproducible guide is [LIVE_AUTH_RLS_ACCEPTANCE.md](../v1/LIVE_AUTH_RLS_ACCEPTANCE.md).
