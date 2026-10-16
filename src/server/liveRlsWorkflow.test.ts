@@ -28,7 +28,8 @@ test('real-user credentials belong only to the final Node built-ins test step', 
   assert.match(workflow, /CREATOR_LAB_LIVE_TESTS: 'YES'/);
   assert.match(workflow, /node --test scripts\/verify-live-auth-rls\.test\.mjs scripts\/verify-live-auth-rls\.integration\.test\.mjs/);
   assert.match(workflow, /node scripts\/verify-live-auth-rls\.mjs/);
-  assert.doesNotMatch(workflow, /\bnpm\s+(?:ci|install)\b/);
+  const nonCommentLines = workflow.split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n');
+  assert.doesNotMatch(nonCommentLines, /\bnpm\s+(?:ci|install)\b/);
   assert.doesNotMatch(workflow, /\bnpx\b/);
   assert.doesNotMatch(workflow, /\b(upload-artifact|pull_request_target)\b/);
 });
