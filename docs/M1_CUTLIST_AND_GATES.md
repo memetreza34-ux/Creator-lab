@@ -55,3 +55,12 @@ GitHub Actions run #38776708630 on branch head `93a9aa6b0e4fc16d0484a7c0809e6c70
 
 ## One next action
 Review the existing Supabase migrations/security PRs #16/#28/#30 and genuine issued-JWT probe #23/#32, re-run their branch CI now runner execution is demonstrably working, and integrate accepted cloud code with this UI slice. Complete browser/multiuser tests before releasing M1.
+
+
+## Integration checkpoint 2026-10-16
+
+This PR is strictly a **browser-local user-experience simplification**. Existing Creator Lab backend sources for six Supabase migrations (#16/#28/#30), offline Auth acceptance (#32) and fail-closed Cloud adapter (#24) are now in `main`. This UI does **not** connect to real Auth or sync drafts across devices; do not call this the M1 Cloud beta release.
+
+Go/no-go: [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36) requires real two-user JWT/private Storage acceptance before enabling Cloud. M1 manual calendar plans must remain separate from backend provider-authoritative `scheduled_at`.
+
+Recheck combined branch CI, browser, mobile and keyboard QA. Old branch-only green checks are not a release proof.

@@ -1,10 +1,10 @@
 # V1 Status
 
-Last updated: 2026-10-08
+Last updated: 2026-10-16 (phase 4 reconciliation)
 
 ## Current phase
 
-PHASE 3 — CALENDAR & SCHEDULING ENGINE
+PHASE 4 — CLOUD AUTH INTEGRATION (release pending)
 
 ## Overall status
 
@@ -165,7 +165,8 @@ Planning baseline established. Existing frontend is substantial, but production 
 
 ## Next exact task
 
-- Obtain explicit hosting/backend choice (recommended Supabase Auth + Postgres + private Storage), then set up actual production tables, policies and API authentication.
+- Dedicated Creator Lab Supabase project is provisioned with six applied migrations (2026-10-09 to 2026-10-11), nine RLS-enabled creator tables and private Storage. All six applied migration sources are now in main via merged PRs #16/#28/#30; do NOT reapply to the same database.
+- Two distinct real Auth JWTs and private Storage negative tests still **not executed** (no real users at 2026-10-16 check). Never enable customer access before verification.
 - Add tested ownership checks for two independent users and multiple workspaces; do not build privileged write APIs before auth.
 - Plan safe import of user-entered browser-local data; do not import or disguise demonstration content as real user data.
 - Keep Phase 3 browser acceptance test open; code/CI success does not demonstrate real interactive calendar QA.
@@ -173,7 +174,7 @@ Planning baseline established. Existing frontend is substantial, but production 
 
 ## Validation evidence
 
-Phase 4 destination contract PR is currently under CI review; do not treat it as merged until tests, TypeScript and production build pass.
+The core schema, provider state hardening, draft media protection, offline auth acceptance and RLS-only Cloud adapter have merged with GitHub tests, TypeScript and production build passing. This is **not** a live Auth or UX proof.
 PR #14 (Phase 3) previously passed tests, TypeScript and production build.
 
 ## Phase transition
@@ -184,4 +185,22 @@ PR #14 (Phase 3) previously passed tests, TypeScript and production build.
 
 **PHASE 2 — CONTENT OPERATIONS: COMPLETE**
 
-**Current phase: PHASE 3 — CALENDAR & SCHEDULING ENGINE**
+**Current phase: PHASE 4 — CLOUD AUTH INTEGRATION (not released)**
+
+## Verified repo reconciliation 2026-10-16
+
+- GitHub Actions PR #16 original head rerun [#37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) passed tests, TS check and production build; issue #19 is closed as recovered.
+- The six live migration **version IDs** match the three initial files here plus the status and draft-media security migrations from #28/#30. Exact live HTTP Auth RLS is NOT verified.
+- Main preserves PR #20's fail-closed Gemini endpoint and the new V1 focus rules. This source inclusion does not execute database schema mutations or activate Cloud routes.
+- Four authenticated SECURITY DEFINER advisor WARNs require signoff and real two-user Auth tests before public release. See https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable.
+- Next: include the already applied server-owned-status and draft/media hardening migrations without rerunning them, then run genuine issued-JWT storage isolation and integrate one Cloud user journey.
+
+
+## Verified 2026-10-16 execution checkpoint
+
+- GitHub merged PRs #16, #28, #30, #32 and #24 after actual successful CI; last main validation [run #38849645708](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38849645708) PASS.
+- Database already had six migration IDs installed and private Storage with RLS; they were **not** reapplied as part of merges.
+- Offline security check on the fully combined schema branch: [run #38849401989](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38849401989), **92 automated tests and 9 explicit offline auth tests passed**, TypeScript and build passed. **No live issued-JWT test completed.**
+- At last inspection the dedicated Creator Lab project had **0 Auth users**, so live multiuser acceptance is blocked. Secure setup and exact checklist: [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36).
+- Production AI remains disabled by default; Cloud data adapter is in source but not connected to a complete signed-in user experience.
+- PRs #25–#31 remain staged Cloud UI work; #35 remains draft simplified local UI. No release claim. Next: real two-user Auth/RLS/Storage acceptance, then integrate a **single** authenticated Creator UI path.
