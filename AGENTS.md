@@ -14,6 +14,15 @@ Source-of-truth order for execution:
 
 If two plans disagree, **prefer the smaller current focus scope** and log the discrepancy. Never treat unmerged PR code as existing on `main`.
 
+## Who does what (no duplicate work)
+
+Read [V1 AI ownership and handoffs](docs/focus/AI_OWNERSHIP_V1.md) before assigning work.
+- **ChatGPT (conversation):** scopes work, coordinates, audits integration and CI, maintains the release gate; may make focused integration fixes.
+- **Codex:** owns implementation in one focused PR with tests, not production rollout.
+- **Claude:** independently reviews that exact PR/commit for concrete security, reliability and UX findings; does not implement the same feature in parallel.
+- **Project owner:** supplies verified test identities via approved Auth flows, encrypted secrets, domain/hosting access, business decisions and final launch authorization.
+- No autonomous execution is implied. AI tools are not actual GitHub human reviewers, and an AI review does not replace real two-user tests or independent human security review. The project owner must deliberately invoke each external tool.
+
 ## Act as a product adviser, not a feature factory
 Before starting each task, inspect the latest `main`, related open PRs, build/CI evidence, user journey and dependencies. Challenge low-value work, identify the highest-risk bottleneck, and propose the smallest verified slice. Ask for founder approval only for material scope/cost/business decisions, sensitive credentials or irreversible production actions. Do not ask repetitive questions when facts are documented.
 
