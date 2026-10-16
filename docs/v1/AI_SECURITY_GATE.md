@@ -6,10 +6,9 @@ production AI, Supabase Auth, quota billing, provider moderation or legal sign-o
 
 ## Behavior
 
-- In **production**, `POST /api/ai/suggest` returns HTTP 503 until a real
-  authenticated workspace-aware endpoint replaces this temporary guard.
-- In local development, the existing Composer suggestion operations continue
-  to work with `GEMINI_API_KEY`, provided the request passes validation.
+- Unauthenticated `POST /api/ai/suggest` is **HTTP 503 by default** — including when `NODE_ENV` is missing or set to production. No paid-model request is sent.
+- Development is opt-in only: `NODE_ENV=development` AND `CREATOR_LAB_ALLOW_LOCAL_AI=YES` AND a loopback socket address (`127.0.0.1`, `::1`, IPv4-mapped loopback). No proxy forwarding headers are trusted for this local-only prototype. Never set the opt-in in public deployments.
+- Once explicitly enabled for local development, Composer suggestions can use `GEMINI_API_KEY` and must also pass validation.
 - All requests must specify an allowlisted operation, non-empty content up to
   6,000 characters, and only known platforms/tones. Multi-destination lists
   and weaknesses context are bounded.
@@ -39,5 +38,4 @@ unrecognized operations, custom prompt bypass, input length, invalid/duplicate
 destinations, rewrite tone, and weaknesses context. Must pass alongside
 TypeScript/build checks when GitHub Actions is healthy.
 
-This block should be merged only after credible verification. Open CI blocker:
-[Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19).
+Merged CI PR #33 and the recovered historical runner [issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19) allow real automated validation. Merge only after this PR head passes tests, TypeScript and production build. This is a **temporary lock**, not Auth or quota implementation.
