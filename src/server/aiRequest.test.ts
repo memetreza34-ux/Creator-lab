@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAiRequest } from './aiRequest';
+import { allowLocalUnauthenticatedAi, validateAiRequest } from './aiRequest';
 
 test('valid Composer AI operation remains supported', () => {
   const result = validateAiRequest({
@@ -57,4 +57,21 @@ test('limits weakness context and preserves valid multi-platform requests', () =
   assert.equal(validateAiRequest({
     tool: 'weak_points', content: 'Post', weaknesses: ['x'.repeat(241)],
   }).ok, false);
+});
+
+test('AI prototype is disabled by default for production, missing NODE_ENV and remote users', () => {
+  for (const mode of [undefined, '', 'production', 'test']) {
+    assert.equal(allowLocalUnauthenticatedAi(mode, 'YES', '127.0.0.1'), false);
+  }
+  for (const address of [undefined, '10.0.0.5', '192.168.1.8', '8.8.8.8', '::ffff:192.168.1.8']) {
+    assert.equal(allowLocalUnauthenticatedAi('development', 'YES', address), false);
+  }
+  assert.equal(allowLocalUnauthenticatedAi('development', undefined, '127.0.0.1'), false);
+  assert.equal(allowLocalUnauthenticatedAi('development', 'NO', '127.0.0.1'), false);
+});
+
+test('AI prototype opt-in permits only loopback development callers', () => {
+  for (const local of ['127.0.0.1', '::1', '::ffff:127.0.0.1']) {
+    assert.equal(allowLocalUnauthenticatedAi('development', 'YES', local), true);
+  }
 });
