@@ -7,11 +7,14 @@ import { PipelinePage } from './pages/PipelinePage';
 import { PostsPage } from './pages/PostsPage';
 import { MediaLibraryPage } from './pages/MediaLibraryPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CloudAccountPage } from './pages/CloudAccountPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Independent opt-in Auth pilot. The local MVP stays intact until verified live E2E. */}
+        <Route path="/cloud" element={<CloudAccountPage />} />
         <Route path="/" element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="create" element={<CreatePostPage />} />
