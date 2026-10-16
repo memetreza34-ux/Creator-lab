@@ -11,6 +11,8 @@ Primary execution source: [NEXT_ACTIONS.md](NEXT_ACTIONS.md). This page document
 - **#30** 5th/6th previously installed migrations: protected draft-media FKs, private asset deletion/overwrite constraints.
 - **#32** corrected actual-JWT test harness and offline fixtures. Main tests run it by default. **Actual live user JWT test has NOT run.**
 - **#24** JWT-only fail-closed data adapter, no enabled Cloud UI.
+- **#35** narrowed browser-local V1 user flow and honest manual exports; no remote sync.
+- **#21** transactional IndexedDB upload/delete safeguards with rollback tests.
 
 These merges **did not apply** already installed SQL again, create users, turn on OAuth/AI, or publish the app. They were tested with npm test, npm run lint and npm run build. The live database has 4 SECURITY DEFINER authenticated-executable advisor warnings pending safety signoff.
 
@@ -22,13 +24,13 @@ These merges **did not apply** already installed SQL again, create users, turn o
 | [#27](https://github.com/memetreza34-ux/Creator-lab/pull/27) | DRAFT on #26 | Cloud draft caption/platform variants |
 | [#29](https://github.com/memetreza34-ux/Creator-lab/pull/29) | DRAFT on #27 | Private Cloud media client, previews, delete |
 | [#31](https://github.com/memetreza34-ux/Creator-lab/pull/31) | DRAFT on #29 | Relational draft/media attachments |
-| [#35](https://github.com/memetreza34-ux/Creator-lab/pull/35) | DRAFT on older main | Narrow local V1 UI; may need a focused rebase onto unified Cloud flow (not safe to merge as Cloud release by itself) |
+| [#35](https://github.com/memetreza34-ux/Creator-lab/pull/35) | **MERGED** | Narrow local V1 UI now in main; still requires genuine Auth/Cloud integration and browser acceptance |
 
 ## Other PRs: assess, don't reimplement
 - **#23** closed without merge: old security test harness superseded by corrected merged #32. Never remerge old version.
 - **#17** expansive SaaS/master plan **CLOSED as superseded on 2026-10-16**: history remains readable as reference but must not override narrow M1.
-- **#18** visual branding/navigation: coordinate with #35, avoid duplicate redesign.
-- **#21** local IndexedDB safety: evaluate remaining local→cloud handoff; don't introduce duplicate storage.
+- **#18** visual branding/navigation **CLOSED as superseded** by #35.
+- **#21** local IndexedDB transaction commit safety **MERGED**; Cloud migration still pending.
 - **#22** experiment honesty labeling: relevant only when advanced Experiment Lab is reintroduced.
 - **#4/#8** older audits: compare to merged code, close if redundant, do not blind merge.
 
