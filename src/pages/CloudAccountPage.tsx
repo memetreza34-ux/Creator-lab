@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { createCreatorAuth, type AuthIdentity } from '../auth/creatorAuth';
 import { createCreatorCloudClient, type CloudWorkspace, type CloudContentItem } from '../cloud/creatorCloudClient';
@@ -40,6 +40,11 @@ export function CloudAccountPage() {
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
   const [ideas, setIdeas] = useState<CloudContentItem[]>([]);
   const [ideaTitle, setIdeaTitle] = useState('');
+  // Track the active owner/workspace across in-flight HTTP responses.
+  // Old account responses must never repopulate the new account's UI.
+  const userScopeRef = useRef<string | null>(null);
+  const workspaceScopeRef = useRef(selectedWorkspace);
+  workspaceScopeRef.current = selectedWorkspace;
 
   useEffect(() => {
     if (!clients.auth) {
@@ -49,7 +54,16 @@ export function CloudAccountPage() {
     const auth = clients.auth;
     let active = true;
     const unsubscribe = auth.subscribe((next) => {
-      if (active) setIdentity(next);
+      if (!active) return;
+      const nextUserId = next?.id ?? null;
+      if (userScopeRef.current !== nextUserId) {
+        userScopeRef.current = nextUserId;
+        workspaceScopeRef.current = '';
+        setWorkspaces([]);
+        setSelectedWorkspace('');
+        setIdeas([]);
+      }
+      setIdentity(next);
     });
 
     async function initialize() {
@@ -177,15 +191,21 @@ export function CloudAccountPage() {
     if (!clients.cloud || busy) return;
     resetNotice();
     setBusy(true);
+    const startedUserId = identity?.id;
+    if (!startedUserId) { setBusy(false); return; }
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       const id = await clients.cloud.createWorkspace(workspaceName, timezone);
+      if (clients.auth?.identity()?.id !== startedUserId) return;
       const items = await clients.cloud.listWorkspaces();
+      if (clients.auth?.identity()?.id !== startedUserId) return;
       setWorkspaces(items);
       setSelectedWorkspace(id);
       setWorkspaceName('');
       setMessage('Workspace created and saved in your Cloud account.');
-    } catch (err) { setError(safeMessage(err)); }
+    } catch (err) {
+      if (clients.auth?.identity()?.id === startedUserId) setError(safeMessage(err));
+    }
     finally { setBusy(false); }
   }
 
@@ -194,13 +214,23 @@ export function CloudAccountPage() {
     if (!clients.cloud || !selectedWorkspace || busy) return;
     resetNotice();
     setBusy(true);
+    const startedUserId = identity?.id;
+    const startedWorkspaceId = selectedWorkspace;
+    if (!startedUserId) { setBusy(false); return; }
     try {
-      await clients.cloud.createContentItem(selectedWorkspace, ideaTitle);
-      const updated = await clients.cloud.listContentItems(selectedWorkspace);
+      await clients.cloud.createContentItem(startedWorkspaceId, ideaTitle);
+      if (clients.auth?.identity()?.id !== startedUserId ||
+          workspaceScopeRef.current !== startedWorkspaceId) return;
+      const updated = await clients.cloud.listContentItems(startedWorkspaceId);
+      if (clients.auth?.identity()?.id !== startedUserId ||
+          workspaceScopeRef.current !== startedWorkspaceId) return;
       setIdeas(updated);
       setIdeaTitle('');
       setMessage('Content idea saved in your cloud workspace.');
-    } catch (err) { setError(safeMessage(err)); }
+    } catch (err) {
+      if (clients.auth?.identity()?.id === startedUserId &&
+          workspaceScopeRef.current === startedWorkspaceId) setError(safeMessage(err));
+    }
     finally { setBusy(false); }
   }
 
@@ -213,6 +243,7 @@ export function CloudAccountPage() {
       setView('login');
       setPassword('');
       setConfirmPassword('');
+      setEmail('');
       setMessage('Signed out on this device.');
     } finally { setBusy(false); }
   }
@@ -320,7 +351,11 @@ export function CloudAccountPage() {
                   <label className="block max-w-sm text-xs font-medium">
                     Select workspace
                     <select className={field + ' mt-1'} value={selectedWorkspace}
-                      onChange={(e) => setSelectedWorkspace(e.target.value)}>
+                      onChange={(e) => {
+                        workspaceScopeRef.current = e.target.value;
+                        setIdeas([]);
+                        setSelectedWorkspace(e.target.value);
+                      }}>
                       {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </label>
