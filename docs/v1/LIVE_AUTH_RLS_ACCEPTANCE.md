@@ -105,3 +105,16 @@ offline tests have **not yet been executed on a checked-out repository**.
 Read-only Supabase inspection on 2026-10-11 still found **zero Auth users** and
 zero cloud media links. Therefore the real two-user JWT test remains **NOT RUN**.
 Do not use those missing results as evidence of launch readiness.
+
+## Updated verification — 2026-10-16
+
+Live read-only Creator Lab Supabase inspection confirmed six applied migrations:
+`20261009163035`, `20261009163313`, `20261009163442`,
+`20261010151402`, `20261011140325`, `20261011140925`.
+Nine public Creator tables have RLS enabled, the `creator-media` bucket is private,
+and the project currently has **zero** Auth users and zero workspace/post/media records.
+This **does not** replace actual issued-JWT isolation testing.
+
+GitHub Actions now starts jobs on new runs: PR #16 run [37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) retry passed tests, TypeScript, build. The updated workflow in merged PR #33 enables stacked PR CI. This branch explicitly adds the **credential-free offline auth/RLS fixture** to the default `npm test` command, so this check must pass in CI before considering the test harness reviewed.
+
+Next required action: provision two independent disposable *confirmed* Supabase Auth test users through a secure owner-managed channel and run the opt-in live harness. Do not commit or share emails/passwords/tokens in the PR. The test script must verify its own scoped cleanup. Review the existing four signed-in SECURITY DEFINER helper-function advisory warnings separately; they are intentional membership/RPC entrypoints pending security approval, not automatically proven vulnerabilities.
