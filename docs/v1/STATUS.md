@@ -203,4 +203,12 @@ PR #14 (Phase 3) previously passed tests, TypeScript and production build.
 - Offline security check on the fully combined schema branch: [run #38849401989](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38849401989), **92 automated tests and 9 explicit offline auth tests passed**, TypeScript and build passed. **No live issued-JWT test completed.**
 - At last inspection the dedicated Creator Lab project had **0 Auth users**, so live multiuser acceptance is blocked. Secure setup and exact checklist: [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36).
 - Production AI remains disabled by default; Cloud data adapter is in source but not connected to a complete signed-in user experience.
-- PRs #25–#31 remain staged Cloud UI work; #35 remains draft simplified local UI. No release claim. Next: real two-user Auth/RLS/Storage acceptance, then integrate a **single** authenticated Creator UI path.
+- PRs #25–#31 remain staged Cloud UI work; #35 simplified browser-local UI was merged, but **no live Cloud integration exists**. No release claim. Next: real two-user Auth/RLS/Storage acceptance, then integrate a **single** authenticated Creator UI path.
+
+
+## UX + local media status — 2026-10-16
+
+- [PR #35](https://github.com/memetreza34-ux/Creator-lab/pull/35) merged: first-run empty local workspace, narrowed Creator navigation, optional planning-only targets, accountless draft saving and manual text export. Combined [run #38850132131](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38850132131) passed 109/109 automated tests plus 9/9 explicitly invoked offline Auth fixture tests, TypeScript and build.
+- [PR #21](https://github.com/memetreza34-ux/Creator-lab/pull/21) merged: IndexedDB operations now confirm transaction commit before reporting a saved/deleted media file, and preview URLs survive rolled-back deletion. Real-browser QA remains open.
+- #17 (expansive SaaS plan) and #18 (older duplicate branding) closed without deleting their PR histories.
+- The **single next gate** is real authenticated two-user database + private Storage acceptance [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36), then reuse existing Cloud UI PRs #25–#31 to connect one user journey; never claim local plans are provider schedule jobs.
