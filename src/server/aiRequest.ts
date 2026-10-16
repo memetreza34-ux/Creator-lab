@@ -127,3 +127,21 @@ export function validateAiRequest(body: unknown): AiValidationResult {
     },
   };
 }
+
+
+/**
+ * Prototype AI must never become a public, unauthenticated paid API.
+ * Opt-in only for explicitly marked development on a loopback request.
+ * No X-Forwarded-For / proxy-derived caller identity is trusted here.
+ */
+export function allowLocalUnauthenticatedAi(
+  mode: string | undefined,
+  explicitOptIn: string | undefined,
+  socketAddress: string | undefined,
+): boolean {
+  return mode === 'development' &&
+    explicitOptIn === 'YES' &&
+    (socketAddress === '127.0.0.1' ||
+      socketAddress === '::1' ||
+      socketAddress === '::ffff:127.0.0.1');
+}
