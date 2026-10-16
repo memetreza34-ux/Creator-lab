@@ -1,261 +1,80 @@
-import React, { useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, Calendar, Database } from 'lucide-react';
-import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { PlatformIcon } from '../components/ui/PlatformIcon';
-import {
-  getPostPlatforms,
-  getWorkspaceAccounts,
-  getWorkspaceAnalytics,
-  getWorkspacePerformance,
-  getWorkspacePosts,
-} from '../utils/selectors';
-import { getScheduledLocalDateTime, getWorkspaceTodayDate } from '../utils/scheduling';
+import { CalendarDays, FileText, KanbanSquare, PenTool, ArrowRight, AlertTriangle } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { getWorkspacePosts } from '../utils/selectors';
+import { getScheduledLocalDateTime } from '../utils/scheduling';
 
 export function DashboardPage() {
   const { state } = useApp();
   const navigate = useNavigate();
+  const posts = getWorkspacePosts(state);
+  const ideas = state.pipelineItems.filter(item => item.workspaceId === state.activeWorkspaceId);
+  const workspace = state.workspaces.find(item => item.id === state.activeWorkspaceId);
+  const timezone = workspace?.timezone || 'UTC';
+  const planned = posts.filter(post => post.status === 'scheduled' && post.scheduledAt)
+    .sort((a, b) => (a.scheduledAt || '').localeCompare(b.scheduledAt || ''));
 
-  const workspacePosts = getWorkspacePosts(state);
-  const workspaceAccounts = getWorkspaceAccounts(state);
-  const analytics = getWorkspaceAnalytics(state);
-  const performances = getWorkspacePerformance(state);
-  const activeWorkspace = state.workspaces.find(
-    (workspace) => workspace.id === state.activeWorkspaceId,
-  ) || state.workspaces[0];
-  const workspaceTimeZone = activeWorkspace?.timezone || 'UTC';
-  const todayDate = getWorkspaceTodayDate(workspaceTimeZone);
-
-  const chartData = useMemo(
-    () =>
-      [...performances]
-        .sort(
-          (a, b) =>
-            new Date(a.publishedAt).getTime() -
-            new Date(b.publishedAt).getTime(),
-        )
-        .slice(-8)
-        .map((performance) => ({
-          name: new Date(
-            `${getScheduledLocalDateTime(performance.publishedAt, workspaceTimeZone).date}T12:00:00`,
-          ).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          }),
-          reach: performance.reach,
-        })),
-    [performances, workspaceTimeZone],
-  );
-
-  const hasDemoData =
-    analytics.some((metric) => metric.source === 'demo') ||
-    performances.some((performance) => performance.source === 'demo');
-  const hasProviderData = performances.some(
-    (performance) => performance.source === 'provider',
-  );
-
-  const scheduledPosts = workspacePosts
-    .filter((post) => post.status === 'scheduled' && Boolean(post.scheduledAt))
-    .sort(
-      (a, b) => new Date(a.scheduledAt || '').getTime() - new Date(b.scheduledAt || '').getTime(),
-    )
-    .slice(0, 4);
-
+  const stats = [
+    { label: 'Ideas in pipeline', value: ideas.length, icon: KanbanSquare, path: '/pipeline' },
+    { label: 'Saved drafts', value: posts.filter(post => post.status === 'draft').length, icon: FileText, path: '/posts' },
+    { label: 'Locally planned', value: planned.length, icon: CalendarDays, path: '/calendar' },
+  ];
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full space-y-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#EBEBE9]">
+    <div className="p-5 sm:p-8 max-w-5xl mx-auto space-y-7">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-[12px] font-sans font-semibold text-[#999996] uppercase tracking-[0.15em] mb-3">
-            Overview
-          </p>
-          <h1 className="text-4xl font-serif text-[#0A0A0A] font-medium tracking-tight">
-            Welcome back to {activeWorkspace?.name}
-          </h1>
+          <p className="text-xs uppercase tracking-wider text-zinc-500 font-semibold mb-2">Creator workspace</p>
+          <h1 className="text-3xl font-semibold text-zinc-900">{workspace?.name || 'Your workspace'}</h1>
+          <p className="text-sm text-zinc-500 mt-2">From an idea to a finished, ready-to-share post.</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => navigate('/create')}
-            className="px-5 py-2.5 bg-[#0A0A0A] text-white text-[13px] font-sans font-medium hover:bg-[#1A1A1A] transition-colors shadow-sm rounded-lg"
-          >
-            Create New Post
+        <button onClick={() => navigate('/create')} className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">
+          <PenTool className="w-4 h-4" /> Create a post
+        </button>
+      </header>
+      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Local beta preview</p>
+          <p className="text-xs text-amber-800 mt-1">This version saves work in your current browser only. Calendar dates are local plans, not automatic social-media publications. Cloud accounts and real publishing are still being integrated.</p>
+        </div>
+      </div>
+      <section aria-label="Your content overview" className="grid sm:grid-cols-3 gap-3">
+        {stats.map(({ label, value, icon: Icon, path }) => (
+          <button key={label} onClick={() => navigate(path)} className="text-left bg-white border border-zinc-200 rounded-xl p-5 hover:border-brand-400 transition-colors">
+            <Icon className="w-4 h-4 text-zinc-500" />
+            <p className="text-3xl font-semibold mt-4">{value}</p>
+            <p className="text-sm text-zinc-500 mt-1">{label}</p>
+          </button>
+        ))}
+      </section>
+      <section className="grid lg:grid-cols-2 gap-5">
+        <div className="bg-white border border-zinc-200 rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-3">Start with one idea</h2>
+          <p className="text-sm text-zinc-600 mb-5">Keep your next video, short or post organized from the first thought to the final draft.</p>
+          <button onClick={() => navigate('/pipeline')} className="text-sm inline-flex items-center gap-2 text-brand-700 font-semibold">
+            Open ideas <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {analytics.map((metric) => (
-          <div key={metric.id} className="p-6 bg-white border border-[#EBEBE9] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[120px]">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-[12px] font-sans font-medium text-[#666661] tracking-wide">{metric.label}</h3>
-              <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                metric.source === 'provider'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : metric.source === 'demo'
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-zinc-200 bg-zinc-50 text-zinc-500'
-              }`}>
-                {metric.source}
-              </span>
-            </div>
-            <div className="mt-auto">
-              <span className="text-[28px] font-serif text-[#0A0A0A] leading-none">
-                {metric.label.includes('Rate') ? `${metric.value}%` : metric.value.toLocaleString()}
-              </span>
-              <p className="text-[10px] text-zinc-400 mt-2">
-                {metric.change === 0 ? 'No comparison period calculated' : `${metric.change > 0 ? '+' : ''}${metric.change}% vs comparison`}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {hasDemoData && !hasProviderData && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-700 shrink-0" />
-          <div>
-            <p className="text-[12px] font-semibold text-amber-900">Demo workspace data</p>
-            <p className="text-[11px] text-amber-800 mt-0.5">
-              Accounts and performance values are sample data, not live provider sync.
-            </p>
-          </div>
+        <div className="bg-white border border-zinc-200 rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-3">Upcoming local plans</h2>
+          {planned.length === 0 ? (
+            <p className="text-sm text-zinc-500 mb-4">No planned posts yet. Create a draft and choose a date.</p>
+          ) : (
+            <ul className="space-y-3 mb-4">
+              {planned.slice(0, 3).map(post => {
+                const date = getScheduledLocalDateTime(post.scheduledAt!, timezone);
+                return <li key={post.id} className="flex justify-between gap-4 text-sm border-b border-zinc-100 pb-2">
+                  <span className="font-medium truncate">{post.title}</span>
+                  <span className="text-zinc-500 whitespace-nowrap">{date.date} · {date.time}</span>
+                </li>;
+              })}
+            </ul>
+          )}
+          <button onClick={() => navigate('/calendar')} className="text-sm inline-flex items-center gap-2 text-brand-700 font-semibold">
+            Open calendar <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-8">
-          <div className="bg-[#F8F8F7] border border-[#EBEBE9] p-6 flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-5">
-            <div className="w-10 h-10 bg-white border border-[#D1D1CE] flex flex-col items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
-              <Database className="w-4 h-4 text-[#0A0A0A]" />
-            </div>
-            <div className="flex-1 pt-0.5">
-              <h3 className="text-[12px] font-sans font-semibold text-[#0A0A0A] tracking-[0.1em] uppercase mb-2">
-                Data Readiness
-              </h3>
-              <p className="text-[#666661] text-[14px] font-sans leading-relaxed max-w-2xl">
-                {hasProviderData
-                  ? `Creator Lab has ${performances.filter((item) => item.source === 'provider').length} provider-synced performance record(s) in this workspace.`
-                  : hasDemoData
-                    ? 'This workspace currently uses demo performance records. Creator insights must not be treated as real evidence until provider data is synced.'
-                    : 'No performance data is available yet. Creator insights stay in an insufficient-data state until real metrics exist.'}
-              </p>
-            </div>
-            <div className="shrink-0 pt-0.5">
-              <button onClick={() => navigate('/analytics')} className="px-4 py-2 border border-[#0A0A0A] text-[#0A0A0A] bg-white text-[12px] font-sans font-medium hover:bg-[#0A0A0A] hover:text-white transition-colors">
-                Open Analytics
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Stored Performance</h3>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center text-[12px] text-[#666661] font-sans font-medium">
-                  <span className="w-2.5 h-2.5 bg-[#0A0A0A] mr-2" /> Reach
-                </div>
-              </div>
-            </div>
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EBEBE9" />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#999996', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 500 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#999996', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 500 }}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0A0A0A', borderRadius: '0px', border: '1px solid #1A1A1A', color: '#fff', fontSize: '13px', fontFamily: 'var(--font-sans)' }}
-                    itemStyle={{ color: '#fff' }}
-                    cursor={{ stroke: '#EBEBE9', strokeWidth: 1 }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="reach"
-                    stroke="#0A0A0A"
-                    strokeWidth={2}
-                    fillOpacity={0.05}
-                    fill="#0A0A0A"
-                    activeDot={{ r: 5, fill: '#0A0A0A', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-4 space-y-8">
-          <div className="bg-white border border-[#EBEBE9] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[18px] font-serif text-[#0A0A0A] font-medium">Upcoming Planned Posts</h3>
-              <button onClick={() => navigate('/calendar')} className="text-[#666661] hover:text-[#0A0A0A] transition-colors p-1">
-                <Calendar className="w-5 h-5" />
-              </button>
-            </div>
-
-            {scheduledPosts.length > 0 ? (
-              <div className="space-y-4">
-                {scheduledPosts.map((post) => {
-                  const local = getScheduledLocalDateTime(
-                    post.scheduledAt || post.createdAt,
-                    workspaceTimeZone,
-                  );
-                  const localCivilDate = new Date(`${local.date}T12:00:00`);
-                  const isToday = todayDate === local.date;
-                  const platforms = getPostPlatforms(post, workspaceAccounts);
-
-                  return (
-                    <div key={post.id} className="group relative flex items-start space-x-4 p-4 border border-[#EBEBE9] hover:border-[#D1D1CE] transition-colors cursor-pointer bg-[#F8F8F7]" onClick={() => navigate(`/create?edit=${post.id}`)}>
-                      <div className="flex flex-col items-center justify-center min-w-[48px]">
-                        <span className="text-[11px] font-sans font-bold text-[#999996] uppercase mb-0.5">{localCivilDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                        <span className={`text-[20px] font-serif leading-none ${isToday ? 'text-brand-600 font-bold' : 'text-[#0A0A0A]'}`}>
-                          {localCivilDate.getDate()}
-                        </span>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center mb-1 space-x-2">
-                          <span className="text-[11px] font-sans font-medium text-[#666661] bg-white border border-[#EBEBE9] px-2 py-0.5 rounded">
-                            {local.time} ({workspaceTimeZone})
-                          </span>
-                          <div className="flex -space-x-1">
-                            {platforms.map((platform) => (
-                              <div key={platform} className="w-5 h-5 rounded-full bg-white border border-[#EBEBE9] flex items-center justify-center text-[#666661] z-10">
-                                <PlatformIcon platform={platform} className="w-3 h-3" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <h4 className="text-[13px] font-sans font-medium text-[#0A0A0A] truncate">{post.title}</h4>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-10 border border-dashed border-[#EBEBE9] bg-[#F8F8F7]">
-                <Calendar className="w-6 h-6 text-[#999996] mx-auto mb-2" />
-                <p className="text-[13px] font-sans text-[#666661]">No posts scheduled</p>
-              </div>
-            )}
-
-            <button
-              onClick={() => navigate('/calendar')}
-              className="w-full mt-6 py-2.5 border border-[#0A0A0A] text-[#0A0A0A] font-sans font-medium text-[13px] hover:bg-[#0A0A0A] hover:text-white transition-colors"
-            >
-              Open Calendar
-            </button>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

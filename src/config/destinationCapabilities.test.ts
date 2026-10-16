@@ -91,3 +91,32 @@ test('platform-specific content is validated against centralized limits', () => 
     true,
   );
 });
+
+test('draft and local plan need no demo or connected account', () => {
+  for (const intent of ['draft', 'schedule'] as const) {
+    const issues = validateComposerDestinations({
+      intent, accounts: [],
+      baseContent: { caption: 'A real draft', mediaIds: [] },
+      platformContent: {},
+    });
+    assert.deepEqual(issues, []);
+  }
+});
+
+test('empty accountless drafts are still invalid', () => {
+  const issues = validateComposerDestinations({
+    intent: 'draft', accounts: [],
+    baseContent: { caption: ' ', mediaIds: [] },
+    platformContent: {},
+  });
+  assert.equal(issues.some(issue => issue.code === 'empty_content'), true);
+});
+
+test('live publishing without a verified account is blocked', () => {
+  const issues = validateComposerDestinations({
+    intent: 'publish', accounts: [],
+    baseContent: { caption: 'Hello', mediaIds: [] },
+    platformContent: {},
+  });
+  assert.equal(issues.some(issue => issue.code === 'no_destination'), true);
+});

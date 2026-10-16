@@ -110,6 +110,7 @@ export const getPostPlatforms = (
       destination.workspaceId === post.workspaceId,
   );
   return Array.from(new Set<Platform>([
+    ...(post.planningPlatforms || []),
     ...accounts.map((account) => account.platform),
     ...snapshots.map((destination) => destination.platform),
   ]));

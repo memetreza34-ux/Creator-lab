@@ -135,6 +135,9 @@ export function normalizeAppState(
     destinationAccountIds: asArray<string>(post.destinationAccountIds).filter(
       (accountId) => typeof accountId === 'string',
     ),
+    planningPlatforms: asArray<Platform>(post.planningPlatforms).filter(
+      (platform) => ['youtube', 'instagram', 'tiktok', 'twitter', 'linkedin', 'facebook', 'pinterest', 'threads'].includes(platform),
+    ),
     originalContent: normalizePostContent(post.originalContent),
     platformContent: asArray<PlatformSpecificContent>(post.platformContent).map(
       (platformContent): PlatformSpecificContent => ({
