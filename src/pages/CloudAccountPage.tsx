@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { createCreatorAuth, type AuthIdentity } from '../auth/creatorAuth';
-import { createCreatorCloudClient, type CloudWorkspace, type CloudContentItem } from '../cloud/creatorCloudClient';
+import { createCreatorCloudClient, type CloudWorkspace } from '../cloud/creatorCloudClient';
+import { CloudPipelinePanel } from '../components/cloud/CloudPipelinePanel';
 
 type View = 'login' | 'register' | 'forgot' | 'recover';
 
@@ -38,8 +39,6 @@ export function CloudAccountPage() {
   const [workspaces, setWorkspaces] = useState<CloudWorkspace[]>([]);
   const [workspaceName, setWorkspaceName] = useState('');
   const [selectedWorkspace, setSelectedWorkspace] = useState('');
-  const [ideas, setIdeas] = useState<CloudContentItem[]>([]);
-  const [ideaTitle, setIdeaTitle] = useState('');
 
   useEffect(() => {
     if (!clients.auth) {
@@ -82,7 +81,6 @@ export function CloudAccountPage() {
     if (!clients.auth || !identity) {
       setWorkspaces([]);
       setSelectedWorkspace('');
-      setIdeas([]);
       return;
     }
     const auth = clients.auth;
@@ -105,21 +103,6 @@ export function CloudAccountPage() {
     });
     return () => { active = false; };
   }, [clients.cloud, identity?.id, view]);
-
-  useEffect(() => {
-    if (!clients.cloud || !identity || !selectedWorkspace || view === 'recover') {
-      setIdeas([]);
-      return;
-    }
-    let active = true;
-    setIdeas([]);
-    void clients.cloud.listContentItems(selectedWorkspace).then((items) => {
-      if (active) setIdeas(items);
-    }).catch((err: unknown) => {
-      if (active) setError(safeMessage(err));
-    });
-    return () => { active = false; };
-  }, [clients.cloud, identity?.id, selectedWorkspace, view]);
 
   const resetNotice = () => { setMessage(''); setError(''); };
   const redirectTo = () => window.location.origin + '/cloud';
@@ -182,21 +165,6 @@ export function CloudAccountPage() {
       setSelectedWorkspace(id);
       setWorkspaceName('');
       setMessage('Workspace created and saved in your Cloud account.');
-    } catch (err) { setError(safeMessage(err)); }
-    finally { setBusy(false); }
-  }
-
-  async function createIdea(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!clients.cloud || !selectedWorkspace || busy) return;
-    resetNotice();
-    setBusy(true);
-    try {
-      await clients.cloud.createContentItem(selectedWorkspace, ideaTitle);
-      const updated = await clients.cloud.listContentItems(selectedWorkspace);
-      setIdeas(updated);
-      setIdeaTitle('');
-      setMessage('Content idea saved in your cloud workspace.');
     } catch (err) { setError(safeMessage(err)); }
     finally { setBusy(false); }
   }
@@ -334,24 +302,14 @@ export function CloudAccountPage() {
               </form>
             </div>
 
-            {selectedWorkspace && (
-              <div className="rounded-xl border bg-white p-5">
-                <h2 className="mb-2 text-lg font-semibold">Cloud content ideas</h2>
-                <p className="mb-4 text-xs text-zinc-600">These are saved on the server, not in the local demo.</p>
-                <form onSubmit={createIdea} className="mb-4 flex flex-wrap gap-2">
-                  <input className={field + ' min-w-48 flex-1'} required maxLength={240}
-                    value={ideaTitle} onChange={(e) => setIdeaTitle(e.target.value)}
-                    placeholder="New idea title" aria-label="New cloud idea title"/>
-                  <button className={button} type="submit" disabled={busy}>Save idea</button>
-                </form>
-                {ideas.length === 0 ? <p className="text-sm text-zinc-500">No saved ideas yet.</p> : (
-                  <ul className="list-disc space-y-2 pl-5 text-sm">
-                    {ideas.map((idea) => <li key={idea.id}>{idea.title}</li>)}
-                  </ul>
-                )}
-              </div>
+            {selectedWorkspace && clients.cloud && (
+              <CloudPipelinePanel
+                key={identity.id + ':' + selectedWorkspace}
+                cloud={clients.cloud}
+                workspaceId={selectedWorkspace}
+              />
             )}
-            <p className="text-xs text-zinc-600">The Composer, Calendar, social accounts and media library remain local-only in this implementation stage. No publishing is enabled.</p>
+            <p className="text-xs text-zinc-600">Cloud ideas and workflow stages are stored remotely. Composer, Calendar, social accounts, and media remain local-demo-only. Changing a workflow stage never publishes a post.</p>
           </section>
         )}
       </div>

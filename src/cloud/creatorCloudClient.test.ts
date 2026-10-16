@@ -160,3 +160,135 @@ test('user JWT payloads containing non-ASCII metadata remain valid UTF-8', async
   });
   assert.deepEqual(await client.listWorkspaces(), []);
 });
+
+test('complete idea is persisted in one atomic, RLS-scoped insert', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      calls++;
+      assert.equal(init?.method, 'POST');
+      assert.match(String(input), /\/creator_content_items\?select=\*/);
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      const body = JSON.parse(String(init?.body));
+      assert.deepEqual(body, {
+        workspace_id: workspaceId,
+        title: 'Full video idea',
+        notes: 'A researched angle',
+        format: 'long',
+        platforms: ['youtube'],
+        target_date: '2026-12-03',
+      });
+      return new Response(JSON.stringify([{ id: userId, ...body }]), {
+        status: 201, headers: { 'Content-Type': 'application/json' },
+      });
+    },
+  });
+  const created = await client.createContentItem(workspaceId, ' Full video idea ', {
+    notes: 'A researched angle', format: 'long', platforms: ['youtube'],
+    target_date: '2026-12-03',
+  });
+  assert.equal(created.title, 'Full video idea');
+  assert.equal(calls, 1, 'create must not need a follow-up PATCH');
+});
+
+test('pipeline PATCH filters both workspace and item, returns exactly one confirmed item', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      calls++;
+      assert.equal(init?.method, 'PATCH');
+      const url = new URL(String(input));
+      assert.equal(url.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(url.searchParams.get('id'), 'eq.' + userId);
+      assert.equal(url.searchParams.get('select'), '*');
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        stage: 'script', title: 'Final title',
+      });
+      return new Response(JSON.stringify([{
+        id: userId, workspace_id: workspaceId, title: 'Final title', stage: 'script',
+      }]), { status: 200 });
+    },
+  });
+  const updated = await client.updateContentItem(workspaceId, userId,
+    { stage: 'script', title: ' Final title ' });
+  assert.equal(updated.stage, 'script');
+  assert.equal(calls, 1);
+});
+
+test('RLS zero-row update is an error, never a fake success', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => new Response('[]', { status: 200 }),
+  });
+  await assert.rejects(client.updateContentItem(workspaceId, userId,
+    { stage: 'research' }), /was not confirmed/);
+});
+
+test('RLS zero-row delete is an error and cannot masquerade as confirmed deletion', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => new Response('[]', { status: 200 }),
+  });
+  await assert.rejects(client.deleteContentItem(workspaceId, userId), /not confirmed/);
+});
+
+test('DELETE confirms one matching row and is always scoped to workspace and item ID', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async (input, init) => {
+      assert.equal(init?.method, 'DELETE');
+      const url = new URL(String(input));
+      assert.equal(url.searchParams.get('workspace_id'), 'eq.' + workspaceId);
+      assert.equal(url.searchParams.get('id'), 'eq.' + userId);
+      assert.equal(url.searchParams.get('select'), 'id,workspace_id');
+      assert.equal((init?.headers as Record<string, string>).Prefer, 'return=representation');
+      return new Response(JSON.stringify([{ id: userId, workspace_id: workspaceId }]), { status: 200 });
+    },
+  });
+  await client.deleteContentItem(workspaceId, userId);
+});
+
+test('validation rejects arbitrary fields, forged workspace, bad stages and future provider spoofing', async () => {
+  let calls = 0;
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => { calls++; return new Response('[]'); },
+  });
+  const badUpdates: unknown[] = [
+    { workspace_id: 'different-workspace' },
+    { id: 'different-id' },
+    { status: 'published' },
+    { stage: 'magically_published' },
+    { format: 'livestream' },
+    { platforms: ['youtube', 'youtube'] },
+    { platforms: ['youtube', 'unknown'] },
+    { title: ' ' },
+    { notes: 'x'.repeat(10001) },
+    { target_date: '2026-02-30' },
+    {},
+  ];
+  for (const update of badUpdates) {
+    await assert.rejects(client.updateContentItem(workspaceId, userId,
+      update as { title: string }), /Invalid|must have|at most/);
+  }
+  await assert.rejects(client.deleteContentItem(workspaceId, 'invalid-id'), /Invalid/);
+  await assert.rejects(client.createContentItem(workspaceId, 'Any', {
+    stage: 'published', workspace_id: 'forged-id',
+  } as never), /Invalid/);
+  assert.equal(calls, 0);
+});
+
+test('mismatched returned workspace is rejected despite a 2xx server response', async () => {
+  const client = createCreatorCloudClient({
+    ...opts,
+    fetchImpl: async () => new Response(JSON.stringify([{
+      id: userId, workspace_id: 'cccd92a0-01d6-4ebd-8dad-9eb810082891',
+    }]), { status: 200 }),
+  });
+  await assert.rejects(client.updateContentItem(workspaceId, userId,
+    { stage: 'research' }), /not confirmed/);
+  await assert.rejects(client.deleteContentItem(workspaceId, userId), /not confirmed/);
+});
