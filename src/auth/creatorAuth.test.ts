@@ -162,3 +162,102 @@ test('authentication errors never surface raw server secrets', async () => {
     return true;
   });
 });
+
+test('refresh cannot silently switch to a different user even with a verified-looking response', async () => {
+  const otherId = 'ec1406ab-c6e9-4ae6-9882-9d29809855cb';
+  let clock = 1000;
+  const auth = createCreatorAuth({ url, publishableKey, storage: fakeStorage(),
+    now: () => clock,
+    fetchImpl: (async (input) => {
+      if (String(input).includes('grant_type=refresh_token')) return json(response(otherId));
+      if (String(input).endsWith('/auth/v1/user')) {
+        return json({ id: uid, email: 'creator@example.test' });
+      }
+      return json(response());
+    }) as typeof fetch,
+  });
+  await auth.signIn('creator@example.test', 'password');
+  clock = 4000000;
+  assert.equal(await auth.getAccessToken(), null);
+  assert.equal(auth.identity(), null, 'foreign-user refresh must terminate the old session');
+});
+
+test('cached bearer is unavailable until Supabase verifies the restored session', async () => {
+  const storage = fakeStorage();
+  const seed = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async (input) => String(input).endsWith('/auth/v1/user')
+      ? json({ id: uid, email: 'creator@example.test' }) : json(response())) as typeof fetch,
+  });
+  await seed.signIn('creator@example.test', 'password');
+
+  let releaseVerification: ((result: Response) => void) | undefined;
+  const auth = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async (input) => {
+      assert.ok(String(input).endsWith('/auth/v1/user'));
+      return new Promise<Response>((resolve) => { releaseVerification = resolve; });
+    }) as typeof fetch,
+  });
+  const loading = auth.restore();
+  assert.ok(releaseVerification, 'restoration must first ask Supabase Auth');
+  assert.equal(auth.identity(), null, 'unverified storage must not count as sign-in');
+  assert.equal(await auth.getAccessToken(), null, 'no bearer before verification');
+  releaseVerification(json({ id: uid, email: 'creator@example.test' }));
+  assert.equal((await loading)?.id, uid);
+  assert.equal(await auth.getAccessToken(), makeJwt());
+});
+
+test('old pending restore cannot resurrect a session after logout', async () => {
+  const storage = fakeStorage();
+  const seed = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async (input) => String(input).endsWith('/auth/v1/user')
+      ? json({ id: uid, email: 'creator@example.test' }) : json(response())) as typeof fetch,
+  });
+  await seed.signIn('creator@example.test', 'password');
+
+  let finishOldRequest: ((value: Response) => void) | undefined;
+  const auth = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async () => new Promise<Response>((resolve) => { finishOldRequest = resolve; })) as typeof fetch,
+  });
+  const pending = auth.restore();
+  assert.ok(finishOldRequest);
+  await auth.signOut();
+  finishOldRequest(json({ id: uid, email: 'creator@example.test' }));
+  assert.equal(await pending, null);
+  assert.equal(auth.identity(), null);
+  assert.equal(await auth.getAccessToken(), null);
+  assert.equal(storage.data.size, 0, 'logout cleared the original tab session');
+});
+
+test('pending old restore cannot overwrite a later fresh login', async () => {
+  const otherId = 'ca8f5bcd-d3ad-4f1b-9466-87a7a1991d3a';
+  const storage = fakeStorage();
+  const seed = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async (input) => String(input).endsWith('/auth/v1/user')
+      ? json({ id: uid, email: 'creator@example.test' }) : json(response())) as typeof fetch,
+  });
+  await seed.signIn('creator@example.test', 'password');
+
+  let finishOldRequest: ((value: Response) => void) | undefined;
+  const auth = createCreatorAuth({ url, publishableKey, storage,
+    fetchImpl: (async (input, init) => {
+      const target = String(input);
+      if (target.includes('grant_type=password')) return json(response(otherId));
+      if (target.endsWith('/auth/v1/user')) {
+        const token = (init?.headers as Record<string, string>)?.Authorization;
+        if (token === 'Bearer ' + makeJwt(otherId)) {
+          return json({ id: otherId, email: 'another@example.test' });
+        }
+        return new Promise<Response>((resolve) => { finishOldRequest = resolve; });
+      }
+      return json({});
+    }) as typeof fetch,
+  });
+  const stale = auth.restore();
+  assert.ok(finishOldRequest);
+  const fresh = await auth.signIn('another@example.test', 'new-password');
+  assert.equal(fresh.id, otherId);
+  finishOldRequest(json({ id: uid, email: 'creator@example.test' }));
+  assert.equal(await stale, null);
+  assert.equal(auth.identity()?.id, otherId, 'new verified login survives stale restore');
+  assert.equal(await auth.getAccessToken(), makeJwt(otherId));
+});
