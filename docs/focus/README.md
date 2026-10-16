@@ -1,6 +1,6 @@
 # Creator Lab — V1 Focus Reset
 
-**Decision draft created 2026-10-15.** This focus layer deliberately shrinks the current project without deleting previously implemented code or existing roadmap evidence. Founder sign-off and PR merge are required before treating it as an approved scope change.
+**Current implementation default adopted through merged PR #34, updated 2026-10-16.** This focused M1/M2 delivery framework deliberately shrinks the scope without deleting existing code. Material changes to product scope or costs still require the owner's explicit decision.
 
 ## 1. What happened
 Features, analytics, experiments, multiple platforms, design and monetization requirements accumulated ahead of the first fully working customer experience. As of 2026-10-15, `main` is a mainly local browser prototype; multiple real backend/cloud implementation slices exist in **open, stacked PRs**, not merged `main`. In addition, GitHub Actions has an unresolved pre-runner failure (issue #19). Delivery risk is now integration, proof and scope control, **not lack of screens**.
@@ -60,7 +60,7 @@ No component redesign without a defined customer pain. No "more functions" as a 
 - **Acceptance criteria + Definition of Done:** measured behaviors, failed paths, E2E evidence; no "looks finished" status.
 - **Weekly founder review (when invoked):** demo of one complete user journey, bug list and single next milestone; not an automatic background update.
 
-## 7. Decision log — proposal not yet approved
+## 7. Decision log — current scope guardrails
 - F-001: Freeze feature expansion and distinguish M1 manual beta from M2 real publishing.
 - F-002: Target solo creators first; test with five suitable users rather than assume a paying market.
 - F-003: Preserve code already built; do not merge untested stacked PRs or rebuild same feature.
@@ -68,7 +68,7 @@ No component redesign without a defined customer pain. No "more functions" as a 
 - F-005: Do not implement billing or full experiments before a usable, verified core unless founder explicitly changes scope.
 - F-006: Every future agent checks focus + `main` + PR dependencies + CI before work.
 
-These proposed focus decisions narrow the larger aspirational plans in `docs/v1/` and in PR #17. If adopted, revise those old documents to clearly separate **now, beta, first verified V1, later** instead of having contradictory MUST lists.
+These scope guardrails supersede broader unmerged aspirations, including PR #17. Actual implementation and real-user validation still remain incomplete. See [NEXT_ACTIONS.md](NEXT_ACTIONS.md) and [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36).
 
 ## 8. User validation, not fiction
 Recruit ~5 prospective solo creators; observe them starting from a clean account, drafting, finding media, planning, exporting. Record task completion, major confusion, time-to-first-completed-draft and willingness to re-use/pay. No claim of demand until observed. Success bar proposal: 4/5 complete the main beta task without direct intervention and no loss or exposure of data. Record failures and fix highest-impact friction before feature expansion.
