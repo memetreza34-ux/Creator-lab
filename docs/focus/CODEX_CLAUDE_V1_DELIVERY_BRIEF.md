@@ -2,6 +2,10 @@
 
 **Inspected 2026-10-16.** Intended working base: current `main` starting at `e5c4a4f22cb11f31090af325eb81fec3e54b6c81`; re-fetch before branching. Owner/agent responsibilities are in [AI_OWNERSHIP_V1.md](AI_OWNERSHIP_V1.md). **Do not implement this brief automatically:** Codex must be explicitly invoked; Claude follows when a reviewable PR exists.
 
+## Open-PR inventory after 2026-10-16 cleanup
+
+The only open PRs are the **six source DRAFTS** [#39](https://github.com/memetreza34-ux/Creator-lab/pull/39), [#25](https://github.com/memetreza34-ux/Creator-lab/pull/25), [#26](https://github.com/memetreza34-ux/Creator-lab/pull/26), [#27](https://github.com/memetreza34-ux/Creator-lab/pull/27), [#29](https://github.com/memetreza34-ux/Creator-lab/pull/29), and [#31](https://github.com/memetreza34-ux/Creator-lab/pull/31). Older [#4](https://github.com/memetreza34-ux/Creator-lab/pull/4), [#8](https://github.com/memetreza34-ux/Creator-lab/pull/8), and [#22](https://github.com/memetreza34-ux/Creator-lab/pull/22) were **reviewed and closed without merge** due to scope/conflicts; commits remain readable. Do not cherry-pick old blanket redesigns. [PR_MERGE_MAP.md](PR_MERGE_MAP.md) records precisely what is already in `main` and what was deferred, including the important Experiment Lab truth gap and remaining Composer keyboard QA. This cleanup does **not** mean #36 passed or that cloud features were implemented.
+
 ## Product choice (no re-design, no broad scope)
 
 Deliver one secure **invite-only M1**: actual email Auth, own workspace, idea, draft/caption and per-platform text variants, private file upload/preview/attachment, **manual date/time plan in workspace timezone**, human-controlled copy/export/download. Multi-device data should roundtrip through Cloud. **No auto-publishing, OAuth connections, fake analytics, billing, client-forged scheduled/published statuses or unauthenticated paid AI.**
