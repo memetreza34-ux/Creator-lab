@@ -85,13 +85,17 @@ A cross-user read returning nonempty rows or a foreign write succeeding is a
 **release-stopping security incident**. Pause cloud rollout, assess RLS, remediate,
 rerun a fresh integration check. Report only check names/results, not JWTs.
 
-## Execution note
+## Execution note (updated 2026-10-16)
 
-The GitHub-hosted CI runner is currently blocked before first step
-[Issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19).
-Even when CI is restored, keep live tests **manually opted in** and separated
-from default PR checks: they mutate dedicated staging data and require secrets.
-Do not store those secrets as public variables or print token values.
+GitHub Actions runners have recovered; the historical [issue #19](https://github.com/memetreza34-ux/Creator-lab/issues/19) is closed.
+Default PR checks run **credential-free offline fixtures only**. To execute actual
+two-user Auth-issued JWT + private Storage acceptance, follow
+[LIVE_RLS_ACTIONS_RUNBOOK.md](./LIVE_RLS_ACTIONS_RUNBOOK.md), which defines a
+separate **manually dispatched, main-only** GitHub Actions workflow and five
+encrypted Actions secrets. Never store credentials in commits, issues, PR
+comments, public variables, screenshots or raw logs. A dedicated trusted
+local execution is also supported. Do not mistake the workflow's existence
+for a successful real security audit.
 
 ## Verification status, 2026-10-11
 
