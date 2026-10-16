@@ -118,3 +118,12 @@ This **does not** replace actual issued-JWT isolation testing.
 GitHub Actions now starts jobs on new runs: PR #16 run [37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) retry passed tests, TypeScript, build. The updated workflow in merged PR #33 enables stacked PR CI. This branch explicitly adds the **credential-free offline auth/RLS fixture** to the default `npm test` command, so this check must pass in CI before considering the test harness reviewed.
 
 Next required action: provision two independent disposable *confirmed* Supabase Auth test users through a secure owner-managed channel and run the opt-in live harness. Do not commit or share emails/passwords/tokens in the PR. The test script must verify its own scoped cleanup. Review the existing four signed-in SECURITY DEFINER helper-function advisory warnings separately; they are intentional membership/RPC entrypoints pending security approval, not automatically proven vulnerabilities.
+
+
+## Updated main integration checkpoint — 2026-10-16
+
+All six schema and hardening migration sources are now in `main` via merged PRs #16, #28 and #30, and their **matching migration version IDs** were found in the dedicated Creator Lab database. This verifies schema-source traceability, not real HTTP authorization.
+
+The corrected harness was successfully executed in GitHub Actions [run #38848199722](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38848199722): 86/86 unit tests and 9/9 explicit offline authorization harness tests passed, TypeScript and build passed. This branch's final rebased test results must be verified separately before merging.
+
+**Stop condition:** Auth currently had 0 users at the most recent inspection. A REAL issued-JWT two-user test is impossible to claim without two verified disposable sign-ins. Do not mark live RLS or storage protection PASSED on the basis of offline fixtures or synthetic SQL claims. Owner must provision separate confirmed users in the dedicated Supabase project and run the existing opt-in test securely; avoid storing test credentials in GitHub.
