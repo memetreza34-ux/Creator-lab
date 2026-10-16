@@ -46,8 +46,8 @@ const stages: { id: PipelineStage; label: string; description: string }[] = [
   { id: 'recording', label: 'Production', description: 'Filming or creating' },
   { id: 'editing', label: 'Editing', description: 'Post-production & review' },
   { id: 'ready', label: 'Ready', description: 'Approved for publishing' },
-  { id: 'scheduled', label: 'Scheduled', description: 'Queued on calendar' },
-  { id: 'published', label: 'Published', description: 'Live on channels' }
+  { id: 'scheduled', label: 'Planned', description: 'Locally planned on calendar' },
+  { id: 'published', label: 'Shared (manual)', description: 'User-reported; not provider verified' }
 ];
 
 interface DroppableColumnProps {

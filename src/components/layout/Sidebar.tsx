@@ -1,152 +1,46 @@
-
-import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  KanbanSquare, 
-  Files, 
-  Image as ImageIcon, 
-  BarChart3, 
-  Beaker, 
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles
-} from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, PenTool, CalendarDays, KanbanSquare, Files, Image as ImageIcon, Settings, Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-const navGroups = [
-  {
-    label: 'Overview',
-    items: [
-      { id: 'home', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    ]
-  },
-  {
-    label: 'Studio',
-    items: [
-      { id: 'calendar', label: 'Calendar', icon: CalendarDays, path: '/calendar' },
-      { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare, path: '/pipeline' },
-      { id: 'posts', label: 'Posts', icon: Files, path: '/posts' },
-      { id: 'media', label: 'Media Library', icon: ImageIcon, path: '/media' },
-    ]
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
-      { id: 'experiments', label: 'Experiment Lab', icon: Beaker, path: '/experiments' },
-    ]
-  }
+// M1 scope: advanced experiments, demo accounts and unsourced analytics stay in code,
+// but are deliberately not part of the first creator workflow.
+const links = [
+  { path: '/', label: 'Overview', icon: LayoutDashboard, end: true },
+  { path: '/pipeline', label: 'Ideas', icon: KanbanSquare },
+  { path: '/create', label: 'Create', icon: PenTool },
+  { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/posts', label: 'Posts', icon: Files },
+  { path: '/media', label: 'Media', icon: ImageIcon },
 ];
 
 export function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const location = useLocation();
-
   return (
-    <div className={cn(
-      "flex flex-col h-full bg-[#050505] text-zinc-400 border-r border-zinc-900 transition-all duration-300 z-20 shrink-0",
-      isCollapsed ? "w-[72px]" : "w-[260px]"
-    )}>
-      {/* Brand */}
-      <div className={cn(
-        "h-16 flex items-center border-b border-zinc-900/50 px-4",
-        isCollapsed ? "justify-center" : "justify-between"
-      )}>
-        {!isCollapsed && (
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 bg-white rounded flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.15)]">
-              <Sparkles className="w-4 h-4 text-black" />
-            </div>
-            <span className="text-[14px] font-serif font-bold tracking-wide text-white uppercase mt-0.5">Creator OS</span>
-          </div>
-        )}
-        {isCollapsed && (
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.15)]">
-            <Sparkles className="w-4.5 h-4.5 text-black" />
-          </div>
-        )}
-        {!isCollapsed && (
-          <button 
-            onClick={() => setIsCollapsed(true)}
-            className="p-1.5 text-zinc-500 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {isCollapsed && (
-        <div className="flex justify-center mt-4">
-          <button 
-            onClick={() => setIsCollapsed(false)}
-            className="p-1.5 text-zinc-500 hover:text-white transition-colors bg-zinc-900/50 rounded-md"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-6 space-y-8 no-scrollbar">
-        {navGroups.map((group, idx) => (
-          <div key={idx} className={cn("px-3", isCollapsed && "px-2")}>
-            {!isCollapsed && (
-              <h3 className="px-3 text-[10px] font-sans font-semibold text-zinc-600 tracking-[0.1em] uppercase mb-3">
-                {group.label}
-              </h3>
-            )}
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-                
-                return (
-                  <NavLink
-                    key={item.id}
-                    to={item.path}
-                    title={isCollapsed ? item.label : undefined}
-                    className={cn(
-                      'flex items-center rounded-lg text-[13px] font-medium transition-all group',
-                      isCollapsed ? 'justify-center p-2.5 mx-auto w-10 h-10' : 'w-full px-3 py-2',
-                      isActive 
-                        ? 'bg-zinc-900 text-white' 
-                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50'
-                    )}
-                  >
-                    <Icon className={cn(
-                      "w-4 h-4 shrink-0 transition-colors",
-                      !isCollapsed && "mr-3",
-                      isActive ? "text-white" : "text-zinc-500 group-hover:text-zinc-300"
-                    )} />
-                    {!isCollapsed && <span className="whitespace-nowrap font-sans">{item.label}</span>}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
+    <aside className="hidden md:flex w-[210px] lg:w-[234px] shrink-0 flex-col bg-[#050505] text-zinc-400 border-r border-zinc-900">
+      <NavLink to="/" className="h-[68px] px-5 flex items-center gap-2.5 border-b border-zinc-900">
+        <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center"><Sparkles className="w-4 h-4 text-black" /></span>
+        <span className="text-sm font-semibold tracking-wide text-white">Creator Lab</span>
+      </NavLink>
+      <div className="px-3 pt-6 pb-2 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">Your workflow</div>
+      <nav className="flex-1 px-3 space-y-1" aria-label="Main navigation">
+        {links.map(({ path, label, icon: Icon, end }) => (
+          <NavLink key={path} to={path} end={end} className={({ isActive }) => cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors',
+            isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-900 hover:text-white',
+          )}>
+            <Icon className="w-4 h-4 shrink-0" />
+            {label}
+          </NavLink>
         ))}
       </nav>
-
-      {/* Footer Settings */}
-      <div className={cn("p-4 border-t border-zinc-900", isCollapsed && "px-2 flex justify-center")}>
-        <NavLink 
-          to="/settings"
-          title={isCollapsed ? 'Settings' : undefined}
-          className={cn(
-            'flex items-center rounded-lg text-[13px] font-medium transition-all group',
-            isCollapsed ? 'justify-center p-2.5 w-10 h-10' : 'w-full px-3 py-2',
-            location.pathname.startsWith('/settings') 
-              ? 'bg-zinc-900 text-white' 
-              : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50'
-          )}
-        >
-          <Settings className={cn("w-4 h-4 shrink-0", !isCollapsed && "mr-3", location.pathname.startsWith('/settings') ? "text-white" : "text-zinc-500 group-hover:text-zinc-300")} />
-          {!isCollapsed && <span className="font-sans">Settings</span>}
+      <div className="p-3 border-t border-zinc-900">
+        <NavLink to="/settings" className={({ isActive }) => cn(
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium',
+          isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-900 hover:text-white',
+        )}>
+          <Settings className="w-4 h-4" /> Settings
         </NavLink>
+        <p className="px-3 pt-3 text-[10px] leading-relaxed text-zinc-500">Beta preview · Data in this browser only</p>
       </div>
-    </div>
+    </aside>
   );
 }

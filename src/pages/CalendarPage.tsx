@@ -505,7 +505,7 @@ export function CalendarPage() {
                     >
                       <option value="all">All Statuses</option>
                       <option value="draft">Draft</option>
-                      <option value="scheduled">Scheduled</option>
+                      <option value="scheduled">Locally Planned</option>
                       <option value="published">Published</option>
                       <option value="needs_review">Needs Review</option>
                       <option value="failed">Failed</option>
@@ -544,7 +544,7 @@ export function CalendarPage() {
                       onChange={e => setAccountFilter(e.target.value)}
                       className="w-full border border-[#DCDCD8] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     >
-                      <option value="all">All Connected Accounts</option>
+                      <option value="all">All planning profiles</option>
                       {socialAccounts.map(acc => (
                         <option key={acc.id} value={acc.id}>{acc.displayName} ({acc.platform})</option>
                       ))}

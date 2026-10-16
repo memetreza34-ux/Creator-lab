@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
-  Experiment,
   MediaAsset,
   Platform,
   PlatformSpecificContent,
@@ -32,10 +31,8 @@ import {
   validateComposerDestinations,
 } from '../config/destinationCapabilities';
 import { AIResultPanel, AIHistoryItem } from '../components/composer/AIResultPanel';
-import { CreatorIntelligencePanel } from '../components/composer/CreatorIntelligencePanel';
 import { PlatformOptimizationModal } from '../components/composer/PlatformOptimizationModal';
 import { PlatformPreviewRenderer } from '../components/composer/previews/PlatformPreviews';
-import { getRecommendedPostingTimes, getPrimaryRecommendedTime } from '../utils/bestTimeEngine';
 import { getWorkspaceAccounts, getWorkspaceMedia } from '../utils/selectors';
 import { resolveMediaUrl } from '../utils/mediaStorage';
 import {
@@ -97,6 +94,7 @@ export function CreatePostPage() {
   const workspaceMedia = getWorkspaceMedia(state);
 
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [planningPlatforms, setPlanningPlatforms] = useState<Platform[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<'original' | Platform>('original');
   const [isScheduling, setIsScheduling] = useState(Boolean(dateParam));
   const [scheduleDate, setScheduleDate] = useState(dateParam);
@@ -195,6 +193,7 @@ export function CreatePostPage() {
       }
 
       if (existing) {
+        setPlanningPlatforms(existing.planningPlatforms || []);
         const availableAccountIds = new Set(
           availableAccounts.map((account) => account.id),
         );
@@ -233,6 +232,9 @@ export function CreatePostPage() {
       }
     } else if (platformsParam) {
       const targetPlatforms = platformsParam.split(',');
+      setPlanningPlatforms(targetPlatforms.filter(
+        (platform): platform is Platform => ['youtube', 'instagram', 'tiktok'].includes(platform),
+      ));
       const matchedAccountIds = availableAccounts
         .filter((account) => targetPlatforms.includes(account.platform))
         .map((account) => account.id);
@@ -281,7 +283,7 @@ export function CreatePostPage() {
   const hasDemoDestinations = destinationCapabilities.some(
     (capability) => capability.isDemo,
   );
-  const hasLocalOnlyDestinations = destinationCapabilities.some(
+  const hasLocalOnlyDestinations = selectedAccounts.length === 0 || destinationCapabilities.some(
     (capability) => !capability.canScheduleLive,
   );
   const canPublishLive =
@@ -292,7 +294,7 @@ export function CreatePostPage() {
   )?.publishBlockReason;
 
   const selectedPlatforms = Array.from(
-    new Set<Platform>(selectedAccounts.map((account) => account.platform)),
+    new Set<Platform>([...planningPlatforms, ...selectedAccounts.map((account) => account.platform)]),
   );
 
   const currentContentObj = activePreviewTab === 'original'
@@ -309,8 +311,6 @@ export function CreatePostPage() {
   const primaryPlatform = activePreviewTab !== 'original'
     ? activePreviewTab
     : selectedPlatforms[0];
-  const recommendedTime = getPrimaryRecommendedTime(primaryPlatform);
-  const bestTimes = getRecommendedPostingTimes(activeWorkspace?.id, primaryPlatform);
 
   const toggleAccount = (id: string) => {
     markDirty();
@@ -556,13 +556,25 @@ export function CreatePostPage() {
     setPlatformContents(nextPlatformContents);
   };
 
-  const handleSaveDraft = () => {
-    if (selectedAccounts.length === 0) {
-      toast.error('Select at least one destination account');
+  const handleCopyCurrentText = async () => {
+    if (!currentContentText.trim()) {
+      toast.error('Write some text before copying');
       return;
     }
+    try {
+      await navigator.clipboard.writeText(currentContentText);
+      toast.success('Text copied for manual posting. Your draft was not automatically saved.');
+    } catch {
+      toast.error('Could not copy text. Save the draft and export it from Posts instead.');
+    }
+  };
 
+  const handleSaveDraft = () => {
     const sanitized = getSanitizedComposerContent();
+    if (!sanitized.baseContent.caption.trim() && sanitized.baseContent.mediaIds.length === 0) {
+      toast.error('Add some text or media before saving a draft');
+      return;
+    }
     const existingPost = editId
       ? state.posts.find(
           (candidate) =>
@@ -579,6 +591,7 @@ export function CreatePostPage() {
       originalContent: sanitized.baseContent,
       platformContent: sanitized.platformContent,
       destinationAccountIds: selectedAccounts.map((account) => account.id),
+      planningPlatforms,
       sourceContentItemId:
         fromPipelineId || existingPost?.sourceContentItemId || undefined,
       createdAt: existingPost?.createdAt || new Date().toISOString(),
@@ -668,6 +681,7 @@ export function CreatePostPage() {
       originalContent: sanitized.baseContent,
       platformContent: sanitized.platformContent,
       destinationAccountIds: selectedAccounts.map((account) => account.id),
+      planningPlatforms,
       sourceContentItemId:
         fromPipelineId || existingPost?.sourceContentItemId || undefined,
       createdAt: existingPost?.createdAt || new Date().toISOString(),
@@ -702,6 +716,7 @@ export function CreatePostPage() {
     navigate('/calendar');
   };
 
+  /* Deferred statistical experiments: removed from first-release interaction.
   const handleCreateExperimentFromVariation = (
     variantContent: string,
     strategyName: string,
@@ -731,6 +746,7 @@ export function CreatePostPage() {
     toast.success(`Created Experiment "${newExperiment.name}"`);
     navigate('/experiments');
   };
+  */
 
   const uniqueCurrentMediaIds: string[] = Array.from(
     new Set<string>(currentMediaIds),
@@ -758,7 +774,7 @@ export function CreatePostPage() {
             <div>
               <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Composer</h1>
               <p className="text-[12px] text-zinc-500 mt-0.5">
-                Draft, optimize with Creator Intelligence, and schedule across all platforms
+                Create your content, save a draft and plan a manual publication. Nothing is published automatically.
               </p>
             </div>
 
@@ -769,10 +785,25 @@ export function CreatePostPage() {
             )}
           </div>
 
-          <div className="space-y-2.5">
+          <section aria-label="Manual target platforms" className="space-y-2">
+            <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Prepare for (optional)</p>
+            <div className="flex flex-wrap gap-2">
+              {(['youtube', 'instagram', 'tiktok'] as Platform[]).map(platform => {
+                const chosen = planningPlatforms.includes(platform);
+                return <button key={platform} type="button" aria-pressed={chosen}
+                  onClick={() => { markDirty(); if (chosen && activePreviewTab === platform) setActivePreviewTab('original'); setPlanningPlatforms(previous => chosen ? previous.filter(p => p !== platform) : [...previous, platform]); }}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${chosen ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-zinc-200 text-zinc-600'}`}>
+                  <PlatformIcon platform={platform} className="w-3.5 h-3.5" /> {PLATFORM_CONFIGS[platform].displayName}
+                </button>;
+              })}
+            </div>
+            <p className="text-[11px] text-zinc-500">Only prepares text and previews. No account is connected or content published.</p>
+          </section>
+
+          {availableAccounts.length > 0 && <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Destination Accounts ({selectedAccountIds.length})
+                Optional planning profiles ({selectedAccountIds.length})
               </label>
               <button
                 onClick={() => {
@@ -813,7 +844,7 @@ export function CreatePostPage() {
               })}
               {availableAccounts.length === 0 && (
                 <div className="text-[12px] text-zinc-500 italic bg-[#FAFAF9] p-3 rounded-lg border border-[#EBEBE9] w-full">
-                  No social accounts connected in this workspace. Visit Settings to connect channels.
+                  No planning profiles selected. You can still save a draft or choose a local calendar date. Social publishing is not connected.
                 </div>
               )}
             </div>
@@ -832,7 +863,7 @@ export function CreatePostPage() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-[#EBEBE9] pb-0.5">
@@ -1070,15 +1101,6 @@ export function CreatePostPage() {
               />
             )}
 
-            <CreatorIntelligencePanel
-              content={currentContentText}
-              platform={activePreviewTab !== 'original'
-                ? activePreviewTab
-                : selectedPlatforms[0]}
-              platforms={selectedPlatforms}
-              onApplyContent={handleContentChange}
-              onCreateExperiment={handleCreateExperimentFromVariation}
-            />
           </div>
         </div>
 
@@ -1095,12 +1117,12 @@ export function CreatePostPage() {
                     <button
                       onClick={() => {
                         markDirty();
-                        setScheduleTime(recommendedTime);
+                        setScheduleTime('18:00');
                       }}
                       className="text-[11px] font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded flex items-center transition-colors"
-                      title={`Prototype suggested time: ${recommendedTime}`}
+                      title="Set planning time to 18:00 (not an analytics recommendation)"
                     >
-                      <Sparkles className="w-3 h-3 mr-1" /> Suggested: {recommendedTime}
+                      <Clock className="w-3 h-3 mr-1" /> Use 18:00
                     </button>
                   </div>
                   <div className="flex gap-2">
@@ -1125,11 +1147,7 @@ export function CreatePostPage() {
                       className="w-28 border border-[#DCDCD8] rounded-lg px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </div>
-                  {bestTimes.length > 0 && (
-                    <div className="text-[10px] text-zinc-400 mt-1.5">
-                      Prototype suggestion: {bestTimes[0].dayName} at {bestTimes[0].time} ({bestTimes[0].reason})
-                    </div>
-                  )}
+
                 </div>
               )}
 
@@ -1158,25 +1176,17 @@ export function CreatePostPage() {
                 {isScheduling ? 'Scheduling' : 'Set Schedule'}
               </button>
 
-              <button
-                onClick={() => handleScheduleOrPublish(isScheduling ? 'scheduled' : 'published')}
-                disabled={!isScheduling && !canPublishLive}
-                title={!isScheduling && !canPublishLive ? firstPublishBlockReason || 'Live publishing is not available yet.' : undefined}
-                className={`flex items-center px-4 py-2 font-medium text-[12px] rounded-lg transition-colors shadow-xs disabled:cursor-not-allowed ${
-                  !isScheduling && !canPublishLive
-                    ? 'bg-zinc-300 text-zinc-600 hover:bg-zinc-300'
-                    : 'bg-brand-600 text-white hover:bg-brand-700'
-                }`}
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                {isScheduling
-                  ? hasLocalOnlyDestinations
-                    ? 'Schedule Locally'
-                    : 'Schedule Post'
-                  : canPublishLive
-                    ? 'Publish Now'
-                    : 'Live Publish Unavailable'}
-              </button>
+              {isScheduling ? (
+                <button onClick={() => handleScheduleOrPublish('scheduled')}
+                  className="inline-flex items-center px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 font-medium text-[12px] rounded-lg transition-colors shadow-xs">
+                  <Clock className="w-3.5 h-3.5 mr-1.5" /> Plan Locally
+                </button>
+              ) : (
+                <button onClick={() => void handleCopyCurrentText()} disabled={!currentContentText.trim()}
+                  className="inline-flex items-center px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-[12px] rounded-lg transition-colors shadow-xs">
+                  <Send className="w-3.5 h-3.5 mr-1.5" /> Copy Text
+                </button>
+              )}
             </div>
           </div>
         </div>

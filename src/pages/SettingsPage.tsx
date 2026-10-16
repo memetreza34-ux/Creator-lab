@@ -129,7 +129,7 @@ export function SettingsPage() {
         <div>
           <h1 className="text-[22px] font-semibold text-zinc-900 tracking-tight">Workspace Settings</h1>
           <p className="text-[12px] text-zinc-500 mt-0.5">
-            Manage your brand profile, timezone, and multi-workspace organization
+            Manage workspace names and the timezone for local planning.
           </p>
         </div>
         <button
@@ -152,7 +152,7 @@ export function SettingsPage() {
                 {activeWorkspace?.name}
               </h3>
               <p className="text-[12px] text-zinc-500">
-                Current Active Workspace ({activeWorkspace?.plan?.toUpperCase()} Plan)
+                Current local workspace · Beta preview
               </p>
             </div>
           </div>
@@ -173,7 +173,7 @@ export function SettingsPage() {
             <div>
               <label className="block text-[12px] font-medium text-zinc-700 mb-1.5 flex items-center justify-between">
                 <span>Scheduling Timezone (IANA)</span>
-                <span className="text-[11px] text-zinc-400 font-normal">Controls publish times and best-time engine</span>
+                <span className="text-[11px] text-zinc-400 font-normal">Controls local calendar planning times</span>
               </label>
               <div className="relative">
                 <Globe className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
