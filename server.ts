@@ -66,7 +66,7 @@ async function startServer() {
       }
 
       const validated = validateAiRequest(req.body);
-      if (!validated.ok) {
+      if (validated.ok === false) {
         return res.status(400).json({ error: validated.error });
       }
       const { content, tool, platform, platforms, tone, weaknesses } = validated.value;
