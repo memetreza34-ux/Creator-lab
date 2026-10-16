@@ -2,10 +2,12 @@
 
 Snapshot: 2026-10-15. `main` at `06944b6d98a24f1fc4ad9024b582b65e5aca11e8` (2026-10-08). 19 PRs were open at audit time. **Proposed branches are NOT merged functionality.** Confirm freshness via GitHub before acting.
 
-## Fundamental blocker: no trustworthy CI
-- Issue [#19](https://github.com/memetreza34-ux/Creator-lab/issues/19): Actions jobs across unrelated PRs fail **before runner steps**, with absent meaningful logs. Root cause unknown, not evidence code failed. GitHub owner/admin should examine the failed-run banner, Actions permissions, billing/minutes and runner availability; do not assume billing is the cause.
-- Draft [#33](https://github.com/memetreza34-ux/Creator-lab/pull/33) broadens validation to stacked base branches and adds a diagnostics marker. It does **not** repair external runner provisioning by itself.
-- Do not claim test pass or perform blind merges. Reproduce `npm ci && npm test && npm run lint && npm run build` on the exact candidate branch; log results. Server/DB acceptance separately.
+## CI recovered, but live Auth acceptance still unverified (2026-10-16)
+- Historical issue [#19](https://github.com/memetreza34-ux/Creator-lab/issues/19) documented runners failing before any step; the cause remains unknown. A **rerun of PR #16 on the exact previously failed head** now passed Checkout, npm ci, automated tests, TypeScript and production build: [run #37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) (attempt 2).
+- [PR #33](https://github.com/memetreza34-ux/Creator-lab/pull/33) was **merged into main on 2026-10-16** (merge SHA `564005e92f3f2cb3e5976bae3ff922e5f457aae2`); it adds stacked-base PR CI, diagnostics, read-only permissions, cancellation and timeout. It is not authorization to skip PR-specific checks.
+- Real dedicated Supabase project confirmed **active** with six migration versions (from #16/#28/#30), nine public creator tables with RLS enabled, private creator-media bucket, zero Auth users/workspaces/posts/media as checked on 2026-10-16. **True issued-JWT A/B acceptance remains NOT RUN**.
+- Security advisor reports four callable authenticated SECURITY DEFINER helpers (membership checks and workspace-create RPC). Their bodies use `auth.uid()` and fixed search_path. These are **review-required warnings**, not proven vulnerabilities. See [advisor documentation](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+- Verify each changed PR head through actual npm test/lint/build and record evidence. Database live Auth/Storage, browser and provider work require independent acceptance.
 
 ## Reuse existing work; no duplicates
 | PR | Function | Relationship / recommended disposition |
@@ -20,7 +22,7 @@ Snapshot: 2026-10-15. `main` at `06944b6d98a24f1fc4ad9024b582b65e5aca11e8` (2026
 | #22 | Stop fake statistical experiment winner claims | Low-risk honesty fix; compare with deferred Experiment UI |
 | #18 | Branding/navigation | Keep only coherent, low-risk cleanup; defer substantial design expansion |
 | #17 | Extensive 19-file delivery/market/SaaS master plan | **Already exists**; review, do not recreate. This focus reset should narrow its large MUST scope before it guides further expansion |
-| #33 | CI diagnostics for stacked PRs | Helpful, but not a substitute for fixing #19 |
+| #33 | CI diagnostics for stacked PRs | **MERGED in main on 2026-10-16**; no longer an open PR; validate specific stacked heads |
 | #8, #4 | Older phase audit PRs | Review for stale/duplicate changes against merged main and archive/close with explanation if superseded, never blind merge |
 
 Known notable facts (from PR descriptions; verification pending):
