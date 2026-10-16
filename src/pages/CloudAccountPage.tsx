@@ -107,15 +107,16 @@ export function CloudAccountPage() {
   useEffect(() => {
     if (!clients.cloud || !identity || view === 'recover') return;
     let active = true;
+    const requestUserId = identity.id;
     setError('');
     void clients.cloud.listWorkspaces().then((items) => {
-      if (active) {
+      if (active && clients.auth?.identity()?.id === requestUserId) {
         setWorkspaces(items);
         setSelectedWorkspace((previous) =>
           items.some((entry) => entry.id === previous) ? previous : (items[0]?.id ?? ''));
       }
     }).catch((err: unknown) => {
-      if (active) setError(safeMessage(err));
+      if (active && clients.auth?.identity()?.id === requestUserId) setError(safeMessage(err));
     });
     return () => { active = false; };
   }, [clients.cloud, identity?.id, view]);
@@ -126,11 +127,15 @@ export function CloudAccountPage() {
       return;
     }
     let active = true;
+    const requestUserId = identity.id;
+    const requestWorkspaceId = selectedWorkspace;
     setIdeas([]);
-    void clients.cloud.listContentItems(selectedWorkspace).then((items) => {
-      if (active) setIdeas(items);
+    void clients.cloud.listContentItems(requestWorkspaceId).then((items) => {
+      if (active && clients.auth?.identity()?.id === requestUserId &&
+          workspaceScopeRef.current === requestWorkspaceId) setIdeas(items);
     }).catch((err: unknown) => {
-      if (active) setError(safeMessage(err));
+      if (active && clients.auth?.identity()?.id === requestUserId &&
+          workspaceScopeRef.current === requestWorkspaceId) setError(safeMessage(err));
     });
     return () => { active = false; };
   }, [clients.cloud, identity?.id, selectedWorkspace, view]);
