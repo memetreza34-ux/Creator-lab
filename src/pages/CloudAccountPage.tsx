@@ -157,10 +157,13 @@ export function CloudAccountPage() {
         setMessage('If the account exists, password recovery instructions will be emailed.');
       } else if (view === 'recover') {
         await clients.auth.changePassword(password);
+        // A recovery link creates a live Auth session. Do not leave the user
+        // authenticated while the UI falsely displays the sign-in view.
+        await clients.auth.signOut();
         setPassword('');
         setConfirmPassword('');
         setView('login');
-        setMessage('Your password has been updated.');
+        setMessage('Password updated. Sign in with your new password.');
       }
     } catch (err) {
       setError(safeMessage(err));
