@@ -2,6 +2,8 @@
 
 **Aktiv ab 2026-10-16.** Gilt für `memetreza34-ux/Creator-lab`. Diese Datei regelt **wer an welcher Aufgabe arbeitet**. Sie ersetzt weder die Sicherheitsanforderungen in `AGENTS.md` noch die aktuellen Freigabe-Gates in `docs/focus/NEXT_ACTIONS.md`.
 
+**Konkrete Code-Übergabe:** [CODEX_CLAUDE_V1_DELIVERY_BRIEF.md](CODEX_CLAUDE_V1_DELIVERY_BRIEF.md) benennt die vorgefundenen Quell-Dateien, PR-Reihenfolge, einen Import-Fehler im alten #31-Stack, Codex-Tickets und Claude-Review-Prüfpunkte. [LIVE_PRIVILEGED_FUNCTION_REVIEW.md](../v1/LIVE_PRIVILEGED_FUNCTION_REVIEW.md) enthält die überprüften echten Supabase-Warnungen und was weiterhin unbekannt ist.
+
 ## Ein Eigentümer pro Aufgabe
 
 | Rolle | Führt aus | Übergibt | Nicht erlaubt / nicht zuständig |
