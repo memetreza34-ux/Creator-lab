@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { validateAiRequest } from "./src/server/aiRequest";
+import { allowLocalUnauthenticatedAi, validateAiRequest } from "./src/server/aiRequest";
 
 dotenv.config();
 
@@ -38,9 +38,14 @@ async function startServer() {
 
   // AI Suggest & Creator Intelligence Endpoint
   app.post("/api/ai/suggest", async (req, res) => {
-    // Public AI access without JWT/usage entitlements can exhaust paid model
-    // credits. Keep production fail-closed until Phase 4 Auth + metering exists.
-    if (process.env.NODE_ENV === 'production') {
+    // Production, missing NODE_ENV, proxy traffic and public dev access all
+    // fail closed. Only explicit local development over the loopback socket can
+    // use the prototype unauthenticated paid-model endpoint.
+    if (!allowLocalUnauthenticatedAi(
+      process.env.NODE_ENV,
+      process.env.CREATOR_LAB_ALLOW_LOCAL_AI,
+      req.socket.remoteAddress,
+    )) {
       return res.status(503).json({
         error: 'AI assistance is unavailable until secure account access is enabled.',
       });
