@@ -1,10 +1,10 @@
 # V1 Status
 
-Last updated: 2026-10-08
+Last updated: 2026-10-16 (phase 4 reconciliation)
 
 ## Current phase
 
-PHASE 3 — CALENDAR & SCHEDULING ENGINE
+PHASE 4 — CLOUD AUTH INTEGRATION (release pending)
 
 ## Overall status
 
@@ -163,36 +163,14 @@ Planning baseline established. Existing frontend is substantial, but production 
 - Phase 4 backend/auth requirements are specified in `docs/v1/phases/PHASE_04_BACKEND_AUTH.md`.
 - This work is **a local domain foundation only**, not a functioning server data layer or live publishing.
 
-## Phase 4 progress — Supabase infrastructure preparation
-
-- Supabase has been approved as Creator Lab's backend.
-- Account inspection found two existing INACTIVE projects, KlarKI Staging and memetreza34-ux's Project, but **no identified Creator Lab project**.
-- Existing projects were deliberately left untouched.
-- Added `supabase/migrations/20261009163035_creator_core_initial.sql`: database schema for workspaces, memberships, content, posts, social account demo records, per-account destinations, media, and private storage.
-- Added authenticated Row Level Security policies, ownership helper RPCs, a workspace-creation RPC, and cross-workspace foreign key constraints.
-- Added `supabase/verify/001_security_preflight.sql` for post-deployment catalog assertions.
-- Added `src/backend/schemaContract.test.ts` to catch removal of key RLS/ownership constraints in CI. This static test does not execute SQL or replace real user-session RLS verification.
-- Added `docs/v1/SUPABASE_SETUP.md` with deployment checklist, two-user authorization test matrix and credential safety boundaries.
-- Added publishable-only Supabase environment configuration placeholders to `.env.example`.
-- **Migration is NOT deployed and no Supabase project has been created.** Project organization and actual creation cost must be confirmed first.
-
-## Phase 4 Supabase provisioning and SQL verification update — 2026-10-09
-
-- A separate Creator Lab Supabase project (Frankfurt; ref `aoyrijspyygqoyeajxpf`) was created after a cost quote/confirmation of €0 per month. Existing Supabase projects were not modified.
-- Initial eight-table, RLS-enabled schema and private Storage bucket installed on the dedicated project. Applied migration versions: `20261009163035` (core), `20261009163313` (function ACL), `20261009163442` (guard-function permissions and composite FK indexes). Source filenames aligned to these versions.
-- Database SQL catalog preflight completed successfully after correcting two function delimiter errors and revoking explicit `anon` EXECUTE grants that Supabase provided to public schema functions by default.
-- Corrected two additional integrity weaknesses: owner timezone edits now require real timezone names, and destination accounts must match platform and connection mode.
-- Supabase database types generated and committed; missing FK indexes fixed. Four authenticated SECURITY DEFINER functions still trigger an advisor warning **by design**, and need live two-user authorization proof.
-- **Role matrix SQL PASS:** a second rollback-only DB probe verified owner/editor/viewer read-write boundaries and prevention of role escalation; eight public tables empty after test. This still simulates claims instead of exercising issued JWTs or Storage HTTP APIs.
-- **NOT DONE:** real Supabase Auth users/JWT testing, browser cloud data integration, actual media upload tests, OAuth secrets/publishing, checkout/entitlements. GitHub Actions still fails before runner steps; PR #16 must not be called CI green.
-
 ## Next exact task
 
-1. Get explicit organization selection and cost confirmation for a new **Creator Lab** Supabase project (Frankfurt region proposed).
-2. Create the dedicated project; apply migration only there, inspect RLS security advisors, and test with two separately authenticated users.
-3. Integrate `@supabase/supabase-js` Auth, authenticated workspace CRUD, relational Post/PostDestination persistence and private media storage; keep local demo mode separate and do not auto-import mock content.
-4. Finish the pending Phase 3 manual calendar browser test before marking Phase 3 accepted.
-5. Do not enable real OAuth, publishing, AI access control, or monetization before production server authorization is proven.
+- Dedicated Creator Lab Supabase project is provisioned with six applied migrations (2026-10-09 to 2026-10-11), nine RLS-enabled creator tables and private Storage. This commit adds only the versioned source for the initial three migrations. Later hardening sources remain in PR #28/#30 and must be integrated in dependency order.
+- Two distinct real Auth JWTs and private Storage negative tests still **not executed** (no real users at 2026-10-16 check). Never enable customer access before verification.
+- Add tested ownership checks for two independent users and multiple workspaces; do not build privileged write APIs before auth.
+- Plan safe import of user-entered browser-local data; do not import or disguise demonstration content as real user data.
+- Keep Phase 3 browser acceptance test open; code/CI success does not demonstrate real interactive calendar QA.
+- Do not enable OAuth/social publishing or a billing/Pro entitlement until underlying provider and server enforcement work.
 
 ## Validation evidence
 
@@ -207,4 +185,12 @@ PR #14 (Phase 3) previously passed tests, TypeScript and production build.
 
 **PHASE 2 — CONTENT OPERATIONS: COMPLETE**
 
-**Current phase: PHASE 3 — CALENDAR & SCHEDULING ENGINE**
+**Current phase: PHASE 4 — CLOUD AUTH INTEGRATION (not released)**
+
+## Verified repo reconciliation 2026-10-16
+
+- GitHub Actions PR #16 original head rerun [#37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) passed tests, TS check and production build; issue #19 is closed as recovered.
+- The six live migration **version IDs** match the three initial files here plus the status and draft-media security migrations from #28/#30. Exact live HTTP Auth RLS is NOT verified.
+- Main preserves PR #20's fail-closed Gemini endpoint and the new V1 focus rules. This source inclusion does not execute database schema mutations or activate Cloud routes.
+- Four authenticated SECURITY DEFINER advisor WARNs require signoff and real two-user Auth tests before public release. See https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable.
+- Next: include the already applied server-owned-status and draft/media hardening migrations without rerunning them, then run genuine issued-JWT storage isolation and integrate one Cloud user journey.
