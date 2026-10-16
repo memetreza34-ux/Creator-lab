@@ -6,16 +6,18 @@ Snapshot checked 2026-10-15. **This is a living work board, not a claim that che
 **Validate existing backend/cloud security work and integrate one real creator journey before building new features.** WIP limit: one principal implementation task; separate runner/admin triage may occur in parallel. No additional phase/feature ideas.
 
 ## NOW — single current priority (P0)
-**F-002: Review and reconcile existing applied Supabase migrations (#16/#28/#30), then run genuine 2-user JWT/Storage acceptance (#23/#32).**
+**F-002: Complete and document genuine 2-user JWT/Storage acceptance (#23/#32), after schema/catalog review (#16/#28/#30).**
 - Status update 2026-10-15: the historical pre-step GitHub Actions failure (#19) is **not currently reproduced on new branch PR #35**. Actions [run #38776708630](https://github.com/memetreza34-ux/Creator-lab/actions/runs/38776708630) completed Checkout, npm ci, **74/74 tests**, TypeScript and production build on commit `93a9aa6b0e4fc16d0484a7c0809e6c703281e64a`. This confirms runner capacity for that branch; the old root cause remains unknown and old PRs are **not** automatically validated.
-- Inspect actual dedicated Supabase migration history and security policies before further SQL. Re-run CI on the exact candidate schema/tests branches; do not merge blind.
+- **Live read-only verified 2026-10-16:** dedicated project `aoyrijspyygqoyeajxpf` is active; six migration entries exactly match #16/#28/#30 version names, nine Creator public tables have RLS, `creator-media` is a private bucket (50 MiB limit), and there are zero Auth users/workspaces/posts/media. All four advisor warnings relate to authenticated-callable SECURITY DEFINER helper functions; review but do not mislabel as confirmed exploit.
+- **CI confirmation:** PR #16 previous failed run [#37961296344](https://github.com/memetreza34-ux/Creator-lab/actions/runs/37961296344) retry succeeded (Checkout, npm ci, tests, TypeScript and build). CI PR #33 is now merged to main (`564005e92f3f2cb3e5976bae3ff922e5f457aae2`) for stacked base validation. This does not verify #23/#32 live JWT behavior.
+- Next: validate the exact offline #32 harness on updated CI, then run real Auth-issued JWT tests **only with two safely provisioned disposable test accounts**, using publishable-only credentials in a secure runner; record cross-user denial and cleanup. Do not expose passwords in GitHub.
 - Success is documented live database source match, two **genuine issued JWTs**, denied cross-user/workspace data and private media access, and reproducible evidence. Only then integrate existing cloud UI adapters.
 - Do not add new product features while this P0 dependency is open.
 
 ## NEXT — ordered backlog with exact acceptance gates
 | ID | Priority | Task (reuse PRs) | Done only when |
 |---|---|---|---|
-| F-002 | P0 | Review, consolidate and reproduce Supabase schema/migration source (#16/#28/#30). | Exact live schema/migration history matches reviewed source; no unsafe policy gap; apply/reapply avoided. |
+| F-002 | P0 | Reconcile six live schema migrations (#16/#28/#30); real Auth probes pending. | Versions and live RLS verified; deeper code diff + two-user permissions need signoff; do not rerun applied migrations. |
 | F-003 | P0 | Run real issued-JWT 2-user RLS/private media tests (#23/#32). | Cross-tenant read/write/download/delete denied; own legitimate workflow succeeds; reproducible logs/evidence recorded. |
 | F-004 | P0 | Integrate cloud Auth/session/pipeline/draft/media in dependency order (#24–#31). | Full real user flow persists after logout/reload/device change; no parallel local vs cloud data confusion; AI disabled safely if not auth-gated. |
 | F-005 | P0 | Finish one M1 vertical slice: idea → draft → upload/preview → platform text → timezone-local plan → manual copy/export. | Clean browser E2E, correct empty/error recovery, no fake publication, accessible small/mobile screens. |
