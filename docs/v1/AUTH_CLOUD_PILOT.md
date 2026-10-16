@@ -87,6 +87,30 @@ The app still needs automated browser E2E and rate-limit/abuse testing.
 - Security review: XSS/CSP, mail deliverability, session retention,
   signout from other tabs/devices, session revocation and restore.
 
-**CI caveat:** GitHub Actions issue #19 still prevents runner allocation.
-No repository test, build, deployment or production auth check is considered
-passed merely because the code is present.
+**CI updated 2026-10-16:** Historical runner issue #19 is closed and CI is operational.
+Actual PR #39 app/Offline JWT fixture tests, TypeScript checks and production builds are
+tracked in the PR and must be green on its exact final head. This is **not** evidence
+of a live Auth login or multi-user RLS/Storage isolation. Real testing is tracked
+in [issue #36](https://github.com/memetreza34-ux/Creator-lab/issues/36) using the
+[main-only gated workflow](https://github.com/memetreza34-ux/Creator-lab/actions/workflows/live-auth-rls.yml).
+As of the last live read-only inspection, **zero Auth users** were provisioned.
+
+## Auth race and recovery fixes in integration PR #39
+
+- Refresh responses must match the account that owns the original session; an
+  unexpected other-user refresh is rejected, not silently accepted.
+- Stored tab tokens are never made available through `getAccessToken()` before
+  Supabase Auth verifies or refreshes them. Concurrent restoration is deduplicated.
+- A stale restore cannot overwrite a more recent sign-in or resurrect a signed-out
+  tab. Regression tests cover these four cases.
+- After changing a password from a recovery link, the client signs out the recovery
+  session before displaying the **real sign-in screen**, rather than pretending the
+  user is logged out while keeping a live Auth identity.
+- Cloud workspace/idea UI responses are ignored if the account or workspace changed
+  while the network was pending. Cross-user data must not flash in the next account's
+  UI merely because a previous request finished late.
+
+These are **offline-tested mitigations**. Browser testing and review of implicit
+redirect flow/session storage XSS/CSRF assumptions remain mandatory release gates.
+Do not activate the isolated cloud pilot publicly or combine it with the local M1
+source of truth before the real two-user acceptance and full browser journey are green.
